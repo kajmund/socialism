@@ -14,7 +14,7 @@ from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
-from app.services.prompt_render import render_prompt
+from app.swe.prompt_render import render_prompt
 from app.swe.cache import DecisionCache, decision_cache_key
 from app.swe.runtime_errors import SweHandlerError
 from app.swe.runtime_validate import require_json_value, validate_output_schema

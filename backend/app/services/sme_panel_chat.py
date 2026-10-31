@@ -20,7 +20,7 @@ from app.database.models import (
 from app.schemas.sme import SmeMessageOut
 from app.schemas.workspace import DocumentMention
 from app.serializers import utcnow
-from app.services.prompt_render import prompt_template
+from app.swe.prompt_render import prompt_template
 from app.services.prompt_store import require_prompts_for_persona
 from app.services.sme_group_voice import GroupVoiceSession, raised_hand_line
 from app.services.sme_group_voice_turns import expert_group_reply, group_history, speaker_note
