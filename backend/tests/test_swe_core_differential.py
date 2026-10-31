@@ -191,3 +191,82 @@ def test_need_projection_round_trips_through_the_engine_shape() -> None:
     projected = project_need(fact="fact_a", subject="subject_a", priority="SUPPORTING")
     assert projected["priority"] == "SUPPORTING"
     assert projected["schema_version"] == 1
+
+
+def test_derived_needs_match_between_engine_and_adapter() -> None:
+    from app.swe.needs import read_derived_needs
+
+    declared = [
+        {"fact": "fact_a", "subject": "subject_a"},
+        {"fact": "fact_b", "subject": "subject_a"},
+        {"fact": "fact_a", "subject": "subject_b"},
+    ]
+    engine = swe_native.derive_needs(declared)
+    read = read_derived_needs(engine)
+    assert len(read) == len(declared)
+    assert [need["id"] for need in read] == [
+        "subject_a.fact_a",
+        "subject_a.fact_b",
+        "subject_b.fact_a",
+    ]
+    assert all(need["priority"] == "REQUIRED" for need in read)
+    assert all(need["cardinality"] == "SINGLE" for need in read)
+
+
+GATE_CASES = {
+    "all_resolved": (
+        [{"fact": "f", "subject": "s"}],
+        [{"fact": "f", "subject": "s", "status": "RESOLVED"}],
+    ),
+    "one_missing": ([{"fact": "f", "subject": "s"}], []),
+    "ambiguous_blocks": (
+        [{"fact": "f", "subject": "s"}],
+        [{"fact": "f", "subject": "s", "status": "AMBIGUOUS"}],
+    ),
+    "partial_of_three": (
+        [
+            {"fact": "f", "subject": "s1"},
+            {"fact": "f", "subject": "s2"},
+            {"fact": "f", "subject": "s3"},
+        ],
+        [{"fact": "f", "subject": "s1", "status": "RESOLVED"}],
+    ),
+}
+
+
+@pytest.mark.parametrize("case", sorted(GATE_CASES))
+def test_operation_gate_matches_between_engine_and_adapter(case: str) -> None:
+    from app.swe.needs import read_operation_gate
+
+    required, states = GATE_CASES[case]
+    engine = swe_native.operation_gate("OP", required, states)
+    read = read_operation_gate(engine)
+    assert read["conclusion"] == engine["conclusion"]
+    assert read["satisfied"] == engine["satisfied"]
+    assert read["missing"] == list(engine["missing"])
+
+
+def test_the_gate_can_never_report_ready_with_a_missing_input() -> None:
+    """The failure mode that matters: a partial investigation must abstain."""
+    from app.swe.needs import read_operation_gate
+
+    required, states = GATE_CASES["partial_of_three"]
+    engine = swe_native.operation_gate("OP", required, states)
+    read = read_operation_gate(engine)
+    assert read["conclusion"] == "INSUFFICIENT_EVIDENCE"
+    assert read["satisfied"] is False
+    assert len(read["missing"]) == 2
+
+
+def test_the_gate_cannot_be_talked_into_ready_by_an_unknown_status() -> None:
+    from app.swe.needs import read_operation_gate
+
+    with pytest.raises(Exception, match="unknown need status"):
+        swe_native.operation_gate(
+            "OP",
+            [{"fact": "f", "subject": "s"}],
+            [{"fact": "f", "subject": "s", "status": "PROBABLY"}],
+        )
+    # And an unknown conclusion from the wire is refused, not reinterpreted.
+    with pytest.raises(ValueError, match="unknown gate conclusion"):
+        read_operation_gate({"schema_version": 1, "satisfied": True, "conclusion": "maybe"})

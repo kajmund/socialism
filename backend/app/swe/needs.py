@@ -26,6 +26,7 @@ CARDINALITIES = frozenset({"SINGLE", "MULTIPLE", "UNKNOWN"})
 ADMISSIBILITIES = frozenset({"Admitted", "NotAdmitted", "Uncertain"})
 NEED_STATUSES = frozenset({"UNRESOLVED", "RESOLVED", "AMBIGUOUS"})
 CONCLUSIONS = frozenset({"answered", "INSUFFICIENT_EVIDENCE"})
+GATE_CONCLUSIONS = frozenset({"ready", "INSUFFICIENT_EVIDENCE"})
 EVIDENCE_STATUSES = frozenset({"VERIFIED", "AMBIGUOUS", "REJECTED"})
 
 
@@ -193,6 +194,46 @@ def read_operation_outcome(payload: Mapping[str, Any]) -> dict[str, Any]:
         "detail": payload.get("detail", ""),
         "missing": list(payload.get("missing") or ()),
     }
+
+
+def read_operation_gate(payload: Mapping[str, Any]) -> dict[str, Any]:
+    """Read the gate verdict the engine computed.
+
+    ``INSUFFICIENT_EVIDENCE`` is the engine's decision. This reports it; it must
+    never turn a refusal into a ready operation.
+    """
+    gated_version = payload.get("schema_version")
+    _require(
+        gated_version == OPERATION_OUTCOME_VERSION,
+        f"unsupported operation gate schema_version {gated_version!r}",
+    )
+    conclusion = payload.get("conclusion")
+    _require(
+        conclusion in GATE_CONCLUSIONS,
+        f"unknown gate conclusion {conclusion!r}",
+    )
+    return {
+        "satisfied": bool(payload.get("satisfied")),
+        "conclusion": conclusion,
+        "detail": payload.get("detail", ""),
+        "missing": list(payload.get("missing") or ()),
+    }
+
+
+def read_derived_needs(payload: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    """Read the needs the engine derived from a declaration."""
+    needs: list[dict[str, Any]] = []
+    for item in payload:
+        needs.append(
+            {
+                "fact": _text(item.get("fact"), "fact"),
+                "subject": _text(item.get("subject"), "subject"),
+                "id": _text(item.get("id"), "id"),
+                "priority": item.get("priority"),
+                "cardinality": item.get("cardinality"),
+            }
+        )
+    return needs
 
 
 def project_need_states(

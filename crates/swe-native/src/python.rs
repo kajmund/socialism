@@ -25,6 +25,8 @@ fn swe_native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(py_canonical_json_bytes, m)?)?;
     m.add_function(wrap_pyfunction!(py_evaluate_expression, m)?)?;
     m.add_function(wrap_pyfunction!(py_resolve_evidence, m)?)?;
+    m.add_function(wrap_pyfunction!(py_derive_needs, m)?)?;
+    m.add_function(wrap_pyfunction!(py_operation_gate, m)?)?;
     Ok(())
 }
 
@@ -565,6 +567,124 @@ fn assessment_from_json(value: &Json) -> std::result::Result<EvidenceAssessment,
             .unwrap_or_default()
             .to_string(),
         provenance,
+    })
+}
+
+#[pyfunction]
+#[pyo3(name = "derive_needs")]
+fn py_derive_needs(_py: Python<'_>, required: Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
+    let required = json_from_py(&required)?;
+    let items = required
+        .as_array()
+        .ok_or_else(|| PyValueError::new_err("required must be an array"))?;
+    let needs = items
+        .iter()
+        .map(need_from_json)
+        .collect::<std::result::Result<Vec<_>, _>>()
+        .map_err(runtime_to_py_unknown)?;
+    let derived = crate::needs::derive_needs(&needs);
+    Python::with_gil(|py| {
+        let payload = Json::Array(
+            derived
+                .iter()
+                .map(|need| {
+                    object_json(vec![
+                        ("schema_version", Json::from_u64(1)),
+                        ("fact", Json::String(need.reference.fact.clone())),
+                        ("subject", Json::String(need.reference.subject.clone())),
+                        ("id", Json::String(need.reference.id())),
+                        ("priority", Json::String(need.priority.as_str().to_string())),
+                        (
+                            "cardinality",
+                            Json::String(need.cardinality.as_str().to_string()),
+                        ),
+                    ])
+                })
+                .collect(),
+        );
+        json_to_py(py, &payload)
+    })
+}
+
+#[pyfunction]
+#[pyo3(name = "operation_gate")]
+fn py_operation_gate(
+    _py: Python<'_>,
+    operation: &str,
+    required: Bound<'_, PyAny>,
+    states: Bound<'_, PyAny>,
+) -> PyResult<Py<PyAny>> {
+    let required = json_from_py(&required)?;
+    let states = json_from_py(&states)?;
+    let inputs = required
+        .as_array()
+        .ok_or_else(|| PyValueError::new_err("required must be an array"))?
+        .iter()
+        .map(need_from_json)
+        .collect::<std::result::Result<Vec<_>, _>>()
+        .map_err(runtime_to_py_unknown)?;
+    let mut resolved: Vec<(NeedRef, crate::needs::NeedStatus)> = Vec::new();
+    for state in states
+        .as_array()
+        .ok_or_else(|| PyValueError::new_err("states must be an array"))?
+    {
+        let need = need_from_json(state).map_err(runtime_to_py_unknown)?;
+        let status = match state.get("status").and_then(Json::as_str) {
+            Some("RESOLVED") => crate::needs::NeedStatus::Resolved,
+            Some("AMBIGUOUS") => crate::needs::NeedStatus::Ambiguous,
+            Some("UNRESOLVED") => crate::needs::NeedStatus::Unresolved,
+            other => {
+                return Err(PyValueError::new_err(format!(
+                    "unknown need status {other:?}"
+                )))
+            }
+        };
+        resolved.push((need, status));
+    }
+    let spec = crate::operations::OperationSpec::new(operation, inputs);
+    with_gelf_placeholder(&spec, &resolved)
+}
+
+fn with_gelf_placeholder(
+    spec: &crate::operations::OperationSpec,
+    resolved: &[(NeedRef, crate::needs::NeedStatus)],
+) -> PyResult<Py<PyAny>> {
+    let verdict = spec.gate(resolved);
+    Python::with_gil(|py| {
+        let payload = match &verdict {
+            Ok(()) => object_json(vec![
+                ("schema_version", Json::from_u64(1)),
+                ("satisfied", Json::Bool(true)),
+                ("conclusion", Json::String("ready".to_string())),
+                ("missing", Json::Array(Vec::new())),
+            ]),
+            Err(failure) => object_json(vec![
+                ("schema_version", Json::from_u64(1)),
+                ("satisfied", Json::Bool(false)),
+                (
+                    "conclusion",
+                    Json::String("INSUFFICIENT_EVIDENCE".to_string()),
+                ),
+                ("detail", Json::String(failure.to_string())),
+                (
+                    "missing",
+                    Json::Array(
+                        failure
+                            .missing
+                            .iter()
+                            .map(|input| {
+                                object_json(vec![
+                                    ("fact", Json::String(input.need.fact.clone())),
+                                    ("subject", Json::String(input.need.subject.clone())),
+                                    ("status", Json::String(input.status.as_str().to_string())),
+                                ])
+                            })
+                            .collect(),
+                    ),
+                ),
+            ]),
+        };
+        json_to_py(py, &payload)
     })
 }
 
