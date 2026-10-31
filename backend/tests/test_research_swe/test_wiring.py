@@ -23,7 +23,7 @@ from app.services.overgraph.workflows import WorkflowRunStore
 from app.services.research import swe_bridge
 from app.services.research.execution import execute_attempt_research
 from app.services.research.models import ResearchPlan
-from app.swe.features import WorkflowHostContext
+from app.services.swe_host import WorkflowHostContext
 from tests.test_research_assessment import RecordingAssessor
 from tests.test_research_execution import RecordingSource, _created_attempt, _need, _router
 

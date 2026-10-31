@@ -26,13 +26,11 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
-from app.swe.cache import DecisionCache
 from app.swe.definition import CompiledDefinition
 from app.swe.runtime_clock import FrozenClock, WorkflowClock
 from app.swe.runtime_dispatch import (
     Handler,
     HandlerOutcome,
-    Provider,
     ProviderDispatch,
     cancel_all,
     cancel_invocations,
@@ -45,7 +43,12 @@ from app.swe.runtime_preflight import (
     assert_phase2_supported,
     assert_providers_registered,
 )
-from app.swe.run_store import InvocationRecord, RunRecord, RunStore
+from app.swe.run_store import (
+    InvocationRecord,
+    RunRecord,
+    RunStore,
+    WorkflowResources,
+)
 from app.swe.runtime_thaw import thaw_json
 
 
@@ -102,16 +105,6 @@ class _RunStart:
     last_seq: int
 
 
-@dataclass(frozen=True)
-class WorkflowResources:
-    """Optional run resources shared by the runner and provider dispatch."""
-
-    providers: Mapping[str, Provider] = field(default_factory=dict)
-    prompts: Mapping[str, str] | None = None
-    cache: DecisionCache | None = None
-    cancel_event: asyncio.Event | None = None
-
-
 def require_native() -> Any:
     if swe_native is None:
         raise SweRuntimeError(
@@ -157,6 +150,7 @@ class WorkflowRunner:
             self.resources.providers,
             self.resources.prompts,
             self.resources.cache,
+            prompt_keys=self.resources.prompt_keys,
         )
         machine = native.Machine()
         run_id = run_id or f"run-{uuid.uuid4().hex[:12]}"
@@ -212,6 +206,7 @@ class WorkflowRunner:
             self.resources.providers,
             self.resources.prompts,
             self.resources.cache,
+            prompt_keys=self.resources.prompt_keys,
         )
         machine = native.Machine()
         clock = self.clock or WorkflowClock()

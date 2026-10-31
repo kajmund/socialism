@@ -7,8 +7,8 @@ from pathlib import Path
 import pytest
 
 from app.swe.errors import SwdValidationError
-from app.swe.features import WorkflowHostContext, workflow_catalog_dir
-from app.swe.schema import FEATURE_IDS
+from app.services.swe_host import WorkflowHostContext, workflow_catalog_dir
+from app.services.swe_host.context import FEATURE_IDS
 
 
 def test_catalog_dir_is_per_customer_and_feature(tmp_path: Path) -> None:

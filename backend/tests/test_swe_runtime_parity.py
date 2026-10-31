@@ -11,7 +11,12 @@ from app.swe.expression import evaluate_expression
 from app.swe.freeze import freeze_json
 from app.swe.runtime import require_native
 from app.swe.yaml_load import load_swd_json, load_swd_yaml
-from tests.swe.helpers import EXAMPLE_HANDLERS, EXAMPLE_PROVIDERS, FIXTURES
+from tests.swe.helpers import (
+    EXAMPLE_HANDLERS,
+    EXAMPLE_PROMPT_KEYS,
+    EXAMPLE_PROVIDERS,
+    FIXTURES,
+)
 from app.swe.definition import compile_definition
 
 pytestmark = pytest.mark.swe_runtime
@@ -44,11 +49,13 @@ def test_yaml_json_sha_matches_across_languages() -> None:
         load_swd_json((FIXTURES / "research_parallel.json").read_text(encoding="utf-8")),
         handlers=EXAMPLE_HANDLERS,
         providers=EXAMPLE_PROVIDERS,
+        prompt_keys=EXAMPLE_PROMPT_KEYS,
     )
     compiled_yaml = compile_definition(
         load_swd_yaml((FIXTURES / "research_parallel.yaml").read_text(encoding="utf-8")),
         handlers=EXAMPLE_HANDLERS,
         providers=EXAMPLE_PROVIDERS,
+        prompt_keys=EXAMPLE_PROMPT_KEYS,
     )
     assert compiled_json.sha256 == compiled_yaml.sha256
     assert compiled_json.sha256 == sha256_hex(compiled_json.document)

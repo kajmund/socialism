@@ -30,7 +30,7 @@ from app.schemas.domain import EXPERT_CHAT_MODE
 from app.serializers import profile_from_dict
 from app.services.expert_reasoning import bound_expert_profile
 from app.services.persona_chat import library_chat_filter
-from app.services.prompt_render import prompt_template
+from app.swe.prompt_render import prompt_template
 from app.services.prompt_store import require_prompts_for_persona
 
 logger = logging.getLogger(__name__)

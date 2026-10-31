@@ -10,7 +10,6 @@ from typing import Any
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError
 
-from app.services.prompt_catalog import PROMPT_KEY_SET
 from app.swe.canonicalize import canonicalize, canonical_json_bytes, sha256_hex
 from app.swe.errors import SwdValidationError
 from app.swe.freeze import freeze_json
@@ -44,7 +43,15 @@ def compile_definition(
     *,
     handlers: frozenset[str] | None = None,
     providers: frozenset[str] | None = None,
+    prompt_keys: frozenset[str] | None = None,
 ) -> CompiledDefinition:
+    """Compile and validate an SWD 1.0 document.
+
+    ``prompt_keys`` is the host's prompt-catalog allowlist. It is fail-closed:
+    a document that declares a provider decision must be given one, because a
+    provider decision renders a prompt that the host must be able to resolve.
+    A document without provider decisions may omit it.
+    """
     parsed = json_object(document)
     _assert_version(parsed)
     canonical = canonicalize(parsed)
@@ -52,7 +59,12 @@ def compile_definition(
     assert_known_node_types(canonical)
     _validate_schema(canonical)
     validate_graph(canonical)
-    _validate_registry(canonical, handlers=handlers, providers=providers)
+    _validate_registry(
+        canonical,
+        handlers=handlers,
+        providers=providers,
+        prompt_keys=prompt_keys,
+    )
     frozen = freeze_json(canonical)
     return CompiledDefinition(
         document=frozen,
@@ -68,8 +80,14 @@ def compile_swd_text(
     *,
     handlers: frozenset[str] | None = None,
     providers: frozenset[str] | None = None,
+    prompt_keys: frozenset[str] | None = None,
 ) -> CompiledDefinition:
-    return compile_definition(load_swd_text(raw), handlers=handlers, providers=providers)
+    return compile_definition(
+        load_swd_text(raw),
+        handlers=handlers,
+        providers=providers,
+        prompt_keys=prompt_keys,
+    )
 
 
 def _assert_version(document: dict[str, Any]) -> None:
@@ -103,6 +121,7 @@ def _validate_registry(
     *,
     handlers: frozenset[str] | None,
     providers: frozenset[str] | None,
+    prompt_keys: frozenset[str] | None,
 ) -> None:
     nodes = document["nodes"]
     for node_id, node in nodes.items():
@@ -110,7 +129,7 @@ def _validate_registry(
             _check_handler(node_id, node, handlers)
         elif node["type"] == "decision" and node.get("evaluator") == "provider":
             _check_provider(node_id, node, providers)
-            _check_prompt_key(node_id, node)
+            _check_prompt_key(node_id, node, prompt_keys)
 
 
 def _check_handler(
@@ -149,14 +168,25 @@ def _check_provider(
         )
 
 
-def _check_prompt_key(node_id: str, node: dict[str, Any]) -> None:
+def _check_prompt_key(
+    node_id: str,
+    node: dict[str, Any],
+    prompt_keys: frozenset[str] | None,
+) -> None:
     prompt_key = node.get("prompt_key")
     if not isinstance(prompt_key, str) or not PROMPT_KEY_RE.fullmatch(prompt_key):
         raise SwdValidationError(
             f"invalid prompt_key {prompt_key!r}",
             path=f"nodes.{node_id}.prompt_key",
         )
-    if prompt_key not in PROMPT_KEY_SET:
+    # Fail-closed: a provider decision must be validated against the host's
+    # prompt-catalog allowlist. There is no permissive path.
+    if prompt_keys is None:
+        raise SwdValidationError(
+            f"provider decision {node_id!r} requires a prompt_keys allowlist",
+            path=f"nodes.{node_id}.prompt_key",
+        )
+    if prompt_key not in prompt_keys:
         raise SwdValidationError(
             f"unknown prompt_key {prompt_key!r}",
             path=f"nodes.{node_id}.prompt_key",

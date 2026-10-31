@@ -19,6 +19,7 @@ from app.swe.yaml_load import load_swd_json, load_swd_yaml
 from tests.swe.helpers import (
     EXAMPLE_HANDLERS,
     EXAMPLE_PROMPT_KEY,
+    EXAMPLE_PROMPT_KEYS,
     EXAMPLE_PROVIDERS,
     FIXTURES,
 )
@@ -32,6 +33,7 @@ def _compile(document: object) -> CompiledDefinition:
         document,
         handlers=EXAMPLE_HANDLERS,
         providers=EXAMPLE_PROVIDERS,
+        prompt_keys=EXAMPLE_PROMPT_KEYS,
     )
 
 
@@ -46,6 +48,7 @@ def test_json_and_yaml_have_the_same_hash() -> None:
         EXAMPLE_YAML.read_text(encoding="utf-8"),
         handlers=EXAMPLE_HANDLERS,
         providers=EXAMPLE_PROVIDERS,
+        prompt_keys=EXAMPLE_PROMPT_KEYS,
     )
     assert json_doc.sha256 == yaml_doc.sha256
     assert yaml_doc.sha256 == text_doc.sha256
@@ -67,6 +70,7 @@ def test_unknown_handler_is_rejected() -> None:
             document,
             handlers=frozenset({"research.other"}),
             providers=EXAMPLE_PROVIDERS,
+            prompt_keys=EXAMPLE_PROMPT_KEYS,
         )
 
 
@@ -206,6 +210,61 @@ def test_unknown_prompt_key_is_rejected() -> None:
     document["nodes"]["evaluate"]["prompt_key"] = "research.not_a_catalog_key"
     with pytest.raises(SwdValidationError, match="unknown prompt_key"):
         _compile(document)
+
+
+def test_provider_node_without_prompt_keys_is_rejected() -> None:
+    """Fail-closed: a provider decision must be validated against an allowlist."""
+    document = json.loads(EXAMPLE_JSON.read_text(encoding="utf-8"))
+    with pytest.raises(SwdValidationError, match="requires a prompt_keys allowlist"):
+        compile_definition(
+            document,
+            handlers=EXAMPLE_HANDLERS,
+            providers=EXAMPLE_PROVIDERS,
+        )
+
+
+def test_provider_node_with_injected_prompt_keys_compiles() -> None:
+    document = json.loads(EXAMPLE_JSON.read_text(encoding="utf-8"))
+    compiled = compile_definition(
+        document,
+        handlers=EXAMPLE_HANDLERS,
+        providers=EXAMPLE_PROVIDERS,
+        prompt_keys=EXAMPLE_PROMPT_KEYS,
+    )
+    assert compiled.document["nodes"]["evaluate"]["prompt_key"] == EXAMPLE_PROMPT_KEY
+
+
+def test_unknown_prompt_key_is_rejected_against_injected_set() -> None:
+    document = json.loads(EXAMPLE_JSON.read_text(encoding="utf-8"))
+    document["nodes"]["evaluate"]["prompt_key"] = "research.not_in_set"
+    with pytest.raises(SwdValidationError, match="unknown prompt_key"):
+        compile_definition(
+            document,
+            handlers=EXAMPLE_HANDLERS,
+            providers=EXAMPLE_PROVIDERS,
+            prompt_keys=EXAMPLE_PROMPT_KEYS,
+        )
+
+
+def test_definition_without_provider_nodes_needs_no_prompt_keys() -> None:
+    """A pure expression/task workflow stays compilable without an allowlist."""
+    document = {
+        "version": "1.0",
+        "name": "no_provider",
+        "entrypoint": "check",
+        "limits": {"max_steps": 8, "max_depth": 2, "timeout_seconds": 30},
+        "nodes": {
+            "check": {
+                "type": "decision",
+                "evaluator": "expression",
+                "condition": {"eq": [{"var": "$.flag"}, {"const": True}]},
+                "routes": {"true": "done", "false": "done"},
+            },
+            "done": {"type": "end", "status": "completed"},
+        },
+    }
+    compiled = compile_definition(document)
+    assert compiled.name == "no_provider"
 
 
 def test_expression_routes_must_be_exactly_true_false() -> None:

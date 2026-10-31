@@ -11,7 +11,7 @@ import pytest
 
 pytest.importorskip("swe_native")
 
-from app.swe.features import WorkflowHostContext
+from app.services.swe_host import WorkflowHostContext
 from app.swe.run_store import InvocationRecord, RunRecord
 from app.swe.runtime import WorkflowRunner, resume_run, run_workflow
 from app.swe.runtime_clock import FrozenClock
