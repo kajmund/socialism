@@ -131,3 +131,4 @@ inventeringarnas Evidence-avsnitt, dels i referensexperimentets README.
 - OverGraph Owner-regelns tillämpning på SWE-kataloger är markerad osäker
   eftersom ingen SWE-katalog är produktionskopplad i dag.
 - Grova tidsuppskattningar i `07` är planeringsunderlag, inte åtaganden.
+- [`13-verification-standard.md`](13-verification-standard.md) — the review requirement: independent paths, one mutation per critical test, one implementation per rule.

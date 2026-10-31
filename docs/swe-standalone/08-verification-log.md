@@ -759,6 +759,84 @@ den på baslinjen. Det svagare men ärliga påståendet är: den rörs inte av
 Den bör åtgärdas separat (t.ex. genom att höja timeouten eller göra testet
 deterministiskt), inte blandas in i en arkitektur-PR.
 
+## 7.13 Runda 9: sista B3-kompletteringen inför GO
+
+Projektägarens beslut: stäng den sista skulden, verifiera gränserna, flytta
+sedan SWE — och lägg inte till cache, `ActionOffer` eller andra nya förmågor.
+
+### 1. En grind, inte två
+
+`all_required`, `GateResult` och `MissingInput` är **borttagna** ur
+referensdemon. `gate_inputs` projicerar nu demots evidens på kärnans
+`NeedStatus` och anropar `swe_native::OperationSpec::gate`; demon formaterar bara
+kärnans svar. Den enda regel som finns kvar i demon är mappningen
+Verified/Ambiguous/Rejected → Resolved/Ambiguous/Unresolved, vilket är demots
+eget vokabulär — inte en regel.
+
+Mutationsbevis:
+
+| Mutation | Fångas av |
+| --- | --- |
+| Demon ignorerar kärnans utfall (`_ => Ok(None)`) | 3 tester, bl.a. `the_demo_cannot_accept_an_input_the_engine_refuses` |
+| Demon mappar `AMBIGUOUS` som användbar | 2 tester |
+
+### 2. Dubblerade statusposter avvisas
+
+`OperationSpec::gate` returnerar nu `Result<(), GateError>`:
+
+```rust
+pub enum GateError {
+    DuplicateState { need: NeedRef },
+    Unsatisfied(GateFailure),
+}
+```
+
+- Dubbletter prövas **först**, så en dubblerad post kan aldrig bli en tyst
+  "första träff".
+- Även två **identiska** statusar avvisas: en behovspost som beskrivs två gånger
+  är en felaktig anropssignal, oavsett om värdena råkar stämma.
+- Felet namnger den `NeedRef` som är dubblerad och är deterministiskt: första
+  behovet som återkommer, i indataordning.
+- Det är **inte** en abstention: `unsatisfied()` är `None` och strängen börjar
+  inte med `INSUFFICIENT_EVIDENCE`. En bugg i värden får inte förklä sig som en
+  slutsats om världen.
+- Python-bindningen kastar `ValueError` med behovet namngivet.
+
+Ordningsoberoendet prövas från båda sidor — kärnan kräver samma fel för båda
+ordningarna, och Python-testet ställer samma krav **oberoende av
+engine-payloaden** (`pytest.raises`, fyra ordningskombinationer, plus ett test
+att en dubblett inte rapporteras som `INSUFFICIENT_EVIDENCE`).
+
+Mutationsbevis:
+
+| Mutation | Fångas av |
+| --- | --- |
+| Ta bort dubblettkontrollen | 5 kärntester + 6 Python-tester |
+
+### 3. Ny verifieringsstandard
+
+`13-verification-standard.md` införs som **granskningskrav**. Det finns därför
+att samma felform återkommit i B1, B2, B3 och runda 8. Kärnan i kravet:
+
+1. varje differentialtest ska visa oberoende exekveringsvägar eller en separat
+   förväntad specifikation — aldrig `assert read == f(engine)`;
+2. varje kritiskt test ska paras med minst en mutation som bevisar att testet
+   kan upptäcka felet, och mutationen ska **bevisas ha applicerats**;
+3. en sanning får bara ha en implementation — testet ska visa att konsumenten
+   anropar källan, inte att en kopia stämmer;
+4. en grind får inte tyst välja vid tvetydig indata;
+5. ett fel får inte kunna förklä sig som ett svar.
+
+### Resultat
+
+```console
+crates/swe-native     85 tester   (71 lib + 2 boundary + 12 machine)
+crates/swe-budget      9 tester
+crates/swe-reference  28 tester; walkthrough exit 0
+crates/swe-gym       13 tester
+backend SWE+research 170 tester; ruff och maintainability rena
+```
+
 ## 8. Vad denna PR innehåller (scope)
 
 ```console
