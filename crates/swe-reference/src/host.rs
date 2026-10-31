@@ -648,6 +648,7 @@ impl Session {
         let journal = Journal {
             run_id: self.ctx.run_id.clone(),
             definition_sha256: self.ctx.definition_sha256.clone(),
+            contract_version: crate::journal::CONTRACT_VERSION,
             document: self.ctx.document.clone(),
             input: self.ctx.input.clone(),
             now_ms: NOW_MS,

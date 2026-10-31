@@ -395,6 +395,95 @@ fn pause_and_resume_charge_and_execute_exactly_once() {
 }
 
 #[test]
+fn a_journal_from_another_contract_version_is_refused() {
+    let paused_outcome = run(
+        &document(),
+        &input(),
+        Scenario::Baseline,
+        &RunConfig::new("test-version", 100_000).with_pause_at_spend(20_000),
+    )
+    .expect("run starts");
+    let paused = paused_outcome.paused().expect("tight budget pauses");
+
+    let mut wrong_contract = paused.journal.clone();
+    wrong_contract.contract_version = 999;
+    let path = journal_path("contract-version");
+    write_journal(&path, &wrong_contract).expect("journal written");
+    let loaded = read_journal(&path).expect("journal read");
+    std::fs::remove_file(&path).expect("removed");
+    let outcome = resume(&loaded, &ResumeConfig::new());
+    assert!(
+        outcome.is_err(),
+        "a changed contract version must not resume"
+    );
+    assert!(
+        format!("{}", outcome.unwrap_err()).contains("version"),
+        "the refusal must name the version"
+    );
+}
+
+#[test]
+fn a_journal_whose_definition_changed_is_refused() {
+    let paused_outcome = run(
+        &document(),
+        &input(),
+        Scenario::Baseline,
+        &RunConfig::new("test-def", 100_000).with_pause_at_spend(20_000),
+    )
+    .expect("run starts");
+    let paused = paused_outcome.paused().expect("tight budget pauses");
+
+    let mut tampered = paused.journal.clone();
+    // A well-formed hash that is not this document's hash.
+    tampered.definition_sha256 = "b".repeat(64);
+    let path = journal_path("def");
+    write_journal(&path, &tampered).expect("journal written");
+    let loaded = read_journal(&path).expect("journal read");
+    std::fs::remove_file(&path).expect("removed");
+    assert!(resume(&loaded, &ResumeConfig::new()).is_err());
+}
+
+#[test]
+fn every_critical_transition_survives_a_pause_and_resume() {
+    // Pause after each metered action in turn: the resumed run must reach the
+    // same conclusion and the same spend as an uninterrupted one.
+    let full = run_scenario(Scenario::Baseline, "test-every-transition");
+    assert_eq!(full.status, RunStatus::Completed);
+    let mut checked = 0;
+    for checkpoint in (1_000..=20_000).step_by(1_000) {
+        let paused_outcome = run(
+            &document(),
+            &input(),
+            Scenario::Baseline,
+            &RunConfig::new("test-every-transition", 100_000).with_pause_at_spend(checkpoint),
+        )
+        .expect("run starts");
+        let Some(paused) = paused_outcome.paused() else {
+            continue;
+        };
+        // Only meaningful when the checkpoint actually stopped mid-investigation.
+        assert!(!paused.journal.completed.is_empty());
+        let resumed = resume(&paused.journal, &ResumeConfig::new())
+            .expect("resume starts")
+            .into_finished()
+            .expect("resume finishes");
+        assert_eq!(resumed.status, RunStatus::Completed, "at {checkpoint}");
+        assert_eq!(
+            resumed.conclusion_str("conclusion"),
+            full.conclusion_str("conclusion"),
+            "at {checkpoint}"
+        );
+        assert_eq!(resumed.spent_milli, full.spent_milli, "at {checkpoint}");
+        assert_eq!(
+            resumed.executed_invocations, full.executed_invocations,
+            "at {checkpoint}"
+        );
+        checked += 1;
+    }
+    assert!(checked >= 5, "expected several pause points, got {checked}");
+}
+
+#[test]
 fn a_tampered_journal_is_rejected() {
     let paused_outcome = run(
         &document(),

@@ -20,6 +20,9 @@ use crate::{as_u64, field, field_array, field_str, field_u64, obj, DemoError, De
 
 pub const JOURNAL_VERSION: u64 = 1;
 
+/// Version of the engine need/evidence/operation contracts used by the demo.
+pub const CONTRACT_VERSION: u32 = 1;
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct JournalCompletedInvocation {
     pub invocation_id: String,
@@ -31,6 +34,9 @@ pub struct JournalCompletedInvocation {
 pub struct Journal {
     pub run_id: String,
     pub definition_sha256: String,
+    /// Version of the engine contracts this run used. Pinned so a resume after
+    /// a code change is refused instead of reinterpreting old events.
+    pub contract_version: u32,
     pub document: Json,
     pub input: Json,
     pub now_ms: u64,
@@ -60,6 +66,10 @@ impl Journal {
             (
                 "definition_sha256",
                 Json::from(self.definition_sha256.as_str()),
+            ),
+            (
+                "contract_version",
+                Json::from_u64(u64::from(self.contract_version)),
             ),
             ("document", self.document.clone()),
             ("input", self.input.clone()),
@@ -118,6 +128,12 @@ impl Journal {
         Ok(Self {
             run_id: field_str(value, "run_id")?.to_string(),
             definition_sha256: field_str(value, "definition_sha256")?.to_string(),
+            contract_version: value
+                .get("contract_version")
+                .and_then(|v| v.as_number())
+                .and_then(|n| n.as_u64())
+                .map(|v| v as u32)
+                .unwrap_or(CONTRACT_VERSION),
             document: field(value, "document")?.clone(),
             input: field(value, "input")?.clone(),
             now_ms: field_u64(value, "now_ms")?,
@@ -144,6 +160,19 @@ impl Journal {
                 self.definition_sha256, actual
             )));
         }
+        // The engine's header check is the contract: schema version, definition
+        // hash, contract version and dependency versions must all match.
+        let mut dependencies = std::collections::BTreeMap::new();
+        dependencies.insert("mock.supplier_facts".to_string(), CONTRACT_VERSION);
+        swe_native::JournalHeader {
+            schema_version: swe_native::JOURNAL_SCHEMA_VERSION,
+            run_id: self.run_id.clone(),
+            definition_sha256: self.definition_sha256.clone(),
+            contract_version: self.contract_version,
+            dependency_versions: dependencies.clone(),
+        }
+        .verify(&actual, CONTRACT_VERSION, &dependencies)
+        .map_err(|error| DemoError::new(format!("journal cannot be resumed: {error}")))?;
         Ok(())
     }
 }
