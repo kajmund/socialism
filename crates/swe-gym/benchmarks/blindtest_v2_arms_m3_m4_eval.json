@@ -1,0 +1,1593 @@
+{
+  "version": 1,
+  "name": "blindtest-v2-arms-m3-m4",
+  "redacted": true,
+  "redaction_note": "M3/M4 ablation on the frozen v2 material. No contract text: case ids, types, states, roles, hashes and counts only. Full material outside the repo.",
+  "arms": {
+    "m0": "frozen reference",
+    "m3": "role robustness (declared-role tie-break inside the span's sentence)",
+    "m4": "need-adapted structural context for PARTY needs, context-keyed fixtures",
+    "m34": "M3 + M4",
+    "m12+m3+m4": "accumulated M1 + M2 + M3 + M4"
+  },
+  "invariants": {
+    "m3": "tie-break only when the declared role has a cue in the span's sentence; otherwise classifier role stands",
+    "m4": "only PARTY needs expand; window = enclosing structural block + heading, never an arbitrary char count",
+    "fixture_identity": "case + span digest + prompt version + context digest (whole assessment task)",
+    "m1_m2_unchanged": "reuses the frozen M1/M2 answers only when the context is the clause",
+    "inferences": 0
+  },
+  "metrics": {
+    "m0": {
+      "needs_total": 16,
+      "needs_solved": 7,
+      "solved_of_solvable": "7/16",
+      "false_resolved_need_ids": [],
+      "ambiguous_need_ids": [
+        "v2-pm-03",
+        "v2-sv-01"
+      ],
+      "contaminated_resolved_need_ids": []
+    },
+    "m3": {
+      "needs_total": 16,
+      "needs_solved": 8,
+      "solved_of_solvable": "8/16",
+      "false_resolved_need_ids": [],
+      "ambiguous_need_ids": [
+        "v2-pm-01",
+        "v2-pm-03",
+        "v2-sv-01"
+      ],
+      "contaminated_resolved_need_ids": []
+    },
+    "m4": {
+      "needs_total": 16,
+      "needs_solved": 9,
+      "solved_of_solvable": "9/16",
+      "false_resolved_need_ids": [],
+      "ambiguous_need_ids": [
+        "v2-pm-03",
+        "v2-sv-01"
+      ],
+      "contaminated_resolved_need_ids": []
+    },
+    "m34": {
+      "needs_total": 16,
+      "needs_solved": 10,
+      "solved_of_solvable": "10/16",
+      "false_resolved_need_ids": [],
+      "ambiguous_need_ids": [
+        "v2-pm-01",
+        "v2-pm-03",
+        "v2-sv-01"
+      ],
+      "contaminated_resolved_need_ids": []
+    },
+    "m12+m3+m4": {
+      "needs_total": 16,
+      "needs_solved": 13,
+      "solved_of_solvable": "13/16",
+      "false_resolved_need_ids": [],
+      "ambiguous_need_ids": [
+        "v2-sv-01"
+      ],
+      "contaminated_resolved_need_ids": []
+    }
+  },
+  "costs": {
+    "per_arm": {
+      "m0": {
+        "execution_jev_calls": 32,
+        "experiment_new_calls": 0,
+        "gliner_inferences": 0
+      },
+      "m3": {
+        "execution_jev_calls": 32,
+        "experiment_new_calls": 0,
+        "gliner_inferences": 0
+      },
+      "m4": {
+        "execution_jev_calls": 32,
+        "experiment_new_calls": 10,
+        "gliner_inferences": 0
+      },
+      "m34": {
+        "execution_jev_calls": 32,
+        "experiment_new_calls": 0,
+        "gliner_inferences": 0
+      },
+      "m12+m3+m4": {
+        "execution_jev_calls": 26,
+        "experiment_new_calls": 0,
+        "gliner_inferences": 0
+      }
+    },
+    "note": "execution_jev_calls = verifieringsbeslut från tom cache; experiment_new_calls = anrop som krävdes utöver frysta svar. Ekonomi jämförs på exekveringskostnaden."
+  },
+  "per_case": [
+    {
+      "case_id": "v2-pm-01",
+      "need_type": "NOTICE_PERIOD",
+      "question_type": "uppsägningsvillkor",
+      "states": {
+        "m0": "unsolved",
+        "m3": "ambiguous",
+        "m4": "unsolved",
+        "m34": "ambiguous",
+        "m12+m3+m4": "resolved"
+      },
+      "changed_by": [
+        "m3",
+        "m34",
+        "m12+m3+m4"
+      ]
+    },
+    {
+      "case_id": "v2-pm-02",
+      "need_type": "LIABILITY_CAP",
+      "question_type": "ansvarsbegränsning",
+      "states": {
+        "m0": "unsolved",
+        "m3": "resolved",
+        "m4": "unsolved",
+        "m34": "resolved",
+        "m12+m3+m4": "resolved"
+      },
+      "changed_by": [
+        "m3",
+        "m34",
+        "m12+m3+m4"
+      ]
+    },
+    {
+      "case_id": "v2-pm-03",
+      "need_type": "MONEY",
+      "question_type": "ersättning",
+      "states": {
+        "m0": "ambiguous",
+        "m3": "ambiguous",
+        "m4": "ambiguous",
+        "m34": "ambiguous",
+        "m12+m3+m4": "resolved"
+      },
+      "changed_by": [
+        "m12+m3+m4"
+      ]
+    },
+    {
+      "case_id": "v2-pm-04",
+      "need_type": "PERIOD",
+      "question_type": "tidsfrister",
+      "states": {
+        "m0": "resolved",
+        "m3": "resolved",
+        "m4": "resolved",
+        "m34": "resolved",
+        "m12+m3+m4": "resolved"
+      },
+      "changed_by": []
+    },
+    {
+      "case_id": "v2-pm-05",
+      "need_type": "PERIOD",
+      "question_type": "tidsfrister",
+      "states": {
+        "m0": "unsolved",
+        "m3": "unsolved",
+        "m4": "unsolved",
+        "m34": "unsolved",
+        "m12+m3+m4": "unsolved"
+      },
+      "changed_by": []
+    },
+    {
+      "case_id": "v2-pm-06",
+      "need_type": "PERIOD",
+      "question_type": "tidsfrister",
+      "states": {
+        "m0": "resolved",
+        "m3": "resolved",
+        "m4": "resolved",
+        "m34": "resolved",
+        "m12+m3+m4": "resolved"
+      },
+      "changed_by": []
+    },
+    {
+      "case_id": "v2-pm-07",
+      "need_type": "PARTY",
+      "question_type": "parter",
+      "states": {
+        "m0": "unsolved",
+        "m3": "unsolved",
+        "m4": "unsolved",
+        "m34": "unsolved",
+        "m12+m3+m4": "unsolved"
+      },
+      "changed_by": []
+    },
+    {
+      "case_id": "v2-sv-01",
+      "need_type": "PARTY",
+      "question_type": "parter",
+      "states": {
+        "m0": "ambiguous",
+        "m3": "ambiguous",
+        "m4": "ambiguous",
+        "m34": "ambiguous",
+        "m12+m3+m4": "ambiguous"
+      },
+      "changed_by": []
+    },
+    {
+      "case_id": "v2-sv-02",
+      "need_type": "PERIOD",
+      "question_type": "avtalstid",
+      "states": {
+        "m0": "resolved",
+        "m3": "resolved",
+        "m4": "resolved",
+        "m34": "resolved",
+        "m12+m3+m4": "resolved"
+      },
+      "changed_by": []
+    },
+    {
+      "case_id": "v2-sv-03",
+      "need_type": "DATE",
+      "question_type": "tidsfrister",
+      "states": {
+        "m0": "unsolved",
+        "m3": "unsolved",
+        "m4": "unsolved",
+        "m34": "unsolved",
+        "m12+m3+m4": "resolved"
+      },
+      "changed_by": [
+        "m12+m3+m4"
+      ]
+    },
+    {
+      "case_id": "v2-if-01",
+      "need_type": "MONEY",
+      "question_type": "ersättning",
+      "states": {
+        "m0": "resolved",
+        "m3": "resolved",
+        "m4": "resolved",
+        "m34": "resolved",
+        "m12+m3+m4": "resolved"
+      },
+      "changed_by": []
+    },
+    {
+      "case_id": "v2-if-02",
+      "need_type": "MONEY",
+      "question_type": "ersättning",
+      "states": {
+        "m0": "resolved",
+        "m3": "resolved",
+        "m4": "resolved",
+        "m34": "resolved",
+        "m12+m3+m4": "resolved"
+      },
+      "changed_by": []
+    },
+    {
+      "case_id": "v2-if-03",
+      "need_type": "PERIOD",
+      "question_type": "avtalstid",
+      "states": {
+        "m0": "resolved",
+        "m3": "resolved",
+        "m4": "resolved",
+        "m34": "resolved",
+        "m12+m3+m4": "resolved"
+      },
+      "changed_by": []
+    },
+    {
+      "case_id": "v2-if-04",
+      "need_type": "DATE",
+      "question_type": "tidsfrister",
+      "states": {
+        "m0": "resolved",
+        "m3": "resolved",
+        "m4": "resolved",
+        "m34": "resolved",
+        "m12+m3+m4": "resolved"
+      },
+      "changed_by": []
+    },
+    {
+      "case_id": "v2-if-05",
+      "need_type": "PARTY",
+      "question_type": "parter",
+      "states": {
+        "m0": "unsolved",
+        "m3": "unsolved",
+        "m4": "resolved",
+        "m34": "resolved",
+        "m12+m3+m4": "resolved"
+      },
+      "changed_by": [
+        "m4",
+        "m34",
+        "m12+m3+m4"
+      ]
+    },
+    {
+      "case_id": "v2-if-06",
+      "need_type": "PARTY",
+      "question_type": "parter",
+      "states": {
+        "m0": "unsolved",
+        "m3": "unsolved",
+        "m4": "resolved",
+        "m34": "resolved",
+        "m12+m3+m4": "resolved"
+      },
+      "changed_by": [
+        "m4",
+        "m34",
+        "m12+m3+m4"
+      ]
+    }
+  ],
+  "details": {
+    "m0": {
+      "v2-pm-01": {
+        "state": "unsolved",
+        "verified_gold_values": 0,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": null,
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-pm-02": {
+        "state": "unsolved",
+        "verified_gold_values": 0,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": null,
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-pm-03": {
+        "state": "ambiguous",
+        "verified_gold_values": 0,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 1,
+        "ambiguous_extra_values": 2,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": null,
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-pm-04": {
+        "state": "resolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": null,
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-pm-05": {
+        "state": "unsolved",
+        "verified_gold_values": 0,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": null,
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-pm-06": {
+        "state": "resolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": null,
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-pm-07": {
+        "state": "unsolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": null,
+        "role_changes": [],
+        "gold_value_count": 2
+      },
+      "v2-sv-01": {
+        "state": "ambiguous",
+        "verified_gold_values": 0,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 3,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": null,
+        "role_changes": [],
+        "gold_value_count": 3
+      },
+      "v2-sv-02": {
+        "state": "resolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": null,
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-sv-03": {
+        "state": "unsolved",
+        "verified_gold_values": 0,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": null,
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-if-01": {
+        "state": "resolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": null,
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-if-02": {
+        "state": "resolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": null,
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-if-03": {
+        "state": "resolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": null,
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-if-04": {
+        "state": "resolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": null,
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-if-05": {
+        "state": "unsolved",
+        "verified_gold_values": 0,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": null,
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-if-06": {
+        "state": "unsolved",
+        "verified_gold_values": 0,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": null,
+        "role_changes": [],
+        "gold_value_count": 1
+      }
+    },
+    "m3": {
+      "v2-pm-01": {
+        "state": "ambiguous",
+        "verified_gold_values": 0,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 1,
+        "ambiguous_extra_values": 1,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": null,
+        "role_changes": [
+          {
+            "span_sha256": "4f24fd09cce4cad9f0764c44ed1abee5bed2536e254ca35ae715293c8e97bede",
+            "from": "DURATION",
+            "to": "NOTICE"
+          },
+          {
+            "span_sha256": "584b95bfb9bec9ad1f8ec3a172bd33a1cb0de98f599c99a2e67a3d2b84f9888b",
+            "from": "DURATION",
+            "to": "NOTICE"
+          }
+        ],
+        "gold_value_count": 1
+      },
+      "v2-pm-02": {
+        "state": "resolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": null,
+        "role_changes": [
+          {
+            "span_sha256": "c878f18063f6ee530519d0b3c22499d296f6998be9d15159688a749e3d576369",
+            "from": "MONEY",
+            "to": "LIABILITY"
+          }
+        ],
+        "gold_value_count": 1
+      },
+      "v2-pm-03": {
+        "state": "ambiguous",
+        "verified_gold_values": 0,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 1,
+        "ambiguous_extra_values": 2,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": null,
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-pm-04": {
+        "state": "resolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": null,
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-pm-05": {
+        "state": "unsolved",
+        "verified_gold_values": 0,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": null,
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-pm-06": {
+        "state": "resolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": null,
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-pm-07": {
+        "state": "unsolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": null,
+        "role_changes": [],
+        "gold_value_count": 2
+      },
+      "v2-sv-01": {
+        "state": "ambiguous",
+        "verified_gold_values": 0,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 3,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": null,
+        "role_changes": [],
+        "gold_value_count": 3
+      },
+      "v2-sv-02": {
+        "state": "resolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": null,
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-sv-03": {
+        "state": "unsolved",
+        "verified_gold_values": 0,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": null,
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-if-01": {
+        "state": "resolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": null,
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-if-02": {
+        "state": "resolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": null,
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-if-03": {
+        "state": "resolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": null,
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-if-04": {
+        "state": "resolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": null,
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-if-05": {
+        "state": "unsolved",
+        "verified_gold_values": 0,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": null,
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-if-06": {
+        "state": "unsolved",
+        "verified_gold_values": 0,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": null,
+        "role_changes": [],
+        "gold_value_count": 1
+      }
+    },
+    "m4": {
+      "v2-pm-01": {
+        "state": "unsolved",
+        "verified_gold_values": 0,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-pm-02": {
+        "state": "unsolved",
+        "verified_gold_values": 0,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-pm-03": {
+        "state": "ambiguous",
+        "verified_gold_values": 0,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 1,
+        "ambiguous_extra_values": 2,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-pm-04": {
+        "state": "resolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-pm-05": {
+        "state": "unsolved",
+        "verified_gold_values": 0,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-pm-06": {
+        "state": "resolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-pm-07": {
+        "state": "unsolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": {
+          "expanded": true,
+          "window_chars": 230,
+          "clause_chars": 178,
+          "lines": 3,
+          "has_heading": true,
+          "context_sha256": "638ae57ece817dd819cbf919196eb7a8f7fc6df88fa748973ef71a17c929d123"
+        },
+        "role_changes": [],
+        "gold_value_count": 2
+      },
+      "v2-sv-01": {
+        "state": "ambiguous",
+        "verified_gold_values": 0,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 3,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": {
+          "expanded": true,
+          "window_chars": 341,
+          "clause_chars": 333,
+          "lines": 1,
+          "has_heading": false,
+          "context_sha256": "f5567069b0d8990a41cab758d26486333c7eb1bad2b71b9c057853807c0c48bf"
+        },
+        "role_changes": [],
+        "gold_value_count": 3
+      },
+      "v2-sv-02": {
+        "state": "resolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-sv-03": {
+        "state": "unsolved",
+        "verified_gold_values": 0,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-if-01": {
+        "state": "resolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-if-02": {
+        "state": "resolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-if-03": {
+        "state": "resolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-if-04": {
+        "state": "resolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-if-05": {
+        "state": "resolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": {
+          "expanded": true,
+          "window_chars": 98,
+          "clause_chars": 47,
+          "lines": 5,
+          "has_heading": true,
+          "context_sha256": "228839bcf598fcad0de07dacbab17e55f1059f8171eab19e7e9d5d36f31f281d"
+        },
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-if-06": {
+        "state": "resolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": {
+          "expanded": true,
+          "window_chars": 381,
+          "clause_chars": 28,
+          "lines": 15,
+          "has_heading": true,
+          "context_sha256": "93657561d3af53e88ec50cb56b974479b879838bd39a9215faac7492804d7680"
+        },
+        "role_changes": [],
+        "gold_value_count": 1
+      }
+    },
+    "m34": {
+      "v2-pm-01": {
+        "state": "ambiguous",
+        "verified_gold_values": 0,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 1,
+        "ambiguous_extra_values": 1,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "role_changes": [
+          {
+            "span_sha256": "4f24fd09cce4cad9f0764c44ed1abee5bed2536e254ca35ae715293c8e97bede",
+            "from": "DURATION",
+            "to": "NOTICE"
+          },
+          {
+            "span_sha256": "584b95bfb9bec9ad1f8ec3a172bd33a1cb0de98f599c99a2e67a3d2b84f9888b",
+            "from": "DURATION",
+            "to": "NOTICE"
+          }
+        ],
+        "gold_value_count": 1
+      },
+      "v2-pm-02": {
+        "state": "resolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "role_changes": [
+          {
+            "span_sha256": "c878f18063f6ee530519d0b3c22499d296f6998be9d15159688a749e3d576369",
+            "from": "MONEY",
+            "to": "LIABILITY"
+          }
+        ],
+        "gold_value_count": 1
+      },
+      "v2-pm-03": {
+        "state": "ambiguous",
+        "verified_gold_values": 0,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 1,
+        "ambiguous_extra_values": 2,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-pm-04": {
+        "state": "resolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-pm-05": {
+        "state": "unsolved",
+        "verified_gold_values": 0,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-pm-06": {
+        "state": "resolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-pm-07": {
+        "state": "unsolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": {
+          "expanded": true,
+          "window_chars": 230,
+          "clause_chars": 178,
+          "lines": 3,
+          "has_heading": true,
+          "context_sha256": "638ae57ece817dd819cbf919196eb7a8f7fc6df88fa748973ef71a17c929d123"
+        },
+        "role_changes": [],
+        "gold_value_count": 2
+      },
+      "v2-sv-01": {
+        "state": "ambiguous",
+        "verified_gold_values": 0,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 3,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": {
+          "expanded": true,
+          "window_chars": 341,
+          "clause_chars": 333,
+          "lines": 1,
+          "has_heading": false,
+          "context_sha256": "f5567069b0d8990a41cab758d26486333c7eb1bad2b71b9c057853807c0c48bf"
+        },
+        "role_changes": [],
+        "gold_value_count": 3
+      },
+      "v2-sv-02": {
+        "state": "resolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-sv-03": {
+        "state": "unsolved",
+        "verified_gold_values": 0,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-if-01": {
+        "state": "resolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-if-02": {
+        "state": "resolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-if-03": {
+        "state": "resolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-if-04": {
+        "state": "resolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-if-05": {
+        "state": "resolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": {
+          "expanded": true,
+          "window_chars": 98,
+          "clause_chars": 47,
+          "lines": 5,
+          "has_heading": true,
+          "context_sha256": "228839bcf598fcad0de07dacbab17e55f1059f8171eab19e7e9d5d36f31f281d"
+        },
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-if-06": {
+        "state": "resolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": {
+          "expanded": true,
+          "window_chars": 381,
+          "clause_chars": 28,
+          "lines": 15,
+          "has_heading": true,
+          "context_sha256": "93657561d3af53e88ec50cb56b974479b879838bd39a9215faac7492804d7680"
+        },
+        "role_changes": [],
+        "gold_value_count": 1
+      }
+    },
+    "m12+m3+m4": {
+      "v2-pm-01": {
+        "state": "resolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [
+          {
+            "span_canon_sha256": "584b95bfb9bec9ad1f8ec3a172bd33a1cb0de98f599c99a2e67a3d2b84f9888b",
+            "contained_in": [
+              "gold"
+            ]
+          }
+        ],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "role_changes": [
+          {
+            "span_sha256": "4f24fd09cce4cad9f0764c44ed1abee5bed2536e254ca35ae715293c8e97bede",
+            "from": "DURATION",
+            "to": "NOTICE"
+          }
+        ],
+        "gold_value_count": 1
+      },
+      "v2-pm-02": {
+        "state": "resolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "role_changes": [
+          {
+            "span_sha256": "c878f18063f6ee530519d0b3c22499d296f6998be9d15159688a749e3d576369",
+            "from": "MONEY",
+            "to": "LIABILITY"
+          }
+        ],
+        "gold_value_count": 1
+      },
+      "v2-pm-03": {
+        "state": "resolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [
+          {
+            "span_canon_sha256": "6afd0b3ec66f6816de76cb3a5c72129b631c0299d654163bdc66a99c0c771177",
+            "contained_in": [
+              "gold"
+            ]
+          },
+          {
+            "span_canon_sha256": "04b23dfaad48555dd0aeb8d7057fa3af3626deaf9751cae6cadff521ee05b1ce",
+            "contained_in": [
+              "gold"
+            ]
+          }
+        ],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-pm-04": {
+        "state": "resolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-pm-05": {
+        "state": "unsolved",
+        "verified_gold_values": 0,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-pm-06": {
+        "state": "resolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-pm-07": {
+        "state": "unsolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": {
+          "expanded": true,
+          "window_chars": 230,
+          "clause_chars": 178,
+          "lines": 3,
+          "has_heading": true,
+          "context_sha256": "638ae57ece817dd819cbf919196eb7a8f7fc6df88fa748973ef71a17c929d123"
+        },
+        "role_changes": [],
+        "gold_value_count": 2
+      },
+      "v2-sv-01": {
+        "state": "ambiguous",
+        "verified_gold_values": 0,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 3,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": {
+          "expanded": true,
+          "window_chars": 341,
+          "clause_chars": 333,
+          "lines": 1,
+          "has_heading": false,
+          "context_sha256": "f5567069b0d8990a41cab758d26486333c7eb1bad2b71b9c057853807c0c48bf"
+        },
+        "role_changes": [],
+        "gold_value_count": 3
+      },
+      "v2-sv-02": {
+        "state": "resolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-sv-03": {
+        "state": "resolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-if-01": {
+        "state": "resolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-if-02": {
+        "state": "resolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-if-03": {
+        "state": "resolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [
+          {
+            "span_canon_sha256": "518ee2681a4d5042c8ecefe51637eecb0fdaffcbe9130013cf7cd8dcc3177ba9",
+            "contained_in": [
+              "gold"
+            ]
+          },
+          {
+            "span_canon_sha256": "b0129a96caed304c7bbe8dbc5826f0d3d2152c6161ec1682852e001004697a64",
+            "contained_in": [
+              "gold"
+            ]
+          }
+        ],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-if-04": {
+        "state": "resolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-if-05": {
+        "state": "resolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [],
+        "m4_window": {
+          "expanded": true,
+          "window_chars": 98,
+          "clause_chars": 47,
+          "lines": 5,
+          "has_heading": true,
+          "context_sha256": "228839bcf598fcad0de07dacbab17e55f1059f8171eab19e7e9d5d36f31f281d"
+        },
+        "role_changes": [],
+        "gold_value_count": 1
+      },
+      "v2-if-06": {
+        "state": "resolved",
+        "verified_gold_values": 1,
+        "verified_extra_values": 0,
+        "ambiguous_gold_values": 0,
+        "ambiguous_extra_values": 0,
+        "extra_values_redacted": [],
+        "dropped_candidates": [
+          {
+            "span_canon_sha256": "c1db72d15cc92fa8cd1fd2c0eac6da1f086b1701368ff37789032c85de45986f",
+            "contained_in": [
+              "gold"
+            ]
+          }
+        ],
+        "m4_window": {
+          "expanded": true,
+          "window_chars": 381,
+          "clause_chars": 28,
+          "lines": 15,
+          "has_heading": true,
+          "context_sha256": "93657561d3af53e88ec50cb56b974479b879838bd39a9215faac7492804d7680"
+        },
+        "role_changes": [],
+        "gold_value_count": 1
+      }
+    }
+  },
+  "d10_proxy": {
+    "note": "Clause-level proxy: a resolved need using a verified value outside gold. True D10 needs answer-level facit and runs on the new unseen set; v1 reference 0/20.",
+    "contaminated_answers": 0
+  },
+  "reservation": "The 16 cases are a diagnostic development set for M1-M6, not an independent blind test for the improved versions. A new unseen document set is required before broader activation. PR #451 remains the frozen M1/M2 delivery."
+}
