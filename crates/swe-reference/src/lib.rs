@@ -34,7 +34,9 @@ pub use host::{
     resume, run, ActionCharge, ActionKind, InvestigationOutcome, InvocationLog, PausedReport,
     ResumeConfig, RunConfig, RunReport, SegmentReport, Tariffs, ACCOUNT,
 };
-pub use journal::{read_journal, write_journal, Journal, JournalCompletedInvocation};
+pub use journal::{
+    read_journal, tariff_sha256, write_journal, Journal, JournalCompletedInvocation,
+};
 pub use mock_provider::MockSupplierFacts;
 pub use operations::{
     all_required, cheapest_compliant, screen_compliance, select_cheapest, GateResult, MissingInput,

@@ -524,6 +524,10 @@ impl JournalHeader {
         if self.contract_version != contract_version {
             return Err(JournalError::UnsupportedVersion(self.contract_version));
         }
+        // Compare in both directions. A dependency the journal recorded but the
+        // world no longer has, and a dependency the world now needs but the
+        // journal never recorded, are both reasons not to continue: either way
+        // the resumed half would run under conditions the first half never saw.
         for (name, recorded) in &self.dependency_versions {
             match dependency_versions.get(name) {
                 Some(current) if current == recorded => {}
@@ -537,6 +541,13 @@ impl JournalHeader {
                         "dependency {name} (version {recorded}) is no longer available"
                     )))
                 }
+            }
+        }
+        for name in dependency_versions.keys() {
+            if !self.dependency_versions.contains_key(name) {
+                return Err(JournalError::Conflict(format!(
+                    "dependency {name} is required now but was not recorded in the journal"
+                )));
             }
         }
         Ok(())

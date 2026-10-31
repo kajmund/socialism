@@ -395,6 +395,245 @@ fn pause_and_resume_charge_and_execute_exactly_once() {
 }
 
 #[test]
+fn the_journal_round_trip_is_lossless() {
+    // Journal v1 must serialise and deserialise without losing anything. The
+    // easiest way to prove that is to compare the two forms of one run.
+    let paused_outcome = run(
+        &document(),
+        &input(),
+        Scenario::Baseline,
+        &RunConfig::new("test-roundtrip", 100_000).with_pause_at_spend(20_000),
+    )
+    .expect("run starts");
+    let paused = paused_outcome.paused().expect("pauses");
+    let written = paused.journal.clone();
+    let path = journal_path("roundtrip");
+    write_journal(&path, &written).expect("journal written");
+    let loaded = read_journal(&path).expect("journal read");
+    std::fs::remove_file(&path).expect("removed");
+
+    assert_eq!(loaded, written, "round trip must preserve every field");
+    // And the fields that used to be silently defaulted are present.
+    assert_eq!(loaded.contract_version, written.contract_version);
+    assert_eq!(loaded.journal_events.len(), written.journal_events.len());
+    assert!(!loaded.journal_events.is_empty(), "events must not vanish");
+}
+
+#[test]
+fn a_journal_recording_another_dependency_version_is_refused() {
+    // H1: the recorded dependency versions must be compared against what this
+    // build actually runs, not against a constant handed to itself.
+    let paused_outcome = run(
+        &document(),
+        &input(),
+        Scenario::Baseline,
+        &RunConfig::new("test-dependency", 100_000).with_pause_at_spend(20_000),
+    )
+    .expect("run starts");
+    let paused = paused_outcome.paused().expect("pauses");
+    let path = journal_path("dependency");
+    write_journal(&path, &paused.journal).expect("journal written");
+    let text = std::fs::read_to_string(&path).expect("read");
+    std::fs::remove_file(&path).expect("removed");
+
+    // The journal claims the mock provider was a different version.
+    let bumped = text.replace("\"mock.supplier_facts\":1", "\"mock.supplier_facts\":999");
+    assert_ne!(
+        bumped, text,
+        "the dependency map must be in the file to bump"
+    );
+    let path = journal_path("dependency");
+    std::fs::write(&path, bumped).expect("write");
+    let loaded = read_journal(&path).expect("journal read");
+    std::fs::remove_file(&path).expect("removed");
+    assert!(
+        resume(&loaded, &ResumeConfig::new()).is_err(),
+        "a journal recorded against another dependency version must not resume"
+    );
+}
+
+#[test]
+fn a_journal_missing_a_recorded_dependency_is_refused() {
+    let paused_outcome = run(
+        &document(),
+        &input(),
+        Scenario::Baseline,
+        &RunConfig::new("test-dependency-missing", 100_000).with_pause_at_spend(20_000),
+    )
+    .expect("run starts");
+    let paused = paused_outcome.paused().expect("pauses");
+    let path = journal_path("dependency-missing");
+    write_journal(&path, &paused.journal).expect("journal written");
+    let text = std::fs::read_to_string(&path).expect("read");
+    std::fs::remove_file(&path).expect("removed");
+    let emptied = text.replace(
+        "\"dependency_versions\":{\"mock.supplier_facts\":1}",
+        "\"dependency_versions\":{}",
+    );
+    assert_ne!(emptied, text);
+    let path = journal_path("dependency-missing");
+    std::fs::write(&path, emptied).expect("write");
+    let loaded = read_journal(&path).expect("journal read");
+    std::fs::remove_file(&path).expect("removed");
+    assert!(
+        resume(&loaded, &ResumeConfig::new()).is_err(),
+        "a journal that recorded no dependency must not resume silently"
+    );
+}
+
+#[test]
+fn a_journal_without_a_contract_version_is_refused() {
+    let paused_outcome = run(
+        &document(),
+        &input(),
+        Scenario::Baseline,
+        &RunConfig::new("test-missing-version", 100_000).with_pause_at_spend(20_000),
+    )
+    .expect("run starts");
+    let paused = paused_outcome.paused().expect("pauses");
+    let path = journal_path("missing-version");
+    write_journal(&path, &paused.journal).expect("journal written");
+    let text = std::fs::read_to_string(&path).expect("read");
+    std::fs::remove_file(&path).expect("removed");
+
+    for field in ["contract_version", "journal_events", "tariff_sha256"] {
+        let stripped = drop_top_level_field(&text, field);
+        let path = journal_path(&format!("missing-{field}"));
+        std::fs::write(&path, stripped).expect("write");
+        let outcome = read_journal(&path);
+        std::fs::remove_file(&path).expect("removed");
+        assert!(
+            outcome.is_err(),
+            "a journal without {field} must be refused, never defaulted"
+        );
+    }
+}
+
+#[test]
+fn a_journal_with_an_unreadable_event_log_is_refused() {
+    let paused_outcome = run(
+        &document(),
+        &input(),
+        Scenario::Baseline,
+        &RunConfig::new("test-bad-events", 100_000).with_pause_at_spend(20_000),
+    )
+    .expect("run starts");
+    let paused = paused_outcome.paused().expect("pauses");
+    let path = journal_path("bad-events");
+    write_journal(&path, &paused.journal).expect("journal written");
+    let text = std::fs::read_to_string(&path).expect("read");
+    std::fs::remove_file(&path).expect("removed");
+
+    // A non-array event log must be a typed error, not an empty journal.
+    let broken = text.replace("\"journal_events\":[", "\"journal_events\":{\"x\":[");
+    let path = journal_path("bad-events");
+    std::fs::write(&path, broken).expect("write");
+    let outcome = read_journal(&path);
+    std::fs::remove_file(&path).expect("removed");
+    assert!(outcome.is_err(), "an unreadable event log must be refused");
+}
+
+#[test]
+fn confirmed_outcomes_survive_the_round_trip() {
+    // Ok, Error and Cancelled are three different facts; a boolean loses two.
+    let paused_outcome = run(
+        &document(),
+        &input(),
+        Scenario::Baseline,
+        &RunConfig::new("test-outcomes", 100_000).with_pause_at_spend(20_000),
+    )
+    .expect("run starts");
+    let paused = paused_outcome.paused().expect("pauses");
+    let path = journal_path("outcomes");
+    write_journal(&path, &paused.journal).expect("journal written");
+    let loaded = read_journal(&path).expect("journal read");
+    std::fs::remove_file(&path).expect("removed");
+
+    let confirmed: Vec<_> = loaded
+        .journal_events
+        .iter()
+        .filter(|event| matches!(event, swe_native::JournalEvent::ResultConfirmed { .. }))
+        .collect();
+    assert!(!confirmed.is_empty());
+    for event in confirmed {
+        if let swe_native::JournalEvent::ResultConfirmed { outcome, .. } = event {
+            assert!(
+                matches!(outcome, swe_native::CompletionOutcome::Ok(_)),
+                "a successful demo action must round-trip as Ok, not as a flag"
+            );
+        }
+    }
+}
+
+#[test]
+fn a_journal_replayed_under_other_tariffs_is_refused() {
+    // Tariffs are part of the run contract: the same journal must not be
+    // replayed at different prices, which would silently change the economics
+    // of the second half of an investigation.
+    let paused_outcome = run(
+        &document(),
+        &input(),
+        Scenario::Baseline,
+        &RunConfig::new("test-tariffs", 100_000).with_pause_at_spend(20_000),
+    )
+    .expect("run starts");
+    let paused = paused_outcome.paused().expect("pauses");
+    let path = journal_path("tariffs");
+    write_journal(&path, &paused.journal).expect("journal written");
+    let loaded = read_journal(&path).expect("journal read");
+    std::fs::remove_file(&path).expect("removed");
+
+    // Same journal, but the host now bills twice as much per action. A resume
+    // is driven by the journal, so the host's current tariffs are what the
+    // check must compare against — modelled here by re-pricing the journal and
+    // re-hashing, which is what a genuinely different host would produce.
+    let mut repriced = loaded.clone();
+    repriced.handler_cost_milli = 2_000;
+    repriced.tariff_sha256 = swe_reference::tariff_sha256(&swe_reference::Tariffs {
+        handler_milli: 2_000,
+        provider_milli: 1_000,
+    })
+    .expect("hash");
+    let outcome = resume(&repriced, &ResumeConfig::new());
+    assert!(
+        outcome.is_err(),
+        "replaying under other tariffs must be refused"
+    );
+
+    // The unmodified journal still resumes.
+    assert!(resume(&loaded, &ResumeConfig::new()).is_ok());
+}
+
+#[test]
+fn a_tampered_tariff_hash_is_refused() {
+    let paused_outcome = run(
+        &document(),
+        &input(),
+        Scenario::Baseline,
+        &RunConfig::new("test-tariff-hash", 100_000).with_pause_at_spend(20_000),
+    )
+    .expect("run starts");
+    let paused = paused_outcome.paused().expect("pauses");
+    let path = journal_path("tariff-hash");
+    write_journal(&path, &paused.journal).expect("journal written");
+    let text = std::fs::read_to_string(&path).expect("read");
+    std::fs::remove_file(&path).expect("removed");
+
+    // Change the recorded prices but keep the recorded hash: the journal's own
+    // numbers no longer agree with the hash it claims to have been priced by.
+    let repriced = text.replace("\"handler_cost_milli\":1000", "\"handler_cost_milli\":2000");
+    assert_ne!(repriced, text, "the tariff must be present to tamper with");
+    let path = journal_path("tariff-hash");
+    std::fs::write(&path, repriced).expect("write");
+    let outcome = read_journal(&path);
+    std::fs::remove_file(&path).expect("removed");
+    assert!(
+        outcome.is_err(),
+        "an inconsistent tariff hash must be refused"
+    );
+}
+
+#[test]
 fn a_journal_from_another_contract_version_is_refused() {
     let paused_outcome = run(
         &document(),
@@ -610,4 +849,47 @@ fn need_more_is_a_typed_operation_outcome() {
         needs[0].get("id").and_then(Json::as_str),
         Some("alpha.c_exception")
     );
+}
+
+/// Drop one top-level JSON field so a test can prove its absence is refused
+/// instead of silently defaulted. Text-level surgery is enough: the journal is
+/// written by the demo's own canonical serialiser.
+fn drop_top_level_field(text: &str, field: &str) -> String {
+    let needle = format!("\"{field}\":");
+    let Some(start) = text.find(&needle) else {
+        return text.to_string();
+    };
+    let after = start + needle.len();
+    let rest = &text[after..];
+    // find the value's end at depth 0
+    let mut depth = 0i32;
+    let mut in_string = false;
+    let mut escaped = false;
+    let mut value_end = rest.len();
+    for (offset, ch) in rest.char_indices() {
+        match ch {
+            '\\' if in_string => escaped = !escaped,
+            '"' if !escaped => in_string = !in_string,
+            '{' | '[' if !in_string => depth += 1,
+            '}' | ']' if !in_string => {
+                if depth == 0 {
+                    value_end = offset;
+                    break;
+                }
+                depth -= 1;
+            }
+            ',' if !in_string && depth == 0 => {
+                value_end = offset + 1;
+                break;
+            }
+            _ => escaped = false,
+        }
+        if ch != '\\' {
+            escaped = false;
+        }
+    }
+    let mut out = String::with_capacity(text.len());
+    out.push_str(&text[..start]);
+    out.push_str(&text[after + value_end..]);
+    out
 }

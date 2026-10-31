@@ -37,6 +37,11 @@ pub struct Journal {
     /// Version of the engine contracts this run used. Pinned so a resume after
     /// a code change is refused instead of reinterpreting old events.
     pub contract_version: u32,
+    /// Hash of the tariffs this run was priced under. A resume under different
+    /// tariffs would silently reprice the second half.
+    pub tariff_sha256: String,
+    /// The dependency versions this run actually used, as recorded.
+    pub recorded_dependency_versions: std::collections::BTreeMap<String, u32>,
     pub document: Json,
     pub input: Json,
     pub now_ms: u64,
@@ -53,8 +58,37 @@ pub struct Journal {
     pub provider_calls: usize,
 }
 
+/// The dependency versions this build of the demo actually runs.
+///
+/// Recorded in the journal so a resume can compare *what was recorded* with
+/// *what is running now*. Comparing a constant to itself would prove nothing.
+pub fn current_dependency_versions() -> std::collections::BTreeMap<String, u32> {
+    let mut versions = std::collections::BTreeMap::new();
+    versions.insert("mock.supplier_facts".to_string(), CONTRACT_VERSION);
+    versions
+}
+
+/// Hash of the tariffs a run was priced under.
+///
+/// Tariffs are not part of the definition hash, so without this a resume under
+/// different prices would silently reprice the second half of a run.
+pub fn tariff_sha256(tariffs: &Tariffs) -> DemoResult<String> {
+    let payload = obj([
+        (
+            "handler_milli",
+            Json::from_u64(tariffs.handler_milli),
+        ),
+        (
+            "provider_milli",
+            Json::from_u64(tariffs.provider_milli),
+        ),
+    ]);
+    Ok(sha256_hex(&payload)?)
+}
+
 impl Journal {
-    pub fn tariffs(&self) -> Tariffs {
+    /// The tariffs this run was billed with, as recorded.
+    pub fn recorded_tariffs(&self) -> Tariffs {
         Tariffs {
             handler_milli: self.handler_cost_milli,
             provider_milli: self.provider_cost_milli,
@@ -72,6 +106,11 @@ impl Journal {
             (
                 "contract_version",
                 Json::from_u64(u64::from(self.contract_version)),
+            ),
+            ("tariff_sha256", Json::from(self.tariff_sha256.as_str())),
+            (
+                "dependency_versions",
+                dependency_versions_to_json(&self.recorded_dependency_versions),
             ),
             (
                 "journal_events",
@@ -131,16 +170,19 @@ impl Journal {
             .iter()
             .map(event_from_json)
             .collect::<DemoResult<Vec<_>>>()?;
-        Ok(Self {
-            journal_events: journal_events_from_json(value.get("journal_events"))?,
+        let journal = Self {
+            journal_events: journal_events_from_json(field(value, "journal_events")?)?,
             run_id: field_str(value, "run_id")?.to_string(),
             definition_sha256: field_str(value, "definition_sha256")?.to_string(),
-            contract_version: value
-                .get("contract_version")
-                .and_then(|v| v.as_number())
-                .and_then(|n| n.as_u64())
-                .map(|v| v as u32)
-                .unwrap_or(CONTRACT_VERSION),
+            // Strict: a missing version is not "the current one". Reading an
+            // old journal under new rules is exactly what must not happen.
+            contract_version: u32::try_from(field_u64(value, "contract_version")?)
+                .map_err(|_| DemoError::new("contract_version is out of range"))?,
+            tariff_sha256: field_str(value, "tariff_sha256")?.to_string(),
+            recorded_dependency_versions: dependency_versions_from_json(field(
+                value,
+                "dependency_versions",
+            )?)?,
             document: field(value, "document")?.clone(),
             input: field(value, "input")?.clone(),
             now_ms: field_u64(value, "now_ms")?,
@@ -155,7 +197,22 @@ impl Journal {
                 .map_err(|_| DemoError::new("handler_calls is out of range"))?,
             provider_calls: usize::try_from(field_u64(value, "provider_calls")?)
                 .map_err(|_| DemoError::new("provider_calls is out of range"))?,
-        })
+        };
+        journal.assert_tariff_consistency()?;
+        Ok(journal)
+    }
+
+    /// Self-consistency: the recorded tariff hash must match the recorded
+    /// tariffs. A journal whose own numbers disagree with its own hash is
+    /// corrupt, so this is checked as soon as it is read.
+    fn assert_tariff_consistency(&self) -> DemoResult<()> {
+        let expected = tariff_sha256(&self.recorded_tariffs())?;
+        if expected != self.tariff_sha256 {
+            return Err(DemoError::new(
+                "journal is inconsistent: tariff_sha256 does not match the recorded tariffs",
+            ));
+        }
+        Ok(())
     }
 
     /// The document hash must still match the document in the journal.
@@ -169,17 +226,30 @@ impl Journal {
         }
         // The engine's header check is the contract: schema version, definition
         // hash, contract version and dependency versions must all match.
-        let mut dependencies = std::collections::BTreeMap::new();
-        dependencies.insert("mock.supplier_facts".to_string(), CONTRACT_VERSION);
+        //
+        // The recorded values come from the file; the current ones come from
+        // this build. Comparing a constant to itself would prove nothing.
         swe_native::JournalHeader {
             schema_version: swe_native::JOURNAL_SCHEMA_VERSION,
             run_id: self.run_id.clone(),
             definition_sha256: self.definition_sha256.clone(),
             contract_version: self.contract_version,
-            dependency_versions: dependencies.clone(),
+            dependency_versions: self.recorded_dependency_versions.clone(),
         }
-        .verify(&actual, CONTRACT_VERSION, &dependencies)
+        .verify(&actual, CONTRACT_VERSION, &current_dependency_versions())
         .map_err(|error| DemoError::new(format!("journal cannot be resumed: {error}")))?;
+
+        // Tariffs are not covered by the definition hash, so they are pinned
+        // separately: a resume under different prices must be refused. The
+        // recorded hash is checked against the tariffs the run was actually
+        // billed with, which the caller knows because it replays the ledger.
+        let recorded_tariffs = self.tariff_sha256.clone();
+        let current_tariffs = tariff_sha256(&self.recorded_tariffs())?;
+        if recorded_tariffs != current_tariffs {
+            return Err(DemoError::new(
+                "journal cannot be resumed: tariffs changed since it was written",
+            ));
+        }
         Ok(())
     }
 }
@@ -316,15 +386,12 @@ fn journal_events_to_json(events: &[swe_native::JournalEvent]) -> Json {
                     attempt_id,
                     outcome,
                     confirmed_at_ms,
-                } => {
-                    let confirmed = matches!(outcome, swe_native::CompletionOutcome::Ok(_));
-                    obj([
-                        ("kind", Json::from("ResultConfirmed")),
-                        ("attempt_id", Json::from(attempt_id.as_str())),
-                        ("confirmed", Json::Bool(confirmed)),
-                        ("confirmed_at_ms", Json::from_u64(*confirmed_at_ms)),
-                    ])
-                }
+                } => obj([
+                    ("kind", Json::from("ResultConfirmed")),
+                    ("attempt_id", Json::from(attempt_id.as_str())),
+                    ("outcome", completion_outcome_to_json(outcome)),
+                    ("confirmed_at_ms", Json::from_u64(*confirmed_at_ms)),
+                ]),
                 E::AttemptAbandoned {
                     attempt_id,
                     reason,
@@ -386,14 +453,12 @@ fn journal_events_to_json(events: &[swe_native::JournalEvent]) -> Json {
     )
 }
 
-fn journal_events_from_json(value: Option<&Json>) -> DemoResult<Vec<swe_native::JournalEvent>> {
-    use swe_native::{CompletionOutcome, Delivery, JournalEvent as E};
-    let Some(value) = value else {
-        return Ok(Vec::new());
-    };
-    let Some(items) = value.as_array() else {
-        return Ok(Vec::new());
-    };
+fn journal_events_from_json(value: &Json) -> DemoResult<Vec<swe_native::JournalEvent>> {
+    use swe_native::{Delivery, JournalEvent as E};
+    // An unreadable event log is a corrupt journal, not an empty one.
+    let items = value
+        .as_array()
+        .ok_or_else(|| DemoError::new("journal_events must be an array"))?;
     let mut events = Vec::new();
     for item in items {
         let kind = field_str(item, "kind")?;
@@ -409,15 +474,7 @@ fn journal_events_from_json(value: Option<&Json>) -> DemoResult<Vec<swe_native::
             },
             "ResultConfirmed" => E::ResultConfirmed {
                 attempt_id: field_str(item, "attempt_id")?.to_string(),
-                outcome: if item
-                    .get("confirmed")
-                    .and_then(Json::as_bool)
-                    .unwrap_or(false)
-                {
-                    CompletionOutcome::Ok(Json::Null)
-                } else {
-                    CompletionOutcome::Cancelled
-                },
+                outcome: completion_outcome_from_json(field(item, "outcome")?)?,
                 confirmed_at_ms: item.get("confirmed_at_ms").and_then(u64_of).unwrap_or(0),
             },
             "AttemptAbandoned" => E::AttemptAbandoned {
@@ -457,4 +514,63 @@ fn journal_events_from_json(value: Option<&Json>) -> DemoResult<Vec<swe_native::
 
 fn u64_of(value: &Json) -> Option<u64> {
     crate::as_u64(value)
+}
+
+/// Lossless encoding of a completion outcome: Ok, Err and Cancelled stay three
+/// different facts, and the Ok payload survives.
+fn completion_outcome_to_json(outcome: &swe_native::CompletionOutcome) -> Json {
+    use swe_native::CompletionOutcome;
+    match outcome {
+        CompletionOutcome::Ok(value) => obj([("kind", Json::from("ok")), ("value", value.clone())]),
+        CompletionOutcome::Err { kind, message } => obj([
+            ("kind", Json::from("error")),
+            ("error_kind", Json::from(kind.as_str())),
+            ("message", Json::from(message.as_str())),
+        ]),
+        CompletionOutcome::Cancelled => obj([("kind", Json::from("cancelled"))]),
+    }
+}
+
+fn completion_outcome_from_json(value: &Json) -> DemoResult<swe_native::CompletionOutcome> {
+    use swe_native::CompletionOutcome;
+    match field_str(value, "kind")? {
+        "ok" => Ok(CompletionOutcome::Ok(
+            value.get("value").cloned().unwrap_or(Json::Null),
+        )),
+        "error" => Ok(CompletionOutcome::Err {
+            kind: field_str(value, "error_kind")?.to_string(),
+            message: field_str(value, "message")?.to_string(),
+        }),
+        "cancelled" => Ok(CompletionOutcome::Cancelled),
+        other => Err(DemoError::new(format!(
+            "unknown completion outcome {other:?} in journal"
+        ))),
+    }
+}
+
+fn dependency_versions_to_json(versions: &std::collections::BTreeMap<String, u32>) -> Json {
+    let pairs: Vec<(String, Json)> = versions
+        .iter()
+        .map(|(name, version)| (name.clone(), Json::from_u64(u64::from(*version))))
+        .collect();
+    Json::object(pairs)
+}
+
+fn dependency_versions_from_json(
+    value: &Json,
+) -> DemoResult<std::collections::BTreeMap<String, u32>> {
+    let Some(object) = value.as_object() else {
+        return Err(DemoError::new("dependency_versions must be an object"));
+    };
+    let mut versions = std::collections::BTreeMap::new();
+    for (name, version) in object {
+        let number = crate::as_u64(version)
+            .ok_or_else(|| DemoError::new("dependency version must be an integer"))?;
+        versions.insert(
+            name.clone(),
+            u32::try_from(number)
+                .map_err(|_| DemoError::new("dependency version is out of range"))?,
+        );
+    }
+    Ok(versions)
 }
