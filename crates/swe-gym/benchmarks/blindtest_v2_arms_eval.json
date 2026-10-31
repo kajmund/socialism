@@ -265,32 +265,43 @@
     "correct_abstentions": "n/a (v2 har inga olösliga behov)"
   },
   "costs": {
+    "model": {
+      "execution_jev_calls": "JEV-anrop strategin skulle göra från TOM cache (antal verifieringsbeslut efter armens spannbearbetning).",
+      "experiment_new_calls": "JEV-anrop som faktiskt behövde köras i experimentet eftersom tidigare frysta svar kunde återanvändas.",
+      "note": "Ekonomisk jämförelse ska använda execution_jev_calls (M0 32 → M2/M12 26), inte experimentets replay-kostnad. experiment_new_calls mäter bara vad körningen behövde betala utöver frysta svar."
+    },
     "per_arm": {
       "m0": {
-        "jev_new_calls": 0,
-        "jev_calls": 32,
+        "execution_jev_calls": 32,
+        "experiment_new_calls": 0,
         "gliner_inferences": 0
       },
       "m1": {
-        "jev_new_calls": 2,
-        "jev_calls": 32,
+        "execution_jev_calls": 32,
+        "experiment_new_calls": 2,
         "gliner_inferences": 0
       },
       "m2": {
-        "jev_new_calls": 0,
-        "jev_calls": 26,
+        "execution_jev_calls": 26,
+        "experiment_new_calls": 0,
         "gliner_inferences": 0
       },
       "m12": {
-        "jev_new_calls": 0,
-        "jev_calls": 26,
+        "execution_jev_calls": 26,
+        "experiment_new_calls": 0,
         "gliner_inferences": 0
       }
     },
+    "comparison": {
+      "m0_execution": 32,
+      "m12_execution": 26,
+      "execution_delta": -6,
+      "m12_additional_solved_vs_m0": 2,
+      "execution_cost_per_additional_solved": "6 färre JEV-anrop för +2 lösta"
+    },
     "gliner_inferences": 0,
     "jev_new_calls_total": 2,
-    "jev_calls_total": 116,
-    "note": "M1 pays only for presentations that actually changed; M2 verifies fewer spans than M0. Marginal cost per additional solved need is reported below."
+    "jev_calls_total": 116
   },
   "reservation": "These 16 cases are now a diagnostic development set for M1–M6; they are no longer an independent blind test for the improved versions. A new unseen document set is required before any broader activation.",
   "details": {

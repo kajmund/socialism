@@ -76,14 +76,25 @@ förblir olöst eftersom operativ roll klassas som DURATION medan behovet deklar
 — rollrobusthet (M3) krävs. Samma sak gäller pm-02. Ablationen visar alltså att M2 är
 nödvändig men inte tillräcklig för de fallen.
 
-## Ekonomi
+## Ekonomi — två olika kostnader
 
-- **Inferenser:** 0 i alla armar (post-processing).
-- **JEV:** M0 32 anrop; M1 32 (varav 2 nya); M2 26 (0 nya — konsolideringen tar bort 6
-  verifieringar); M12 26 (0 nya efter M1:s cachade svar).
-- **Merkostnad per ytterligare löst behov:** M1 = 2 nya JEV-anrop för +1; M2 = 0 nya
-  anrop för +1 (och 6 färre verifieringar); M12 = 2 nya anrop totalt för +2, med
-  6 färre JEV-anrop än M0 som helhet.
+Kostnader måste skiljas åt, annars blir jämförelsen fel:
+
+| Arm | Exekveringskostnad (JEV-anrop från tom cache) | Experimentets merkostnad (nya anrop) | Inferenser |
+|---|---|---|---|
+| M0 | 32 | 0 | 0 |
+| M1 | 32 | 2 | 0 |
+| M2 | 26 | 0 | 0 |
+| M12 | 26 | 0 | 0 |
+
+- **Exekveringskostnaden** är antalet verifieringsbeslut strategin fattar efter sin
+  spannbearbetning — det är den som ska jämföras ekonomiskt. M12 gör **26 mot M0:s 32**,
+  dvs. 6 färre JEV-anrop för +2 lösta behov, och 0 nya modellinferenser.
+- **Experimentets merkostnad** är bara vad den här körningen behövde köra utöver frysta
+  svar (M1: 2 nya presentationer; M12: 0 eftersom M1:s svar redan fanns). Den siffran
+  får aldrig användas som strategins kostnad.
+- M2:s fördel ligger i exekveringskostnaden: konsolideringen tar bort 6 verifieringar
+  utan nya modellbeslut.
 
 ## D10-svarskontamination
 
