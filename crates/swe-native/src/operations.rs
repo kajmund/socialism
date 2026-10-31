@@ -58,12 +58,7 @@ impl OperationSpec {
     /// order, and the gate's whole purpose is that its verdict is not a matter
     /// of ordering.
     pub fn gate(&self, states: &[(NeedRef, NeedStatus)]) -> Result<(), GateError> {
-        let mut seen = std::collections::BTreeSet::new();
-        for (need, _) in states {
-            if !seen.insert(need.clone()) {
-                return Err(GateError::DuplicateState { need: need.clone() });
-            }
-        }
+        ensure_unique_state(states)?;
         match self.execution_policy {
             ExecutionPolicy::AllRequired => {
                 let missing: Vec<MissingInput> = self
@@ -97,6 +92,21 @@ impl OperationSpec {
             }
         }
     }
+}
+
+/// Refuse a state list that names the same need twice.
+///
+/// The single implementation of that rule: both [`OperationSpec::gate`] and
+/// [`execute`] call it, so there is one place where a duplicate is defined and
+/// one place to mutate when testing it.
+fn ensure_unique_state(states: &[(NeedRef, NeedStatus)]) -> Result<(), GateError> {
+    let mut seen = std::collections::BTreeSet::new();
+    for (need, _) in states {
+        if !seen.insert(need.clone()) {
+            return Err(GateError::DuplicateState { need: need.clone() });
+        }
+    }
+    Ok(())
 }
 
 /// Why an operation was not allowed to run.
@@ -259,15 +269,10 @@ where
     X: FnMut() -> OpOutcome,
     R: FnMut(&NeedRef) -> Option<NeedStatus>,
 {
-    // Validate the state list before the loop, not only inside it: with a round
-    // budget of zero the loop body never runs, and a malformed list would then
-    // look like a clean round-limit stop — a conclusion about the world.
-    let mut seen_check = std::collections::BTreeSet::new();
-    for (need, _) in states.iter() {
-        if !seen_check.insert(need.clone()) {
-            return Err(GateError::DuplicateState { need: need.clone() });
-        }
-    }
+    // The same rule as the gate's, applied before the loop: with a round budget
+    // of zero the loop body never runs, and a malformed list would then look
+    // like a clean round-limit stop — a conclusion about the world.
+    ensure_unique_state(states)?;
     let mut seen: Vec<NeedRef> = Vec::new();
     for _ in 0..max_rounds {
         match spec.gate(states) {

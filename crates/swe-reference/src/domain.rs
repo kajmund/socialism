@@ -12,7 +12,7 @@ use crate::{obj, DemoError, DemoResult};
 /// Which version of the supplier register the mock provider serves.
 ///
 /// The scenario is provider configuration, not workflow input: the same SWD
-/// definition and the same run input are used for both scenarios.
+/// definition and the same run input are used for all scenarios.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Scenario {
     /// Every fact the workflow needs is present and unambiguous.

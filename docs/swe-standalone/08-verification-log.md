@@ -801,6 +801,10 @@ pub enum GateError {
   inte med `INSUFFICIENT_EVIDENCE`. En bugg i värden får inte förklä sig som en
   slutsats om världen.
 - Python-bindningen kastar `ValueError` med behovet namngivet.
+- Regeln har **en** implementation: `ensure_unique_state`, som både
+  `OperationSpec::gate` och `execute` anropar. `execute` validerar före loopen,
+  så `max_rounds = 0` inte kan förvandla en felaktig statuslista till ett
+  `RoundLimit`-avslut.
 
 Ordningsoberoendet prövas från båda sidor — kärnan kräver samma fel för båda
 ordningarna, och Python-testet ställer samma krav **oberoende av
@@ -874,9 +878,10 @@ härledda):
 | `the_demo_cannot_accept_an_input_the_engine_refuses` | mappar `AMBIGUOUS` som användbar | 4 |
 | `a_discovered_fact_the_engine_refuses_stops_the_investigation` | lokal `GateFailure` i stället för motorns anrop | 1 |
 | `the_refusal_payload_reports_every_missing_input_and_its_status` | `gate_failure_json` tappar `missing` | 2 |
-| fem kärntester för dubbletter | tar bort dubblettkontrollen i `gate` | 5 |
-| `execute_refuses_a_caller_supplied_duplicate_instead_of_abstaining` | återställer `DuplicateState` → `InsufficientEvidence` | 2 |
-| `execute_refuses_a_duplicate_that_the_resolver_creates` | tar bort resolver-kontrollen | 2 |
+| fem kärntester för dubbletter | tar bort den enda dubblettregeln (`ensure_unique_state`) | 8 kärntester |
+| (samma fem) | tar bort enbart `execute`s förkontroll | 1 (`a_zero_round_budget_cannot_hide_a_duplicate`) |
+| `execute_refuses_a_caller_supplied_duplicate_instead_of_abstaining` | tar bort förkontrollen **och** återställer armens `DuplicateState` → `InsufficientEvidence` | 2 (denna + `a_zero_round_budget_cannot_hide_a_duplicate`) |
+| `execute_refuses_a_duplicate_that_the_resolver_creates` | tar bort resolver-kontrollen **och** återställer armens `DuplicateState` → `InsufficientEvidence` | 1 |
 | `a_zero_round_budget_cannot_hide_a_duplicate` | tar bort förkontrollen före loopen | 1 |
 | `the_named_duplicate_follows_input_order_not_identity_order` | namnger lexikografiskt minsta dubblett | 1 |
 | fyra Python-fall för ordningar + namn + inte-abstention | tar bort dubblettkontrollen i `gate` | 6 (Python) |
