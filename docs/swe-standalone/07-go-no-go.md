@@ -240,6 +240,36 @@ Det som är stängt och mutationstestat: Rust normativ semantik, Python utan ege
 statuslogik, differentialtest som faktiskt kan faila, domänneutral kärna,
 `swe-budget` utan beteendeförändring.
 
+## 8. GO-prövning (utförd efter att B3 stängts)
+
+B3 stängdes i runda 9 efter fyra oberoende granskningsrundor; sista svaret var
+**APPROVE**. Här prövas §6:s sju kriterier mot faktisk kod, inte mot avsikter.
+
+| # | Kriterium | Status | Evidens |
+| --- | --- | --- | --- |
+| 1 | Importriktning: noll `app.*`-importer + automatiskt gate | **Uppfyllt** | `grep` i `backend/app/swe/` ger noll icke-`app.swe`-importer; `tests/test_swe_import_boundary.py` (7 tester, `ast`-baserad) failar vid återfall |
+| 2 | Domänneutral demo mot de nya kontrakten, ingen applikationskopia av grind eller ledger | **Uppfyllt** | `crates/swe-reference/Cargo.toml` beror bara på `swe-native` + `swe-budget`; `all_required`/`GateResult` borta; ledger via `swe_budget::Ledger` |
+| 3 | Rust-journal: paus/återuppta går genom kärnans kontrakt | **Uppfyllt** | `host.rs` skriver `AttemptStarted`/`ChargeReserved`/`ResultConfirmed`/`ChargeSettled`; 132 händelser över en pausad+återupptagen körning; `JournalHeader::verify` prövar schema, definition, kontrakt och beroenden |
+| 4 | Fristående harness: `cargo test --workspace` + `pytest` utan Socialism-checkout | **EJ uppfyllt** | Det finns **ingen root-`Cargo.toml`**; de fyra cratarna är fristående. Python-testerna ligger kvar i `backend/tests/` och kräver `backend/`-trädet (`import app.swe`, `tests/conftest.py`). Detta är **B4** och är nästa steg |
+| 5 | Research oförändrat, backend-CI grön | **Uppfyllt** | Alla 13 CI-checks gröna; research-vägen har tre ändringar: en kommentar i `swe_bridge.py` och två importvägar i `scripts/`+`tests/` från B1-flytten. Ingen beteendeändring |
+| 6 | Kontrakten i `04` frysta och dokumenterade i det nya repot | **Delvis** | Dokumenten finns och är konsistenta (04, 09, 12), men "fryst" kräver ägarens sign-off och dokumenten ska följa med till det nya repot — det sker i PR 4 |
+| 7 | Licens- och repo-beslut | **EJ fattat** | Ägarbeslut: offentligt/privat, licens för crate och wheel, namn/org |
+
+### Beslut
+
+**NO-GO för den fysiska repo-flytten i dag.** Fyra av sju kriterier är uppfyllda
+och verifierade; tre återstår, och två av dem är ägarbeslut som ingen agent kan
+fatta (6 i sin helhet, 7).
+
+**GO för B4** — den enda kvarvarande agent-utförbara delen: en root-workspace
+med `cargo test --workspace`, samt en fristående Python-harness där SWE-testerna
+kör utan `backend/`-trädet. Det är mekaniskt arbete, inte arkitektur, och det kan
+göras i den här PR:en eller i PR 4.
+
+Vad som **inte** ska göras samtidigt: cache, `ActionOffer`, `wait`, `retry` eller
+andra nya förmågor. Motorn är tillräckligt avancerad; det som återstår är att
+göra dess gränser flyttbara.
+
 ## 7. Rekommendation (uppdaterad ordning, beslutad)
 
 1. **Kontraktsbeslut** (`09-contract-decision.md`) — definierar Rust som
