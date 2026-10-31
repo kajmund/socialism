@@ -8,8 +8,8 @@ use std::path::PathBuf;
 use swe_reference::{
     all_required, candidates, cheapest_compliant, question, read_journal, resume, run,
     workflow_document, workflow_document_sha256, workflow_input, write_journal, ActionKind,
-    Evidence, EvidenceSet, EvidenceStatus, InvocationLog, Json, Need, NeedRef, OpOutcome,
-    ResumeConfig, RunConfig, RunReport, RunStatus, Scenario, NO_COMPLIANT_SUPPLIER,
+    Evidence, EvidenceSet, EvidenceStatus, InvocationLog, Json, OperationResult, ResumeConfig,
+    RunConfig, RunReport, RunStatus, Scenario, NO_COMPLIANT_SUPPLIER,
 };
 
 fn document() -> Json {
@@ -210,6 +210,68 @@ fn no_compliant_supplier_is_a_terminal_report_not_a_crash() {
 }
 
 #[test]
+fn several_discovered_needs_are_resolved_over_several_rounds() {
+    // Two suppliers fail requirement C, so one screening round discovers two
+    // separate missing facts. The engine's protocol surfaces one need per
+    // round; the investigation resolves it, re-runs, and the second surfaces.
+    // That is what keeps the loop bounded without widening NeedMore to a list.
+    let report = run(
+        &document(),
+        &input(),
+        Scenario::TwoExceptions,
+        &RunConfig::new("test-two-needs", 100_000),
+    )
+    .expect("run starts")
+    .into_finished()
+    .expect("run finishes");
+
+    let screens: Vec<&InvocationLog> = report
+        .invocations
+        .iter()
+        .filter(|invocation| invocation.node_id == "screen")
+        .collect();
+    assert!(
+        screens.len() >= 3,
+        "one round per discovered need plus the final round, got {}",
+        screens.len()
+    );
+    assert_eq!(screens[0].status(), Some("need_more"));
+    assert_eq!(screens[1].status(), Some("need_more"));
+    assert_eq!(screens[screens.len() - 1].status(), Some("ok"));
+
+    let first = screens[0].output.get("need").and_then(Json::as_str);
+    let second = screens[1].output.get("need").and_then(Json::as_str);
+    assert!(first.is_some() && second.is_some());
+    assert_ne!(first, second, "a repeated need would end the investigation");
+
+    // Both discovered facts were resolved, and each extra round cost money.
+    let resolved: Vec<&str> = report
+        .evidence
+        .iter()
+        .filter(|evidence| evidence.is_verified())
+        .map(|evidence| evidence.need_id.as_str())
+        .collect();
+    let first = first.expect("first need").to_string();
+    let second = second.expect("second need").to_string();
+    assert!(
+        resolved.contains(&first.as_str()),
+        "first need was not resolved"
+    );
+    assert!(
+        resolved.contains(&second.as_str()),
+        "second need was not resolved"
+    );
+    assert_eq!(
+        report.charge_count("reference.screen_compliance"),
+        screens.len()
+    );
+    assert_eq!(
+        report.spent_milli + report.available_milli,
+        report.allocated_milli
+    );
+}
+
+#[test]
 fn need_more_is_resolved_and_operation_reruns() {
     let report = run_scenario(Scenario::Baseline, "test-need-more");
     let screens: Vec<&InvocationLog> = report
@@ -253,8 +315,8 @@ fn need_more_is_resolved_and_operation_reruns() {
 #[test]
 fn all_required_gate_lists_every_missing_input() {
     let required = vec![
-        NeedRef::new("alpha", "price"),
-        NeedRef::new("beta", "price"),
+        swe_reference::need_ref("alpha", "price"),
+        swe_reference::need_ref("beta", "price"),
     ];
     let mut evidence = EvidenceSet::new();
 
@@ -272,7 +334,7 @@ fn all_required_gate_lists_every_missing_input() {
     let gate = all_required(&required, &evidence);
     assert!(!gate.satisfied());
     assert_eq!(gate.missing.len(), 1);
-    assert_eq!(gate.missing[0].need.id, "beta.price");
+    assert_eq!(gate.missing[0].need.id(), "beta.price");
 
     let mut ambiguous = verified("beta.price", "beta", "price", Json::from_u64(950));
     ambiguous.status = EvidenceStatus::Ambiguous;
@@ -834,20 +896,18 @@ fn metering_is_per_action_and_sums_to_the_ledger() {
 }
 
 #[test]
-fn need_more_is_a_typed_operation_outcome() {
-    let need = Need::new(
-        NeedRef::new("alpha", "c_exception"),
-        "the static contract does not cover this conditional fact",
-    );
-    let outcome = OpOutcome::NeedMore(vec![need]);
-    assert_eq!(outcome.status(), "need_more");
-    let json = outcome.into_json();
+fn need_more_is_the_engines_singular_protocol() {
+    // The engine's protocol is one need per round, not a list: that keeps the
+    // loop bounded and lets the investigation choose what to resolve next. The
+    // demo consumes that outcome rather than widening it to a list.
+    let need = swe_reference::need_ref("alpha", "c_exception");
+    let result = OperationResult::need_more(need.clone());
+    assert_eq!(result.status(), "need_more");
+    let json = result.into_handler_json();
     assert_eq!(json.get("status").and_then(Json::as_str), Some("need_more"));
-    let needs = json.get("needs").and_then(Json::as_array).expect("needs");
-    assert_eq!(needs.len(), 1);
     assert_eq!(
-        needs[0].get("id").and_then(Json::as_str),
-        Some("alpha.c_exception")
+        json.get("need").and_then(Json::as_str),
+        Some(need.id().as_str())
     );
 }
 

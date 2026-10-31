@@ -74,14 +74,8 @@ pub fn current_dependency_versions() -> std::collections::BTreeMap<String, u32> 
 /// different prices would silently reprice the second half of a run.
 pub fn tariff_sha256(tariffs: &Tariffs) -> DemoResult<String> {
     let payload = obj([
-        (
-            "handler_milli",
-            Json::from_u64(tariffs.handler_milli),
-        ),
-        (
-            "provider_milli",
-            Json::from_u64(tariffs.provider_milli),
-        ),
+        ("handler_milli", Json::from_u64(tariffs.handler_milli)),
+        ("provider_milli", Json::from_u64(tariffs.provider_milli)),
     ]);
     Ok(sha256_hex(&payload)?)
 }

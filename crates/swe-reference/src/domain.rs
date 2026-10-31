@@ -22,6 +22,9 @@ pub enum Scenario {
     /// Every fact is present and verified, but no supplier meets all three
     /// requirements: screening succeeds and the comparison has no candidate.
     NoCompliantSupplier,
+    /// Two suppliers fail requirement C, so a single round discovers two
+    /// separate missing facts. Exercises one need per round.
+    TwoExceptions,
 }
 
 impl Scenario {
@@ -30,6 +33,7 @@ impl Scenario {
             Self::Baseline => "baseline",
             Self::MissingEvidence => "missing_evidence",
             Self::NoCompliantSupplier => "no_compliant_supplier",
+            Self::TwoExceptions => "two_exceptions",
         }
     }
 
@@ -38,6 +42,7 @@ impl Scenario {
             "baseline" => Ok(Self::Baseline),
             "missing_evidence" => Ok(Self::MissingEvidence),
             "no_compliant_supplier" => Ok(Self::NoCompliantSupplier),
+            "two_exceptions" => Ok(Self::TwoExceptions),
             other => Err(DemoError::new(format!("unknown scenario {other:?}"))),
         }
     }
@@ -124,6 +129,12 @@ pub(crate) fn fetch_observation(
             ("conflicting_sources", Json::Bool(false)),
         ])
     };
+
+    if scenario == Scenario::TwoExceptions && fact == "req_c" {
+        // Alpha and Beta both fail requirement C, so screening discovers two
+        // separate missing facts in one round.
+        return Ok(found(Json::Bool(false)));
+    }
 
     if scenario == Scenario::NoCompliantSupplier && fact == "req_b" {
         // Every supplier keeps its price and requirement A, but nobody meets

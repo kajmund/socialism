@@ -13,6 +13,7 @@ use swe_native::Json;
 use crate::domain::Candidate;
 use crate::evidence::EvidenceSet;
 use crate::{as_u64, field, field_array, field_str, obj, DemoError, DemoResult};
+use swe_native::OpOutcome;
 
 pub const COMPLIANCE_FACTS: [&str; 3] = ["req_a", "req_b", "req_c"];
 pub const PRICE_FACT: &str = "price";
@@ -23,39 +24,31 @@ pub const PRICE_OPERATION: &str = "select_cheapest";
 pub const NO_COMPLIANT_SUPPLIER: &str = "NO_COMPLIANT_SUPPLIER";
 
 /// A fact a need refers to: `(supplier, fact)` with a stable id.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct NeedRef {
-    pub id: String,
-    pub supplier: String,
-    pub fact: String,
+/// The engine's need identity, with the demo's supplier/fact mapping.
+///
+/// B2 made `swe_native::NeedRef` the single source of truth for need identity,
+/// so this crate no longer defines its own: the supplier is the engine's
+/// `subject` and the fact is the engine's `fact`.
+pub use swe_native::NeedRef;
+
+/// Build the demo's need reference: the supplier is the subject.
+pub fn need_ref(supplier: impl Into<String>, fact: impl Into<String>) -> NeedRef {
+    NeedRef::new(fact, supplier)
 }
 
-impl NeedRef {
-    pub fn new(supplier: impl Into<String>, fact: impl Into<String>) -> Self {
-        let supplier = supplier.into();
-        let fact = fact.into();
-        Self {
-            id: format!("{supplier}.{fact}"),
-            supplier,
-            fact,
-        }
-    }
+pub(crate) fn need_to_json_pub(need: &NeedRef) -> Json {
+    obj([
+        ("id", Json::from(need.id().as_str())),
+        ("supplier", Json::from(need.subject.clone())),
+        ("fact", Json::from(need.fact.clone())),
+    ])
+}
 
-    pub fn from_json(value: &Json) -> DemoResult<Self> {
-        Ok(Self {
-            id: field_str(value, "id")?.to_string(),
-            supplier: field_str(value, "supplier")?.to_string(),
-            fact: field_str(value, "fact")?.to_string(),
-        })
-    }
-
-    pub fn to_json(&self) -> Json {
-        obj([
-            ("id", Json::from(self.id.as_str())),
-            ("supplier", Json::from(self.supplier.as_str())),
-            ("fact", Json::from(self.fact.as_str())),
-        ])
-    }
+pub(crate) fn need_from_json_pub(value: &Json) -> DemoResult<NeedRef> {
+    Ok(NeedRef::new(
+        field_str(value, "fact")?,
+        field_str(value, "supplier")?,
+    ))
 }
 
 /// An information need derived from a contract (or discovered by an operation).
@@ -74,12 +67,11 @@ impl Need {
     }
 
     pub fn to_json(&self) -> Json {
-        obj([
-            ("id", Json::from(self.reference.id.as_str())),
-            ("supplier", Json::from(self.reference.supplier.as_str())),
-            ("fact", Json::from(self.reference.fact.as_str())),
-            ("reason", Json::from(self.reason.as_str())),
-        ])
+        let mut value = need_to_json_pub(&self.reference);
+        if let Json::Object(object) = &mut value {
+            object.insert("reason".to_string(), Json::from(self.reason.as_str()));
+        }
+        value
     }
 }
 
@@ -103,7 +95,7 @@ impl OperationContract {
             ("id", Json::from(self.id.as_str())),
             (
                 "required",
-                Json::Array(self.required.iter().map(NeedRef::to_json).collect()),
+                Json::Array(self.required.iter().map(need_to_json_pub).collect()),
             ),
         ])
     }
@@ -111,7 +103,7 @@ impl OperationContract {
     pub fn from_json(value: &Json) -> DemoResult<Self> {
         let required = field_array(value, "required")?
             .iter()
-            .map(NeedRef::from_json)
+            .map(need_from_json_pub)
             .collect::<DemoResult<Vec<_>>>()?;
         Ok(Self {
             id: field_str(value, "id")?.to_string(),
@@ -135,12 +127,12 @@ impl OperationRegistry {
             .flat_map(|candidate| {
                 COMPLIANCE_FACTS
                     .iter()
-                    .map(move |fact| NeedRef::new(&candidate.id, *fact))
+                    .map(move |fact| need_ref(&candidate.id, *fact))
             })
             .collect();
         let prices = candidates
             .iter()
-            .map(|candidate| NeedRef::new(&candidate.id, PRICE_FACT))
+            .map(|candidate| need_ref(&candidate.id, PRICE_FACT))
             .collect();
         Self {
             contracts: vec![
@@ -203,7 +195,7 @@ pub struct MissingInput {
 impl MissingInput {
     pub fn to_json(&self) -> Json {
         obj([
-            ("need", self.need.to_json()),
+            ("need", need_to_json_pub(&self.need)),
             ("reason", Json::from(self.reason.as_str())),
         ])
     }
@@ -226,7 +218,7 @@ impl GateResult {
     pub fn summary(&self) -> String {
         self.missing
             .iter()
-            .map(|input| input.need.id.as_str())
+            .map(|input| input.need.id())
             .collect::<Vec<_>>()
             .join(", ")
     }
@@ -239,7 +231,7 @@ impl GateResult {
 pub fn all_required(required: &[NeedRef], evidence: &EvidenceSet) -> GateResult {
     let mut missing = Vec::new();
     for need in required {
-        match evidence.get(&need.id) {
+        match evidence.get(&need.id()) {
             None => missing.push(MissingInput {
                 need: need.clone(),
                 reason: "no evidence recorded for this required input".to_string(),
@@ -275,55 +267,115 @@ pub fn plan_needs_handler(input: &Json) -> DemoResult<Json> {
     ]))
 }
 
-/// Typed operation result, before it is serialised into the handler's JSON.
+/// What an operation produced: the engine's typed outcome plus the demo's
+/// payload for the handler protocol.
 ///
-/// `NeedMore` is the spec's `NeedMore(NeedRef)` protocol: the operation found a
-/// fact that its declared contract does not cover and that it therefore cannot
-/// satisfy itself. The handler layer serialises this outcome to the flat task
-/// output (`status: "need_more"`), routes the new needs through the same
-/// fan-out, and re-runs the operation.
+/// The engine owns the *semantics* — `Answer`, the singular `NeedMore(NeedRef)`
+/// and `InsufficientEvidence(GateFailure)` (`swe_native::operations`). This
+/// wrapper only carries the JSON the task handler returns alongside it, which
+/// is application data the engine has no business knowing.
 #[derive(Clone, Debug, PartialEq)]
-pub enum OpOutcome {
-    Answer(Json),
-    NeedMore(Vec<Need>),
-    Insufficient(Json),
+pub struct OperationResult {
+    pub outcome: OpOutcome,
+    pub payload: Json,
 }
 
-impl OpOutcome {
-    pub fn status(&self) -> &'static str {
-        match self {
-            Self::Answer(_) => "ok",
-            Self::NeedMore(_) => "need_more",
-            Self::Insufficient(_) => "insufficient",
+impl OperationResult {
+    pub fn answer(payload: Json) -> Self {
+        let text = canonical_text(&payload);
+        Self {
+            outcome: OpOutcome::Answer(text),
+            payload,
         }
     }
 
-    /// Serialise into the flat JSON object a `task` handler returns.
-    pub fn into_json(self) -> Json {
-        match self {
-            Self::Answer(payload) => with_status(payload, "ok"),
-            Self::NeedMore(needs) => obj([
+    pub fn need_more(need: swe_native::NeedRef) -> Self {
+        Self {
+            outcome: OpOutcome::NeedMore(need),
+            payload: Json::Null,
+        }
+    }
+
+    pub fn insufficient(failure: swe_native::GateFailure) -> Self {
+        Self {
+            outcome: OpOutcome::InsufficientEvidence(failure.clone()),
+            payload: obj([("detail", Json::from(failure.to_string()))]),
+        }
+    }
+
+    pub fn status(&self) -> &'static str {
+        match self.outcome {
+            OpOutcome::Answer(_) => "ok",
+            OpOutcome::NeedMore(_) => "need_more",
+            OpOutcome::InsufficientEvidence(_) => "insufficient",
+        }
+    }
+
+    /// The flat JSON object a `task` handler returns.
+    pub fn into_handler_json(self) -> Json {
+        match self.outcome {
+            OpOutcome::Answer(_) => with_status(self.payload, "ok", ("answer_text", Json::Null)),
+            // The engine's protocol is singular: one need per round. The map
+            // node that fetches it takes a list, so the host wraps the one need
+            // rather than the engine returning many.
+            OpOutcome::NeedMore(need) => obj([
                 ("status", Json::from("need_more")),
+                ("need", Json::from(need.id())),
+                ("id", Json::from(need.id())),
                 (
                     "needs",
-                    Json::Array(needs.iter().map(Need::to_json).collect()),
+                    Json::Array(vec![obj([
+                        ("id", Json::from(need.id())),
+                        ("supplier", Json::from(need.subject.clone())),
+                        ("fact", Json::from(need.fact.clone())),
+                        ("reason", Json::from("discovered by the operation")),
+                    ])]),
                 ),
                 (
                     "reason",
                     Json::from(
-                        "the operation discovered additional conditional facts it cannot satisfy",
+                        "the operation discovered a conditional fact its contract does not cover",
                     ),
                 ),
             ]),
-            Self::Insufficient(payload) => with_status(payload, "insufficient"),
+            OpOutcome::InsufficientEvidence(failure) => {
+                let reason = match self.payload.get("reason").and_then(Json::as_str) {
+                    Some(text) => Json::from(text),
+                    None => Json::from(failure.to_string()),
+                };
+                with_status(self.payload, "insufficient", ("reason", reason))
+            }
         }
     }
 }
 
-fn with_status(payload: Json, status: &str) -> Json {
+/// Canonical text of a payload, used where the engine protocol needs a string.
+fn canonical_text(value: &Json) -> String {
+    String::from_utf8(swe_native::canonical_json_bytes(value).unwrap_or_default())
+        .unwrap_or_default()
+}
+
+/// Convert the demo's gate result into the engine's typed gate failure.
+fn gate_failure(operation: &str, gate: &GateResult) -> swe_native::GateFailure {
+    swe_native::GateFailure {
+        operation: operation.to_string(),
+        outcome: swe_native::MissingOutcome::InsufficientEvidence,
+        missing: gate
+            .missing
+            .iter()
+            .map(|input| swe_native::MissingInput {
+                need: input.need.clone(),
+                status: swe_native::NeedStatus::Unresolved,
+            })
+            .collect(),
+    }
+}
+
+fn with_status(payload: Json, status: &str, extra: (&str, Json)) -> Json {
     match payload {
         Json::Object(mut map) => {
             map.insert("status".to_string(), Json::from(status));
+            map.insert(extra.0.to_string(), extra.1);
             Json::Object(map)
         }
         other => other,
@@ -339,7 +391,7 @@ enum Screening {
 
 /// Handler wrapper: serialises the typed [`OpOutcome`] for the kernel.
 pub fn screen_compliance_handler(input: &Json) -> DemoResult<Json> {
-    Ok(screen_compliance(input)?.into_json())
+    Ok(screen_compliance(input)?.into_handler_json())
 }
 
 /// Screening operation: ALL_REQUIRED gate, then the requirements rule.
@@ -347,14 +399,14 @@ pub fn screen_compliance_handler(input: &Json) -> DemoResult<Json> {
 /// Requirement C has a documented-exception path. When a candidate fails C the
 /// operation discovers that it needs the exception fact, which is *not* part of
 /// its static contract; it returns [`OpOutcome::NeedMore`] for it.
-pub fn screen_compliance(input: &Json) -> DemoResult<OpOutcome> {
+pub fn screen_compliance(input: &Json) -> DemoResult<OperationResult> {
     let candidates = Candidate::list_from_json(field(input, "candidates")?)?;
     let registry = OperationRegistry::from_json(field(input, "operations")?)?;
     let evidence = EvidenceSet::from_json(field(input, "evidence")?)?;
     let contract = registry.contract(SCREEN_OPERATION)?;
     let gate = all_required(&contract.required, &evidence);
     if !gate.satisfied() {
-        return Ok(OpOutcome::Insufficient(insufficient_payload(
+        return Ok(OperationResult::insufficient(gate_failure(
             SCREEN_OPERATION,
             &gate,
         )));
@@ -374,19 +426,26 @@ pub fn screen_compliance(input: &Json) -> DemoResult<OpOutcome> {
             }
             Screening::NeedsException(need) => needs.push(need),
             Screening::Insufficient(reason) => {
-                return Ok(OpOutcome::Insufficient(obj([(
-                    "reason",
-                    Json::from(reason),
-                )])));
+                let failure = gate_failure(SCREEN_OPERATION, &all_required(&[], &evidence));
+                return Ok(OperationResult {
+                    outcome: OpOutcome::InsufficientEvidence(failure),
+                    payload: obj([("reason", Json::from(reason))]),
+                });
             }
         }
     }
 
     if !needs.is_empty() {
-        return Ok(OpOutcome::NeedMore(needs));
+        if let Some(first) = needs.first() {
+            return Ok(OperationResult::need_more(first.reference.clone()));
+        }
+        return Ok(OperationResult::insufficient(gate_failure(
+            SCREEN_OPERATION,
+            &all_required(&[], &evidence),
+        )));
     }
 
-    Ok(OpOutcome::Answer(obj([
+    Ok(OperationResult::answer(obj([
         (
             "compliant",
             Json::Array(compliant.iter().map(|id| Json::from(id.as_str())).collect()),
@@ -415,8 +474,8 @@ fn screen_candidate(candidate: &Candidate, evidence: &EvidenceSet) -> DemoResult
             "meets requirements A, B and C".to_string(),
         ));
     }
-    let exception = NeedRef::new(&candidate.id, EXCEPTION_FACT);
-    match evidence.get(&exception.id) {
+    let exception = need_ref(&candidate.id, EXCEPTION_FACT);
+    match evidence.get(&exception.id()) {
         None => Ok(Screening::NeedsException(Need::new(
             exception,
             format!(
@@ -426,7 +485,7 @@ fn screen_candidate(candidate: &Candidate, evidence: &EvidenceSet) -> DemoResult
         ))),
         Some(entry) if !entry.is_verified() => Ok(Screening::Insufficient(format!(
             "INSUFFICIENT_EVIDENCE: exception fact {} is {}: {}",
-            exception.id,
+            exception.id(),
             entry.status.as_str(),
             entry.reason
         ))),
@@ -446,11 +505,11 @@ fn screen_candidate(candidate: &Candidate, evidence: &EvidenceSet) -> DemoResult
 }
 
 fn required_bool(evidence: &EvidenceSet, supplier: &str, fact: &str) -> DemoResult<bool> {
-    let need = NeedRef::new(supplier, fact);
-    evidence.verified_bool(&need.id).ok_or_else(|| {
+    let need = need_ref(supplier, fact);
+    evidence.verified_bool(&need.id()).ok_or_else(|| {
         DemoError::new(format!(
             "ALL_REQUIRED gate passed but {} is not a verified boolean",
-            need.id
+            need.id()
         ))
     })
 }
@@ -493,8 +552,8 @@ pub fn cheapest_compliant(
         if !compliant.iter().any(|id| id == &candidate.id) {
             continue;
         }
-        let need = NeedRef::new(&candidate.id, PRICE_FACT);
-        let price_sek = evidence.verified_u64(&need.id).ok_or_else(|| {
+        let need = need_ref(&candidate.id, PRICE_FACT);
+        let price_sek = evidence.verified_u64(&need.id()).ok_or_else(|| {
             DemoError::new(format!(
                 "compliant supplier {} has no verified price evidence",
                 candidate.id
@@ -516,11 +575,11 @@ pub fn cheapest_compliant(
 
 /// Handler wrapper: serialises the typed [`OpOutcome`] for the kernel.
 pub fn select_cheapest_handler(input: &Json) -> DemoResult<Json> {
-    Ok(select_cheapest(input)?.into_json())
+    Ok(select_cheapest(input)?.into_handler_json())
 }
 
 /// Price operation: ALL_REQUIRED gate, then the deterministic comparison.
-pub fn select_cheapest(input: &Json) -> DemoResult<OpOutcome> {
+pub fn select_cheapest(input: &Json) -> DemoResult<OperationResult> {
     let candidates = Candidate::list_from_json(field(input, "candidates")?)?;
     let registry = OperationRegistry::from_json(field(input, "operations")?)?;
     let evidence = EvidenceSet::from_json(field(input, "evidence")?)?;
@@ -535,14 +594,14 @@ pub fn select_cheapest(input: &Json) -> DemoResult<OpOutcome> {
     let contract = registry.contract(PRICE_OPERATION)?;
     let gate = all_required(&contract.required, &evidence);
     if !gate.satisfied() {
-        return Ok(OpOutcome::Insufficient(insufficient_payload(
+        return Ok(OperationResult::insufficient(gate_failure(
             PRICE_OPERATION,
             &gate,
         )));
     }
     let ranked = cheapest_compliant(&candidates, &compliant, &evidence)?;
     let Some(winner) = ranked.first() else {
-        return Ok(OpOutcome::Answer(obj([
+        return Ok(OperationResult::answer(obj([
             ("answer", Json::Null),
             ("ranked", Json::Array(Vec::new())),
             (
@@ -551,7 +610,7 @@ pub fn select_cheapest(input: &Json) -> DemoResult<OpOutcome> {
             ),
         ])));
     };
-    Ok(OpOutcome::Answer(obj([
+    Ok(OperationResult::answer(obj([
         ("answer", winner.to_json()),
         (
             "ranked",
@@ -625,18 +684,4 @@ pub fn build_abstain_handler(input: &Json) -> DemoResult<Json> {
         ("evidence", evidence.to_json()),
         ("evidence_status_counts", evidence.counts().to_json()),
     ]))
-}
-
-fn insufficient_payload(operation: &str, gate: &GateResult) -> Json {
-    obj([
-        (
-            "reason",
-            Json::from(format!(
-                "INSUFFICIENT_EVIDENCE: operation {operation} ALL_REQUIRED gate is missing {} required input(s): {}",
-                gate.missing.len(),
-                gate.summary()
-            )),
-        ),
-        ("missing", gate.to_json()),
-    ])
 }

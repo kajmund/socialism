@@ -295,8 +295,8 @@ fn evidence(
     reason: String,
 ) -> Evidence {
     Evidence {
-        need_id: need.id.clone(),
-        supplier: need.supplier.clone(),
+        need_id: need.id(),
+        supplier: need.subject.clone(),
         fact: need.fact.clone(),
         status,
         value,
@@ -316,14 +316,14 @@ fn observation_reason(observation: &Json) -> String {
 
 /// Handler behind the `found` route of the provider decision.
 pub fn accept_handler(input: &Json) -> DemoResult<Json> {
-    let need = NeedRef::from_json(field(input, "need")?)?;
+    let need = crate::operations::need_from_json_pub(field(input, "need")?)?;
     let observation = field(input, "observation")?;
     Ok(verify(&need, observation).to_json())
 }
 
 /// Handler behind the `missing` route of the provider decision.
 pub fn record_missing_handler(input: &Json) -> DemoResult<Json> {
-    let need = NeedRef::from_json(field(input, "need")?)?;
+    let need = crate::operations::need_from_json_pub(field(input, "need")?)?;
     let observation = field(input, "observation")?;
     Ok(verify(&need, observation).to_json())
 }
