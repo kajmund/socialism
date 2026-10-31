@@ -208,6 +208,13 @@ jobs:
           cargo fmt --manifest-path crates/swe-native/Cargo.toml --check
           cargo clippy --manifest-path crates/swe-native/Cargo.toml --all-targets -- -D warnings
           cargo test --manifest-path crates/swe-native/Cargo.toml
+      - name: Reference example tests and lint
+        working-directory: .
+        run: |
+          cargo fmt --manifest-path crates/swe-reference/Cargo.toml --check
+          cargo clippy --manifest-path crates/swe-reference/Cargo.toml --all-targets -- -D warnings
+          cargo test --manifest-path crates/swe-reference/Cargo.toml
+          cargo run --manifest-path crates/swe-reference/Cargo.toml
       - name: Build swe_native
         run: uv run maturin develop --manifest-path ../crates/swe-native/Cargo.toml
       - name: SWD and runtime tests
