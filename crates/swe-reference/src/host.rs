@@ -159,6 +159,9 @@ impl RunConfig {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct ResumeConfig {
     pub pause_at_spend_milli: Option<Amount>,
+    /// The tariffs this host bills at now. A journal priced under different
+    /// tariffs must not resume: it would silently reprice the second half.
+    pub tariffs: Option<Tariffs>,
 }
 
 impl ResumeConfig {
@@ -168,6 +171,12 @@ impl ResumeConfig {
 
     pub fn with_pause_at_spend(mut self, spend_milli: Amount) -> Self {
         self.pause_at_spend_milli = Some(spend_milli);
+        self
+    }
+
+    /// Bill the resumed segment at these tariffs.
+    pub fn with_tariffs(mut self, tariffs: Tariffs) -> Self {
+        self.tariffs = Some(tariffs);
         self
     }
 }
@@ -355,6 +364,14 @@ pub fn run(
 /// Resume a paused investigation from its journal.
 pub fn resume(journal: &Journal, config: &ResumeConfig) -> DemoResult<InvestigationOutcome> {
     journal.validate()?;
+    if let Some(tariffs) = config.tariffs {
+        let expected = crate::journal::tariff_sha256(&tariffs)?;
+        if expected != journal.tariff_sha256 {
+            return Err(DemoError::new(
+                "journal cannot be resumed: this host bills at different tariffs",
+            ));
+        }
+    }
     let ledger = Ledger::replay(&journal.ledger_events)?;
     let balance = ledger.balance(ACCOUNT);
     if balance.allocated != journal.budget_milli {
@@ -383,7 +400,7 @@ pub fn resume(journal: &Journal, config: &ResumeConfig) -> DemoResult<Investigat
         definition_sha256: journal.definition_sha256.clone(),
         scenario: journal.scenario,
         budget_milli: journal.budget_milli,
-        tariffs: journal.recorded_tariffs(),
+        tariffs: config.tariffs.unwrap_or_else(|| journal.recorded_tariffs()),
         pause_at: config.pause_at_spend_milli,
         prior_charges: journal.charges.clone(),
         prior_completed: journal.completed.clone(),

@@ -568,3 +568,130 @@ fn dependency_versions_from_json(
     }
     Ok(versions)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use swe_native::{CompletionOutcome, Delivery, JournalEvent};
+
+    fn round_trip(event: JournalEvent) -> JournalEvent {
+        let encoded = journal_events_to_json(std::slice::from_ref(&event));
+        let mut decoded =
+            journal_events_from_json(&encoded).expect("every encoded event must decode");
+        assert_eq!(decoded.len(), 1);
+        decoded.remove(0)
+    }
+
+    #[test]
+    fn ok_payload_survives_the_round_trip() {
+        let event = JournalEvent::ResultConfirmed {
+            attempt_id: "a".to_string(),
+            outcome: CompletionOutcome::Ok(obj([("answer", Json::from("beta"))])),
+            confirmed_at_ms: 7,
+        };
+        assert_eq!(round_trip(event.clone()), event);
+    }
+
+    #[test]
+    fn an_error_outcome_does_not_become_a_cancellation() {
+        let event = JournalEvent::ResultConfirmed {
+            attempt_id: "a".to_string(),
+            outcome: CompletionOutcome::Err {
+                kind: "timeout".to_string(),
+                message: "provider timed out".to_string(),
+            },
+            confirmed_at_ms: 7,
+        };
+        let decoded = round_trip(event.clone());
+        assert_eq!(decoded, event);
+        assert!(matches!(
+            decoded,
+            JournalEvent::ResultConfirmed {
+                outcome: CompletionOutcome::Err { .. },
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn a_cancellation_stays_a_cancellation() {
+        let event = JournalEvent::ResultConfirmed {
+            attempt_id: "a".to_string(),
+            outcome: CompletionOutcome::Cancelled,
+            confirmed_at_ms: 7,
+        };
+        assert_eq!(round_trip(event.clone()), event);
+        assert!(matches!(
+            round_trip(event),
+            JournalEvent::ResultConfirmed {
+                outcome: CompletionOutcome::Cancelled,
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn an_unknown_outcome_kind_is_refused() {
+        let encoded = obj([
+            ("kind", Json::from("ResultConfirmed")),
+            ("attempt_id", Json::from("a")),
+            ("outcome", obj([("kind", Json::from("maybe"))])),
+            ("confirmed_at_ms", Json::from_u64(1)),
+        ]);
+        let outcome = journal_events_from_json(&Json::Array(vec![encoded]));
+        assert!(outcome.is_err(), "an unknown outcome must not decode");
+    }
+
+    #[test]
+    fn every_event_kind_round_trips() {
+        let events = vec![
+            JournalEvent::AttemptStarted {
+                attempt_id: "a".to_string(),
+                delivery_key: "k".to_string(),
+                invocation_id: "i".to_string(),
+                action: "act".to_string(),
+                delivery: Delivery::ExternalIdempotent,
+                started_at_ms: 1,
+            },
+            JournalEvent::ResultConfirmed {
+                attempt_id: "a".to_string(),
+                outcome: CompletionOutcome::Ok(Json::Null),
+                confirmed_at_ms: 2,
+            },
+            JournalEvent::AttemptAbandoned {
+                attempt_id: "b".to_string(),
+                reason: "cancelled".to_string(),
+                abandoned_at_ms: 3,
+            },
+            JournalEvent::ChargeReserved {
+                charge_id: "c".to_string(),
+                attempt_id: "a".to_string(),
+                delivery_key: "k".to_string(),
+                amount_milli: 500,
+                tariff_milli: 500,
+                reserved_at_ms: 4,
+            },
+            JournalEvent::ChargeSettled {
+                charge_id: "c".to_string(),
+                amount_milli: 500,
+                settled_at_ms: 5,
+            },
+            JournalEvent::ChargeReleased {
+                charge_id: "d".to_string(),
+                reason: "no cost".to_string(),
+                released_at_ms: 6,
+            },
+            JournalEvent::ChargePendingReconciliation {
+                charge_id: "e".to_string(),
+                reason: "unknown".to_string(),
+                at_ms: 7,
+            },
+        ];
+        let encoded = journal_events_to_json(&events);
+        let decoded = journal_events_from_json(&encoded).expect("decodes");
+        assert_eq!(decoded.len(), events.len());
+        for (left, right) in decoded.iter().zip(events.iter()) {
+            assert_eq!(left, right);
+        }
+    }
+}

@@ -209,6 +209,14 @@ def test_derived_needs_match_between_engine_and_adapter() -> None:
         "subject_a.fact_b",
         "subject_b.fact_a",
     ]
+    # Pin the payload fields themselves: a binding that swapped fact/subject, or
+    # hard-coded the enums, would still produce the right ids above.
+    assert [need["fact"] for need in read] == ["fact_a", "fact_b", "fact_a"]
+    assert [need["subject"] for need in read] == [
+        "subject_a",
+        "subject_a",
+        "subject_b",
+    ]
     assert all(need["priority"] == "REQUIRED" for need in read)
     assert all(need["cardinality"] == "SINGLE" for need in read)
 
@@ -241,9 +249,34 @@ def test_operation_gate_matches_between_engine_and_adapter(case: str) -> None:
     required, states = GATE_CASES[case]
     engine = swe_native.operation_gate("OP", required, states)
     read = read_operation_gate(engine)
-    assert read["conclusion"] == engine["conclusion"]
-    assert read["satisfied"] == engine["satisfied"]
-    assert read["missing"] == list(engine["missing"])
+    # The adapter must report the engine's verdict unchanged. Comparing that to
+    # the engine payload again would be a tautology, so the expected values are
+    # stated independently here.
+    expected_ready = case == "all_resolved"
+    assert read["satisfied"] is expected_ready
+    assert read["conclusion"] == ("ready" if expected_ready else "INSUFFICIENT_EVIDENCE")
+    assert (engine["conclusion"] == "ready") is expected_ready
+    if not expected_ready:
+        assert read["missing"], "a refusal must name the missing inputs"
+        assert "OP" in read["detail"]
+    for entry in read["missing"]:
+        assert set(entry) == {"fact", "subject", "status"}
+
+
+def test_the_gate_reports_the_status_that_blocked() -> None:
+    """A refusal must say WHY each input is missing, not just that it is."""
+    from app.swe.needs import read_operation_gate
+
+    required = [{"fact": "f", "subject": "s"}]
+    engine = swe_native.operation_gate(
+        "OP", required, [{"fact": "f", "subject": "s", "status": "AMBIGUOUS"}]
+    )
+    read = read_operation_gate(engine)
+    assert read["conclusion"] == "INSUFFICIENT_EVIDENCE"
+    assert read["missing"][0]["status"] == "AMBIGUOUS", (
+        "an ambiguous input must be reported as ambiguous, not as merely unresolved"
+    )
+    assert "AMBIGUOUS" in read["detail"]
 
 
 def test_the_gate_can_never_report_ready_with_a_missing_input() -> None:

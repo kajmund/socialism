@@ -9,7 +9,7 @@ use swe_reference::{
     all_required, candidates, cheapest_compliant, question, read_journal, resume, run,
     workflow_document, workflow_document_sha256, workflow_input, write_journal, ActionKind,
     Evidence, EvidenceSet, EvidenceStatus, InvocationLog, Json, OperationResult, ResumeConfig,
-    RunConfig, RunReport, RunStatus, Scenario, NO_COMPLIANT_SUPPLIER,
+    RunConfig, RunReport, RunStatus, Scenario, Tariffs, NO_COMPLIANT_SUPPLIER,
 };
 
 fn document() -> Json {
@@ -558,7 +558,18 @@ fn a_journal_without_a_contract_version_is_refused() {
     let text = std::fs::read_to_string(&path).expect("read");
     std::fs::remove_file(&path).expect("removed");
 
-    for field in ["contract_version", "journal_events", "tariff_sha256"] {
+    for field in [
+        "contract_version",
+        "journal_events",
+        "tariff_sha256",
+        "dependency_versions",
+        "handler_cost_milli",
+        "provider_cost_milli",
+        "now_ms",
+        "budget_milli",
+        "handler_calls",
+        "provider_calls",
+    ] {
         let stripped = drop_top_level_field(&text, field);
         let path = journal_path(&format!("missing-{field}"));
         std::fs::write(&path, stripped).expect("write");
@@ -629,9 +640,8 @@ fn confirmed_outcomes_survive_the_round_trip() {
 
 #[test]
 fn a_journal_replayed_under_other_tariffs_is_refused() {
-    // Tariffs are part of the run contract: the same journal must not be
-    // replayed at different prices, which would silently change the economics
-    // of the second half of an investigation.
+    // Tariffs are part of the run contract. The host now states its current
+    // tariffs in the resume config, so this varies the HOST, not the file.
     let paused_outcome = run(
         &document(),
         &input(),
@@ -640,30 +650,60 @@ fn a_journal_replayed_under_other_tariffs_is_refused() {
     )
     .expect("run starts");
     let paused = paused_outcome.paused().expect("pauses");
-    let path = journal_path("tariffs");
-    write_journal(&path, &paused.journal).expect("journal written");
-    let loaded = read_journal(&path).expect("journal read");
-    std::fs::remove_file(&path).expect("removed");
 
-    // Same journal, but the host now bills twice as much per action. A resume
-    // is driven by the journal, so the host's current tariffs are what the
-    // check must compare against — modelled here by re-pricing the journal and
-    // re-hashing, which is what a genuinely different host would produce.
-    let mut repriced = loaded.clone();
-    repriced.handler_cost_milli = 2_000;
-    repriced.tariff_sha256 = swe_reference::tariff_sha256(&swe_reference::Tariffs {
-        handler_milli: 2_000,
-        provider_milli: 1_000,
-    })
-    .expect("hash");
-    let outcome = resume(&repriced, &ResumeConfig::new());
+    let same = ResumeConfig::new().with_tariffs(Tariffs::default());
     assert!(
-        outcome.is_err(),
-        "replaying under other tariffs must be refused"
+        resume(&paused.journal, &same).is_ok(),
+        "resuming at the same tariffs must work"
     );
 
-    // The unmodified journal still resumes.
-    assert!(resume(&loaded, &ResumeConfig::new()).is_ok());
+    let repriced = ResumeConfig::new().with_tariffs(Tariffs {
+        handler_milli: 2_000,
+        provider_milli: 1_000,
+    });
+    let outcome = resume(&paused.journal, &repriced);
+    assert!(
+        outcome.is_err(),
+        "a host billing at other tariffs must not resume this journal"
+    );
+}
+
+#[test]
+fn a_run_priced_with_custom_tariffs_round_trips_and_resumes() {
+    // Pins the write path: the journal must record the tariffs it was actually
+    // billed at, not the defaults.
+    let custom = Tariffs {
+        handler_milli: 700,
+        provider_milli: 1_300,
+    };
+    let paused_outcome = run(
+        &document(),
+        &input(),
+        Scenario::Baseline,
+        &RunConfig::new("test-custom-tariffs", 100_000)
+            .with_pause_at_spend(20_000)
+            .with_tariffs(custom),
+    )
+    .expect("run starts");
+    let paused = paused_outcome.paused().expect("pauses");
+    assert_eq!(paused.journal.recorded_tariffs(), custom);
+    assert_eq!(
+        paused.journal.tariff_sha256,
+        swe_reference::tariff_sha256(&custom).expect("hash")
+    );
+
+    // Resuming without stating tariffs uses the recorded ones and succeeds.
+    let resumed = resume(&paused.journal, &ResumeConfig::new())
+        .expect("resumes")
+        .into_finished()
+        .expect("finishes");
+    assert_eq!(resumed.status, RunStatus::Completed);
+    // Resuming at the defaults must be refused: this run was not priced that way.
+    assert!(resume(
+        &paused.journal,
+        &ResumeConfig::new().with_tariffs(Tariffs::default())
+    )
+    .is_err());
 }
 
 #[test]
@@ -916,8 +956,10 @@ fn need_more_is_the_engines_singular_protocol() {
 /// written by the demo's own canonical serialiser.
 fn drop_top_level_field(text: &str, field: &str) -> String {
     let needle = format!("\"{field}\":");
+    // A missing needle would make this a no-op and the test would then prove
+    // nothing. Fail loudly instead.
     let Some(start) = text.find(&needle) else {
-        return text.to_string();
+        panic!("field {field:?} is not present in the journal, so it cannot be removed");
     };
     let after = start + needle.len();
     let rest = &text[after..];
