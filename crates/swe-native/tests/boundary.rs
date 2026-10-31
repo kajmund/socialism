@@ -32,9 +32,11 @@ const DOMAIN_TERMS: &[&str] = &[
 ];
 
 fn source_files() -> Vec<PathBuf> {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+    // Scan fixtures too: integration tests are what future code copies from,
+    // and a domain word there is exactly the leak this gate exists to stop.
+    let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let mut stack = vec![manifest.join("src"), manifest.join("tests")];
     let mut files = Vec::new();
-    let mut stack = vec![root];
     while let Some(dir) = stack.pop() {
         let Ok(entries) = fs::read_dir(&dir) else {
             continue;
@@ -45,7 +47,7 @@ fn source_files() -> Vec<PathBuf> {
                 stack.push(path);
             } else if path.extension().is_some_and(|ext| ext == "rs") {
                 // This file is the allowlist; it must name the terms.
-                if path.file_name().is_some_and(|name| name == "boundary.rs") {
+                if path == manifest.join("tests").join("boundary.rs") {
                     continue;
                 }
                 files.push(path);
@@ -90,8 +92,10 @@ fn generic_modules_contain_no_application_vocabulary() {
             for (index, line) in lowered.lines().enumerate() {
                 let lowered_line = line.to_lowercase();
                 let trimmed = line.trim_start();
-                let is_comment = trimmed.starts_with("//");
-                if is_comment {
+                // Doc comments are documentation that ships with the API, so
+                // they are scanned. Only a plain `//` explanation is exempt.
+                let is_plain_comment = trimmed.starts_with("//") && !trimmed.starts_with("///");
+                if is_plain_comment {
                     continue;
                 }
                 if contains_word(&lowered_line, term) {

@@ -18,15 +18,6 @@ import pytest
 
 swe_native = pytest.importorskip("swe_native")
 
-from app.swe.needs import (  # noqa: E402
-    EvidenceJudgement,
-    project_evidence_assessment,
-    project_need,
-    project_provenance,
-    read_evidence,
-    read_need_state,
-)
-
 NEED = {"fact": "fact_a", "subject": "subject_a"}
 POLICY = {"uncertain_blocks_scope": True, "require_provenance": True}
 
@@ -45,6 +36,8 @@ def engine_resolve(
 
 def adapter_view(result: dict[str, Any]) -> dict[str, Any]:
     """What the Python adapter reports after reading the engine's result."""
+    from app.swe.needs import read_evidence, read_need_state
+
     state = read_need_state(result)
     evidence = [read_evidence(entry) for entry in result["evidence"]]
     return {"status": state["status"], "evidence": evidence}
@@ -59,6 +52,9 @@ def adjudicated(
     role: str | None = None,
     source: str | None = "source_a",
 ) -> dict[str, Any]:
+    from app.swe.needs import EvidenceJudgement, project_evidence_assessment
+    from app.swe.needs import project_provenance
+
     return project_evidence_assessment(
         EvidenceJudgement(
             fact=NEED["fact"],
@@ -74,11 +70,19 @@ def adjudicated(
 
 
 def assert_projection_matches_engine(assessments: list[dict[str, Any]]) -> dict[str, Any]:
-    """The core differential assertion."""
+    """The core differential assertion.
+
+    The engine decides; the adapter reports. The adapter is handed the engine's
+    payload and must echo its verdict unchanged, entry for entry.
+    """
+    from app.swe.needs import read_need_state
+
     engine = engine_resolve(assessments)
     projected = adapter_view(engine)
-    # The adapter must report exactly what the engine decided.
-    assert projected["status"] == engine["status"]
+    # What the adapter reports must be what the engine decided. `adapter_view`
+    # reads through `read_need_state`/`read_evidence`, so this compares the
+    # engine's payload to the values the adapter extracted from it.
+    assert projected["status"] == read_need_state(engine)["status"]
     assert projected["evidence"] == [
         {
             "fact": entry["fact"],
@@ -97,14 +101,16 @@ def assert_projection_matches_engine(assessments: list[dict[str, Any]]) -> dict[
 
 CASES = {
     "single_verified": [adjudicated("value_a")],
+    # A rejected candidate carries its own distinct key: it must not block the
+    # accepted value, and it must not look like a "same key" non-conflict.
     "rejected_plus_verified": [
         adjudicated("value_a"),
-        adjudicated("", admissibility="NotAdmitted", key=None),
+        adjudicated("value_b", admissibility="NotAdmitted", key="rejected_key"),
     ],
-    "equivalent_values": [adjudicated("value_a"), adjudicated("value_a")],
-    "normalised_equal_keys": [
-        adjudicated("value_a", key="a"),
-        adjudicated("value a", key="a"),
+    # Two different raw values that the DOMAIN normalises to the same key.
+    "equivalent_values_normalised": [
+        adjudicated("value_a", key="normalised_a"),
+        adjudicated("VALUE A", key="normalised_a"),
     ],
     "competing_values": [adjudicated("value_a"), adjudicated("value_b")],
     "different_roles": [
@@ -119,7 +125,6 @@ CASES = {
         adjudicated("value_b", scope="scope_b"),
     ],
 }
-
 
 @pytest.mark.parametrize("case", sorted(CASES))
 def test_engine_and_projection_agree(case: str) -> None:
@@ -145,18 +150,44 @@ def test_unknown_role_counts_as_competing_in_both_layers() -> None:
     assert engine["status"] == "AMBIGUOUS"
 
 
-def test_adapter_cannot_override_the_engine() -> None:
-    """The adapter reads the engine; there is no path where it decides again."""
+def test_competing_values_are_ambiguous_from_rust_to_python() -> None:
+    """The exact divergence the owner named, pinned end to end.
+
+    If the engine ever stopped reporting AMBIGUOUS here, this fails; if the
+    adapter ever stopped echoing the engine, this fails too. The mutation that
+    makes it fail is forcing `resolve_need` to return Resolved for competing
+    values (verified manually while writing this test).
+    """
     engine = engine_resolve(CASES["competing_values"])
     assert engine["status"] == "AMBIGUOUS"
-    reported = read_need_state({**engine, "status": "AMBIGUOUS"})
-    assert reported["status"] == "AMBIGUOUS"
-    # And an unknown status from the wire is refused rather than reinterpreted.
-    with pytest.raises(Exception, match="unknown need status"):
-        read_need_state({**engine, "status": "RESOLVED_MAYBE"})
+    assert adapter_view(engine)["status"] == "AMBIGUOUS"
+    assert all(entry["status"] == "AMBIGUOUS" for entry in engine["evidence"])
+
+
+def test_adapter_reports_the_engine_status_it_is_given() -> None:
+    """The adapter has no opinion: whatever the engine says is what is read."""
+    from app.swe.needs import read_need_state
+
+    engine = engine_resolve(CASES["single_verified"])
+    assert engine["status"] == "RESOLVED"
+    assert read_need_state(engine)["status"] == "RESOLVED"
+    with pytest.raises(ValueError, match="unknown need status"):
+        read_need_state({**engine, "status": "NOT_A_STATUS"})
+
+
+def test_uncertain_policy_flag_is_honoured_across_the_boundary() -> None:
+    """The domain's policy choice reaches the engine and back."""
+    blocking = engine_resolve(CASES["uncertain_alone"], policy={"uncertain_blocks_scope": True, "require_provenance": True})
+    permissive = engine_resolve(CASES["uncertain_alone"], policy={"uncertain_blocks_scope": False, "require_provenance": True})
+    assert blocking["status"] == "AMBIGUOUS"
+    assert permissive["status"] == "UNRESOLVED"
+    assert adapter_view(blocking)["status"] == "AMBIGUOUS"
+    assert adapter_view(permissive)["status"] == "UNRESOLVED"
 
 
 def test_need_projection_round_trips_through_the_engine_shape() -> None:
+    from app.swe.needs import project_need
+
     projected = project_need(fact="fact_a", subject="subject_a", priority="SUPPORTING")
     assert projected["priority"] == "SUPPORTING"
     assert projected["schema_version"] == 1

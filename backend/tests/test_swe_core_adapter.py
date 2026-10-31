@@ -35,21 +35,27 @@ def _is_vocabulary_definition(node: ast.AST) -> bool:
     return text.startswith("frozenset(") or "Literal[" in text
 
 
-def _assignments(path: Path) -> list[str]:
-    """State names this module *produces*, as opposed to lists it validates."""
+def _state_literals(path: Path) -> list[str]:
+    """Every use of an engine-owned state name outside vocabulary definitions.
+
+    Covers assignments, returns, conditional expressions, asserts, walrus
+    operators and comprehensions — everything an adapter could use to smuggle a
+    decision past a check that only looks at `Assign`/`Return`.
+    """
     tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    allowed_lines: set[int] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign | ast.AnnAssign) and node.value is not None:
+            if _is_vocabulary_definition(node.value):
+                allowed_lines.update(range(node.lineno, (node.end_lineno or node.lineno) + 1))
     offenders: list[str] = []
     for node in ast.walk(tree):
-        if isinstance(node, ast.Assign):
-            if _is_vocabulary_definition(node.value):
-                continue
-            if _mentions_state(node.value):
-                offenders.append(
-                    f"{path.name}:{node.lineno}: assigns {_render(node.value)}"
-                )
-        elif isinstance(node, ast.Return) and node.value is not None:
-            if _mentions_state(node.value):
-                offenders.append(f"{path.name}:{node.lineno}: returns {_render(node.value)}")
+        if not (isinstance(node, ast.Constant) and node.value in ENGINE_OWNED_STATES):
+            continue
+        line = node.lineno
+        if line in allowed_lines:
+            continue
+        offenders.append(f"{path.name}:{line}: {node.value!r} used here")
     return offenders
 
 
@@ -69,9 +75,9 @@ def test_adapter_does_not_assign_engine_owned_states() -> None:
     for path in sorted(ENGINE_DIR.glob("*.py")):
         if path.name == PROJECTION_MODULE:
             # Allowed to validate incoming states, but still may not compute one.
-            offenders.extend(_assignments(path))
+            offenders.extend(_state_literals(path))
             continue
-        offenders.extend(_assignments(path))
+        offenders.extend(_state_literals(path))
     assert offenders == [], (
         "only the engine may decide need/evidence/conclusion state; "
         f"the adapter must read it: {offenders}"

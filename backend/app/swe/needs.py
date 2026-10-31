@@ -25,6 +25,7 @@ PRIORITIES = frozenset({"REQUIRED", "SUPPORTING", "EXPLORATORY"})
 CARDINALITIES = frozenset({"SINGLE", "MULTIPLE", "UNKNOWN"})
 ADMISSIBILITIES = frozenset({"Admitted", "NotAdmitted", "Uncertain"})
 NEED_STATUSES = frozenset({"UNRESOLVED", "RESOLVED", "AMBIGUOUS"})
+CONCLUSIONS = frozenset({"answered", "INSUFFICIENT_EVIDENCE"})
 EVIDENCE_STATUSES = frozenset({"VERIFIED", "AMBIGUOUS", "REJECTED"})
 
 
@@ -183,7 +184,7 @@ def read_operation_outcome(payload: Mapping[str, Any]) -> dict[str, Any]:
     _check_version(payload, OPERATION_OUTCOME_VERSION, "operation outcome")
     conclusion = payload.get("conclusion")
     _require(
-        conclusion in {"answered", "INSUFFICIENT_EVIDENCE"},
+        conclusion in CONCLUSIONS,
         f"unknown operation conclusion {conclusion!r}",
     )
     return {
