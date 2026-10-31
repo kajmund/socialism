@@ -504,6 +504,60 @@ fn a_tampered_journal_is_rejected() {
 }
 
 #[test]
+fn every_action_is_journaled_as_attempt_result_and_charge() {
+    // The demo uses the engine journal, not a private one: each metered action
+    // leaves an AttemptStarted, a ResultConfirmed, a ChargeReserved and a
+    // ChargeSettled event, in that order.
+    let report = run_scenario(Scenario::Baseline, "test-journal-events");
+    let kinds = &report.journal_events;
+    assert_eq!(kinds.len() % 4, 0, "four events per action");
+    assert_eq!(kinds.iter().filter(|k| **k == "AttemptStarted").count(), 33);
+    assert_eq!(
+        kinds.iter().filter(|k| **k == "ResultConfirmed").count(),
+        33
+    );
+    assert_eq!(kinds.iter().filter(|k| **k == "ChargeReserved").count(), 33);
+    assert_eq!(kinds.iter().filter(|k| **k == "ChargeSettled").count(), 33);
+    // The engine journal and the reused ledger agree on the money.
+    assert_eq!(report.journal_settled_milli, report.spent_milli);
+    // Nothing is left open or awaiting reconciliation in a clean run.
+    assert_eq!(report.journal_open_attempts, 0);
+    assert_eq!(report.journal_pending_charges, 0);
+}
+
+#[test]
+fn no_action_settles_twice_across_a_resume() {
+    let full = run_scenario(Scenario::Baseline, "test-resume-journal");
+    let paused_outcome = run(
+        &document(),
+        &input(),
+        Scenario::Baseline,
+        &RunConfig::new("test-resume-journal", 100_000).with_pause_at_spend(20_000),
+    )
+    .expect("run starts");
+    let paused = paused_outcome.paused().expect("pauses");
+    let resumed = resume(&paused.journal, &ResumeConfig::new())
+        .expect("resumes")
+        .into_finished()
+        .expect("finishes");
+    // Same money, and a settlement per unique action only.
+    assert_eq!(resumed.journal_settled_milli, full.journal_settled_milli);
+    assert_eq!(resumed.spent_milli, full.spent_milli);
+    assert_eq!(
+        resumed
+            .journal_events
+            .iter()
+            .filter(|k| **k == "ChargeSettled")
+            .count(),
+        full.journal_events
+            .iter()
+            .filter(|k| **k == "ChargeSettled")
+            .count()
+    );
+    assert_eq!(resumed.journal_open_attempts, 0);
+}
+
+#[test]
 fn repeated_runs_are_deterministic() {
     let first = run_scenario(Scenario::Baseline, "test-deterministic");
     let second = run_scenario(Scenario::Baseline, "test-deterministic");

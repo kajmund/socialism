@@ -16,7 +16,10 @@
 use std::collections::{BTreeMap, HashMap, VecDeque};
 
 use swe_budget::{Amount, Ledger};
-use swe_native::{sha256_hex, start_run, Effect, Json, RunStatus, StepOutcome, WorkflowMachine};
+use swe_native::{
+    attempt_id, delivery_key, sha256_hex, start_run, Delivery, Effect, Journal as EngineJournal,
+    JournalEvent, Json, RunStatus, StepOutcome, WorkflowMachine,
+};
 
 use crate::domain::Scenario;
 use crate::evidence::{
@@ -212,6 +215,14 @@ pub struct RunReport {
     pub ledger_events: usize,
     pub steps_used: u32,
     pub invocations: Vec<InvocationLog>,
+    /// Engine journal events, in order (attempt, result, reservation, settlement).
+    pub journal_events: Vec<&'static str>,
+    /// Total settled in the engine journal; must equal the ledger's spend.
+    pub journal_settled_milli: Amount,
+    /// Attempts still open at the end: their outcome would be unknown.
+    pub journal_open_attempts: usize,
+    /// Charges still needing an operator decision.
+    pub journal_pending_charges: usize,
     pub ledger: Ledger,
     pub tariffs: Tariffs,
 }
@@ -331,6 +342,7 @@ pub fn run(
         pause_at: config.pause_at_spend_milli,
         prior_charges: Vec::new(),
         prior_completed: Vec::new(),
+        prior_journal: Vec::new(),
         prior_handler_calls: 0,
         prior_provider_calls: 0,
         replay: HashMap::new(),
@@ -375,6 +387,7 @@ pub fn resume(journal: &Journal, config: &ResumeConfig) -> DemoResult<Investigat
         pause_at: config.pause_at_spend_milli,
         prior_charges: journal.charges.clone(),
         prior_completed: journal.completed.clone(),
+        prior_journal: journal.journal_events.clone(),
         prior_handler_calls: journal.handler_calls,
         prior_provider_calls: journal.provider_calls,
         replay,
@@ -423,6 +436,8 @@ fn evidence_from_output(output: &Json) -> DemoResult<Vec<Evidence>> {
 }
 
 struct SessionContext {
+    /// Engine journal events carried over from earlier segments.
+    prior_journal: Vec<swe_native::JournalEvent>,
     run_id: String,
     document: Json,
     input: Json,
@@ -448,6 +463,8 @@ struct Session {
     invocations: Vec<InvocationLog>,
     completed: Vec<JournalCompletedInvocation>,
     replayed: usize,
+    /// Engine journal: attempts, confirmed results and charges, in order.
+    journal: EngineJournal,
     executed: usize,
     handler_calls: usize,
     provider_calls: usize,
@@ -462,6 +479,10 @@ impl Session {
         ctx: SessionContext,
     ) -> Self {
         let completed = ctx.prior_completed.clone();
+        let mut engine_journal = EngineJournal::new();
+        for event in &ctx.prior_journal {
+            let _ = engine_journal.append(event.clone());
+        }
         Self {
             machine,
             ledger,
@@ -470,6 +491,7 @@ impl Session {
             ctx,
             charges: Vec::new(),
             invocations: Vec::new(),
+            journal: engine_journal,
             completed,
             replayed: 0,
             executed: 0,
@@ -580,21 +602,65 @@ impl Session {
             }
         }
 
+        // The engine journal keeps three facts separate: the attempt starts, the
+        // result is confirmed, and only then is the cost settled. Every action
+        // in this experiment is deterministic, so the delivery is Pure.
+        let delivery = Delivery::Pure;
+        let key = delivery_key(&self.ctx.run_id, invocation_id, action);
+        let attempt = attempt_id(&key, 1);
+        self.journal
+            .append(JournalEvent::AttemptStarted {
+                attempt_id: attempt.clone(),
+                delivery_key: key.clone(),
+                invocation_id: invocation_id.to_string(),
+                action: action.to_string(),
+                delivery,
+                started_at_ms: NOW_MS,
+            })
+            .map_err(|error| DemoError::new(format!("journal rejected the attempt: {error}")))?;
+
         let reservation_id = self.ledger.reserve(
             &self.ctx.run_id,
             ACCOUNT,
             cost,
             &format!("{}:reserve:{invocation_id}", self.ctx.run_id),
         )?;
+        self.journal
+            .append(JournalEvent::ChargeReserved {
+                charge_id: invocation_id.to_string(),
+                attempt_id: attempt.clone(),
+                delivery_key: key,
+                amount_milli: cost,
+                tariff_milli: cost,
+                reserved_at_ms: NOW_MS,
+            })
+            .map_err(|error| DemoError::new(format!("journal rejected the charge: {error}")))?;
+
         let output = match kind {
             ActionKind::Handler => execute_handler(action, input)?,
             ActionKind::Provider => self.provider.fetch(input)?,
         };
+
+        self.journal
+            .append(JournalEvent::ResultConfirmed {
+                attempt_id: attempt.clone(),
+                outcome: swe_native::CompletionOutcome::Ok(output.clone()),
+                confirmed_at_ms: NOW_MS,
+            })
+            .map_err(|error| DemoError::new(format!("journal rejected the result: {error}")))?;
+
         self.ledger.settle(
             reservation_id,
             cost,
             &format!("{}:settle:{invocation_id}", self.ctx.run_id),
         )?;
+        self.journal
+            .append(JournalEvent::ChargeSettled {
+                charge_id: invocation_id.to_string(),
+                amount_milli: cost,
+                settled_at_ms: NOW_MS,
+            })
+            .map_err(|error| DemoError::new(format!("journal rejected the settlement: {error}")))?;
 
         self.charges.push(ActionCharge {
             invocation_id: invocation_id.to_string(),
@@ -657,6 +723,7 @@ impl Session {
             handler_cost_milli: self.ctx.tariffs.handler_milli,
             provider_cost_milli: self.ctx.tariffs.provider_milli,
             completed: self.completed.clone(),
+            journal_events: self.journal.events().to_vec(),
             charges,
             ledger_events: self.ledger.events().to_vec(),
             handler_calls: self.ctx.prior_handler_calls + self.handler_calls,
@@ -691,6 +758,15 @@ impl Session {
             invocations: std::mem::take(&mut self.invocations),
             ledger: self.ledger,
             tariffs: self.ctx.tariffs,
+            journal_events: self
+                .journal
+                .events()
+                .iter()
+                .map(|event| event.kind())
+                .collect(),
+            journal_settled_milli: self.journal.settled_total(),
+            journal_open_attempts: self.journal.open_attempts().len(),
+            journal_pending_charges: self.journal.pending_reconciliation().len(),
         };
         Ok(InvestigationOutcome::Finished(Box::new(report)))
     }

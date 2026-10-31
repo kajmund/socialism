@@ -47,6 +47,8 @@ pub struct Journal {
     pub completed: Vec<JournalCompletedInvocation>,
     pub charges: Vec<ActionCharge>,
     pub ledger_events: Vec<Event>,
+    /// Engine journal events from earlier segments.
+    pub journal_events: Vec<swe_native::JournalEvent>,
     pub handler_calls: usize,
     pub provider_calls: usize,
 }
@@ -70,6 +72,10 @@ impl Journal {
             (
                 "contract_version",
                 Json::from_u64(u64::from(self.contract_version)),
+            ),
+            (
+                "journal_events",
+                journal_events_to_json(&self.journal_events),
             ),
             ("document", self.document.clone()),
             ("input", self.input.clone()),
@@ -126,6 +132,7 @@ impl Journal {
             .map(event_from_json)
             .collect::<DemoResult<Vec<_>>>()?;
         Ok(Self {
+            journal_events: journal_events_from_json(value.get("journal_events"))?,
             run_id: field_str(value, "run_id")?.to_string(),
             definition_sha256: field_str(value, "definition_sha256")?.to_string(),
             contract_version: value
@@ -281,4 +288,173 @@ pub fn read_journal(path: &Path) -> DemoResult<Journal> {
     let raw = std::fs::read_to_string(path)?;
     let value = parse_json_str(&raw)?;
     Journal::from_json(&value)
+}
+
+fn journal_events_to_json(events: &[swe_native::JournalEvent]) -> Json {
+    use swe_native::JournalEvent as E;
+    Json::Array(
+        events
+            .iter()
+            .map(|event| match event {
+                E::AttemptStarted {
+                    attempt_id,
+                    delivery_key,
+                    invocation_id,
+                    action,
+                    delivery,
+                    started_at_ms,
+                } => obj([
+                    ("kind", Json::from("AttemptStarted")),
+                    ("attempt_id", Json::from(attempt_id.as_str())),
+                    ("delivery_key", Json::from(delivery_key.as_str())),
+                    ("invocation_id", Json::from(invocation_id.as_str())),
+                    ("action", Json::from(action.as_str())),
+                    ("delivery", Json::from(delivery.as_str())),
+                    ("started_at_ms", Json::from_u64(*started_at_ms)),
+                ]),
+                E::ResultConfirmed {
+                    attempt_id,
+                    outcome,
+                    confirmed_at_ms,
+                } => {
+                    let confirmed = matches!(outcome, swe_native::CompletionOutcome::Ok(_));
+                    obj([
+                        ("kind", Json::from("ResultConfirmed")),
+                        ("attempt_id", Json::from(attempt_id.as_str())),
+                        ("confirmed", Json::Bool(confirmed)),
+                        ("confirmed_at_ms", Json::from_u64(*confirmed_at_ms)),
+                    ])
+                }
+                E::AttemptAbandoned {
+                    attempt_id,
+                    reason,
+                    abandoned_at_ms,
+                } => obj([
+                    ("kind", Json::from("AttemptAbandoned")),
+                    ("attempt_id", Json::from(attempt_id.as_str())),
+                    ("reason", Json::from(reason.as_str())),
+                    ("abandoned_at_ms", Json::from_u64(*abandoned_at_ms)),
+                ]),
+                E::ChargeReserved {
+                    charge_id,
+                    attempt_id,
+                    delivery_key,
+                    amount_milli,
+                    tariff_milli,
+                    reserved_at_ms,
+                } => obj([
+                    ("kind", Json::from("ChargeReserved")),
+                    ("charge_id", Json::from(charge_id.as_str())),
+                    ("attempt_id", Json::from(attempt_id.as_str())),
+                    ("delivery_key", Json::from(delivery_key.as_str())),
+                    ("amount_milli", Json::from_u64(*amount_milli)),
+                    ("tariff_milli", Json::from_u64(*tariff_milli)),
+                    ("reserved_at_ms", Json::from_u64(*reserved_at_ms)),
+                ]),
+                E::ChargeSettled {
+                    charge_id,
+                    amount_milli,
+                    settled_at_ms,
+                } => obj([
+                    ("kind", Json::from("ChargeSettled")),
+                    ("charge_id", Json::from(charge_id.as_str())),
+                    ("amount_milli", Json::from_u64(*amount_milli)),
+                    ("settled_at_ms", Json::from_u64(*settled_at_ms)),
+                ]),
+                E::ChargeReleased {
+                    charge_id,
+                    reason,
+                    released_at_ms,
+                } => obj([
+                    ("kind", Json::from("ChargeReleased")),
+                    ("charge_id", Json::from(charge_id.as_str())),
+                    ("reason", Json::from(reason.as_str())),
+                    ("released_at_ms", Json::from_u64(*released_at_ms)),
+                ]),
+                E::ChargePendingReconciliation {
+                    charge_id,
+                    reason,
+                    at_ms,
+                } => obj([
+                    ("kind", Json::from("ChargePendingReconciliation")),
+                    ("charge_id", Json::from(charge_id.as_str())),
+                    ("reason", Json::from(reason.as_str())),
+                    ("at_ms", Json::from_u64(*at_ms)),
+                ]),
+            })
+            .collect(),
+    )
+}
+
+fn journal_events_from_json(value: Option<&Json>) -> DemoResult<Vec<swe_native::JournalEvent>> {
+    use swe_native::{CompletionOutcome, Delivery, JournalEvent as E};
+    let Some(value) = value else {
+        return Ok(Vec::new());
+    };
+    let Some(items) = value.as_array() else {
+        return Ok(Vec::new());
+    };
+    let mut events = Vec::new();
+    for item in items {
+        let kind = field_str(item, "kind")?;
+        let event = match kind {
+            "AttemptStarted" => E::AttemptStarted {
+                attempt_id: field_str(item, "attempt_id")?.to_string(),
+                delivery_key: field_str(item, "delivery_key")?.to_string(),
+                invocation_id: field_str(item, "invocation_id")?.to_string(),
+                action: field_str(item, "action")?.to_string(),
+                delivery: Delivery::parse(field_str(item, "delivery")?)
+                    .ok_or_else(|| DemoError::new("unknown delivery in journal"))?,
+                started_at_ms: item.get("started_at_ms").and_then(u64_of).unwrap_or(0),
+            },
+            "ResultConfirmed" => E::ResultConfirmed {
+                attempt_id: field_str(item, "attempt_id")?.to_string(),
+                outcome: if item
+                    .get("confirmed")
+                    .and_then(Json::as_bool)
+                    .unwrap_or(false)
+                {
+                    CompletionOutcome::Ok(Json::Null)
+                } else {
+                    CompletionOutcome::Cancelled
+                },
+                confirmed_at_ms: item.get("confirmed_at_ms").and_then(u64_of).unwrap_or(0),
+            },
+            "AttemptAbandoned" => E::AttemptAbandoned {
+                attempt_id: field_str(item, "attempt_id")?.to_string(),
+                reason: field_str(item, "reason")?.to_string(),
+                abandoned_at_ms: item.get("abandoned_at_ms").and_then(u64_of).unwrap_or(0),
+            },
+            "ChargeReserved" => E::ChargeReserved {
+                charge_id: field_str(item, "charge_id")?.to_string(),
+                attempt_id: field_str(item, "attempt_id")?.to_string(),
+                delivery_key: field_str(item, "delivery_key")?.to_string(),
+                amount_milli: item.get("amount_milli").and_then(u64_of).unwrap_or(0),
+                tariff_milli: item.get("tariff_milli").and_then(u64_of).unwrap_or(0),
+                reserved_at_ms: item.get("reserved_at_ms").and_then(u64_of).unwrap_or(0),
+            },
+            "ChargeSettled" => E::ChargeSettled {
+                charge_id: field_str(item, "charge_id")?.to_string(),
+                amount_milli: item.get("amount_milli").and_then(u64_of).unwrap_or(0),
+                settled_at_ms: item.get("settled_at_ms").and_then(u64_of).unwrap_or(0),
+            },
+            "ChargeReleased" => E::ChargeReleased {
+                charge_id: field_str(item, "charge_id")?.to_string(),
+                reason: field_str(item, "reason")?.to_string(),
+                released_at_ms: item.get("released_at_ms").and_then(u64_of).unwrap_or(0),
+            },
+            "ChargePendingReconciliation" => E::ChargePendingReconciliation {
+                charge_id: field_str(item, "charge_id")?.to_string(),
+                reason: field_str(item, "reason")?.to_string(),
+                at_ms: item.get("at_ms").and_then(u64_of).unwrap_or(0),
+            },
+            other => return Err(DemoError::new(format!("unknown journal event {other:?}"))),
+        };
+        events.push(event);
+    }
+    Ok(events)
+}
+
+fn u64_of(value: &Json) -> Option<u64> {
+    crate::as_u64(value)
 }

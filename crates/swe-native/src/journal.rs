@@ -275,10 +275,25 @@ impl Journal {
             JournalEvent::ChargeReserved {
                 charge_id,
                 attempt_id,
+                delivery_key,
                 ..
             } => {
                 if !self.attempts.contains_key(attempt_id) {
                     return Err(JournalError::UnknownReference(attempt_id.clone()));
+                }
+                // One logical delivery may reserve at most one charge, whatever
+                // attempt it is on: a retry must not reserve a second cost for
+                // the same delivery (09 §4.6).
+                let already_reserved = self.events.iter().any(|event| {
+                    matches!(
+                        event,
+                        JournalEvent::ChargeReserved { delivery_key: key, .. } if key == delivery_key
+                    )
+                });
+                if already_reserved {
+                    return Err(JournalError::Conflict(format!(
+                        "delivery {delivery_key} already has a reservation"
+                    )));
                 }
                 if self.charges.contains_key(charge_id) {
                     return Err(JournalError::Conflict(format!(
@@ -323,7 +338,15 @@ impl Journal {
                             "charge {charge_id} was already released"
                         )))
                     }
-                    Some(ChargeState::Reserved) | Some(ChargeState::PendingReconciliation) => {}
+                    Some(ChargeState::Reserved) => {}
+                    // Releasing a charge whose cost is unknown would write that
+                    // unknown off as zero, which the contract forbids.
+                    Some(ChargeState::PendingReconciliation) => {
+                        return Err(JournalError::Conflict(format!(
+                            "charge {charge_id} is pending reconciliation; releasing it \
+                             would write an unknown cost off as zero"
+                        )))
+                    }
                     None => return Err(JournalError::UnknownReference(charge_id.clone())),
                 }
                 self.charges
@@ -668,6 +691,95 @@ mod tests {
         });
         assert!(matches!(outcome, Err(JournalError::Conflict(_))));
         assert_eq!(journal.settled_total(), 0);
+    }
+
+    fn reserve(charge: &str, attempt: &str, delivery: &str) -> JournalEvent {
+        JournalEvent::ChargeReserved {
+            charge_id: charge.to_string(),
+            attempt_id: attempt.to_string(),
+            delivery_key: delivery.to_string(),
+            amount_milli: 500,
+            tariff_milli: 500,
+            reserved_at_ms: 2,
+        }
+    }
+
+    #[test]
+    fn one_delivery_reserves_at_most_one_charge() {
+        // A retry of the same logical delivery must not reserve a second cost.
+        let mut journal = Journal::new();
+        journal.append(start("a1", Delivery::ExternalIdempotent)).unwrap();
+        journal.append(start("a2", Delivery::ExternalIdempotent)).unwrap();
+        journal.append(reserve("c1", "a1", "key")).unwrap();
+        let outcome = journal.append(reserve("c2", "a2", "key"));
+        assert!(matches!(outcome, Err(JournalError::Conflict(_))));
+        assert!(outcome.unwrap_err().to_string().contains("already has a reservation"));
+    }
+
+    #[test]
+    fn different_deliveries_may_each_reserve() {
+        let mut journal = Journal::new();
+        journal.append(start("a1", Delivery::Pure)).unwrap();
+        journal.append(start("a2", Delivery::Pure)).unwrap();
+        journal.append(reserve("c1", "a1", "key-1")).unwrap();
+        journal.append(reserve("c2", "a2", "key-2")).unwrap();
+        assert_eq!(journal.settled_total(), 0);
+    }
+
+    #[test]
+    fn an_unknown_cost_cannot_be_released_without_evidence() {
+        // Writing an unknown cost off as zero is exactly what must not happen.
+        let mut journal = Journal::new();
+        journal.append(start("a1", Delivery::ExternalNonIdempotent)).unwrap();
+        journal.append(reserve("c1", "a1", "key")).unwrap();
+        journal
+            .append(JournalEvent::ChargePendingReconciliation {
+                charge_id: "c1".to_string(),
+                reason: "side effect may have happened".to_string(),
+                at_ms: 3,
+            })
+            .unwrap();
+        let outcome = journal.append(JournalEvent::ChargeReleased {
+            charge_id: "c1".to_string(),
+            reason: "assume it was free".to_string(),
+            released_at_ms: 4,
+        });
+        assert!(matches!(outcome, Err(JournalError::Conflict(_))));
+        assert!(outcome.unwrap_err().to_string().contains("unknown cost"));
+        // The charge stays in the operator queue.
+        assert_eq!(journal.pending_reconciliation(), vec!["c1"]);
+        assert_eq!(journal.settled_total(), 0);
+    }
+
+    #[test]
+    fn unresolved_charges_is_the_operators_queue() {
+        let mut journal = Journal::new();
+        journal.append(start("a1", Delivery::Pure)).unwrap();
+        journal.append(start("a2", Delivery::Pure)).unwrap();
+        journal.append(start("a3", Delivery::Pure)).unwrap();
+        journal.append(reserve("c1", "a1", "key-1")).unwrap();
+        journal.append(reserve("c2", "a2", "key-2")).unwrap();
+        journal.append(reserve("c3", "a3", "key-3")).unwrap();
+        journal.append(confirm("a1")).unwrap();
+        journal
+            .append(JournalEvent::ChargeSettled {
+                charge_id: "c1".to_string(),
+                amount_milli: 500,
+                settled_at_ms: 5,
+            })
+            .unwrap();
+        journal
+            .append(JournalEvent::ChargePendingReconciliation {
+                charge_id: "c2".to_string(),
+                reason: "unknown".to_string(),
+                at_ms: 5,
+            })
+            .unwrap();
+        let open = unresolved_charges(&journal);
+        let ids: Vec<&str> = open.iter().map(|(id, _)| *id).collect();
+        assert!(ids.contains(&"c2"), "a reconciling charge must be visible");
+        assert!(ids.contains(&"c3"), "an untouched reservation must be visible");
+        assert!(!ids.contains(&"c1"), "a settled charge needs no attention");
     }
 
     #[test]

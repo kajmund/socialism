@@ -247,6 +247,39 @@ fn main() -> DemoResult<()> {
     assert_eq!(resumed.ledger.events(), baseline.ledger.events());
     assert_eq!(resumed.charges, baseline.charges);
 
+    // The engine journal, not a demo-private bookkeeping, tells the story:
+    // one attempt, one confirmation and one settlement per action, carried
+    // across the pause.
+    let settlements = resumed
+        .journal_events
+        .iter()
+        .filter(|kind| **kind == "ChargeSettled")
+        .count();
+    println!(
+        "    engine journal: {} events — {} attempts, {} confirmations, {} reservations, {} settlements; settled {} milli",
+        resumed.journal_events.len(),
+        resumed.journal_events.iter().filter(|k| **k == "AttemptStarted").count(),
+        resumed.journal_events
+            .iter()
+            .filter(|k| **k == "ResultConfirmed")
+            .count(),
+        resumed
+            .journal_events
+            .iter()
+            .filter(|k| **k == "ChargeReserved")
+            .count(),
+        settlements,
+        resumed.journal_settled_milli
+    );
+    assert_eq!(
+        settled_actions(&resumed),
+        resumed.executed_invocations,
+        "exactly one settlement per executed action"
+    );
+    assert_eq!(resumed.journal_settled_milli, resumed.spent_milli);
+    assert_eq!(resumed.journal_open_attempts, 0);
+    assert_eq!(resumed.journal_pending_charges, 0);
+
     println!();
     println!("[10] NeedMore: an operation discovers a new need, resolves it, then re-runs");
     let screens = invocations(&baseline, "screen");
@@ -342,4 +375,14 @@ fn render(value: &Json) -> String {
         Json::Array(_) => "array".to_string(),
         Json::Object(_) => "object".to_string(),
     }
+}
+
+/// One settlement per executed action: the property the journal must preserve
+/// across a pause and a resume.
+fn settled_actions(report: &swe_reference::RunReport) -> usize {
+    report
+        .journal_events
+        .iter()
+        .filter(|kind| **kind == "ChargeSettled")
+        .count()
 }
