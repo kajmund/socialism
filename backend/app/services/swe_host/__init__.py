@@ -6,11 +6,13 @@ resources and the store it is given. See ``docs/swe-standalone/10-pr1-b1-python-
 """
 
 from app.services.swe_host.context import (
+    FEATURE_IDS,
     WorkflowHostContext,
     workflow_catalog_dir,
 )
 
 __all__ = [
+    "FEATURE_IDS",
     "WorkflowHostContext",
     "workflow_catalog_dir",
 ]

@@ -76,7 +76,7 @@ from app.services.research.planner import (
 from app.services.research.question_graph_sql import SqlQuestionEvidenceGraph
 from app.services.research.registry import ResearchSourceRegistry
 from app.services.research.router import ResearchRouter
-from app.swe.features import WorkflowHostContext
+from app.services.swe_host import WorkflowHostContext
 from scripts.benchmark_research_loop import (
     CUSTOMER_ID,
     OwnerBinding,
