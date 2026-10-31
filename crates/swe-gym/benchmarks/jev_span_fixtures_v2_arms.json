@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "redacted": true,
+  "redaction_note": "Arms fixture: Jev answers for normalized presentations; no contract text, only span digests.",
+  "entries": [
+    {
+      "key": "60ebbcc8613f5ae4",
+      "case_id": "v2-sv-03",
+      "prompt_version": "span-date-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "span_canon_sha256": "f8d2f9086e45f1719566cb263735cf36f03b7cadf1f4046b16d2c1b589a4d72b"
+    },
+    {
+      "key": "619ac280eb7229e7",
+      "case_id": "v2-pm-05",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "NO",
+      "span_canon_sha256": "855abdadc0902bd35d969dd6878332491881fc3d2e86dbe0f3e354b995f100ab"
+    }
+  ]
+}

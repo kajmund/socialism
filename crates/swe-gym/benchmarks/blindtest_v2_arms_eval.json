@@ -1,0 +1,1451 @@
+{
+  "version": 1,
+  "name": "blindtest-v2-arms-m1-m2",
+  "redacted": true,
+  "redaction_note": "Ablation on the frozen blindtest v2 material. No contract text, spans or names are committed; span values appear as SHA-256 digests, plus offsets/hashes for M1 provenance. Full material stays outside the repo.",
+  "arms": {
+    "m0": "frozen reference chain (blindtest v2)",
+    "m1": "presentation normalization of extraction artifacts (newlines, split date tokens)",
+    "m2": "span-boundary consolidation: drop candidate fragments strictly contained in a longer span",
+    "m12": "M1 + M2"
+  },
+  "invariants": {
+    "m1": "canonical source text unchanged; despace(normalized) == despace(original); original span hash + clause offsets recorded",
+    "m2": "only strict canonical containment in the same case; no proximity merges",
+    "inferences": 0,
+    "m0_replays_frozen_jev": true
+  },
+  "metrics": {
+    "m0": {
+      "needs_total": 16,
+      "needs_solved": 7,
+      "solved_of_solvable": "7/16",
+      "false_resolved_need_ids": [],
+      "ambiguous_need_ids": [
+        "v2-pm-03",
+        "v2-sv-01"
+      ],
+      "contaminated_resolved_need_ids": []
+    },
+    "m1": {
+      "needs_total": 16,
+      "needs_solved": 8,
+      "solved_of_solvable": "8/16",
+      "false_resolved_need_ids": [],
+      "ambiguous_need_ids": [
+        "v2-pm-03",
+        "v2-sv-01"
+      ],
+      "contaminated_resolved_need_ids": []
+    },
+    "m2": {
+      "needs_total": 16,
+      "needs_solved": 8,
+      "solved_of_solvable": "8/16",
+      "false_resolved_need_ids": [],
+      "ambiguous_need_ids": [
+        "v2-sv-01"
+      ],
+      "contaminated_resolved_need_ids": []
+    },
+    "m12": {
+      "needs_total": 16,
+      "needs_solved": 9,
+      "solved_of_solvable": "9/16",
+      "false_resolved_need_ids": [],
+      "ambiguous_need_ids": [
+        "v2-sv-01"
+      ],
+      "contaminated_resolved_need_ids": []
+    }
+  },
+  "per_case": [
+    {
+      "case_id": "v2-pm-01",
+      "need_type": "NOTICE_PERIOD",
+      "question_type": "uppsägningsvillkor",
+      "states": {
+        "m0": "unsolved",
+        "m1": "unsolved",
+        "m2": "unsolved",
+        "m12": "unsolved"
+      },
+      "changed_by": []
+    },
+    {
+      "case_id": "v2-pm-02",
+      "need_type": "LIABILITY_CAP",
+      "question_type": "ansvarsbegränsning",
+      "states": {
+        "m0": "unsolved",
+        "m1": "unsolved",
+        "m2": "unsolved",
+        "m12": "unsolved"
+      },
+      "changed_by": []
+    },
+    {
+      "case_id": "v2-pm-03",
+      "need_type": "MONEY",
+      "question_type": "ersättning",
+      "states": {
+        "m0": "ambiguous",
+        "m1": "ambiguous",
+        "m2": "resolved",
+        "m12": "resolved"
+      },
+      "changed_by": [
+        "m2",
+        "m12"
+      ]
+    },
+    {
+      "case_id": "v2-pm-04",
+      "need_type": "PERIOD",
+      "question_type": "tidsfrister",
+      "states": {
+        "m0": "resolved",
+        "m1": "resolved",
+        "m2": "resolved",
+        "m12": "resolved"
+      },
+      "changed_by": []
+    },
+    {
+      "case_id": "v2-pm-05",
+      "need_type": "PERIOD",
+      "question_type": "tidsfrister",
+      "states": {
+        "m0": "unsolved",
+        "m1": "unsolved",
+        "m2": "unsolved",
+        "m12": "unsolved"
+      },
+      "changed_by": []
+    },
+    {
+      "case_id": "v2-pm-06",
+      "need_type": "PERIOD",
+      "question_type": "tidsfrister",
+      "states": {
+        "m0": "resolved",
+        "m1": "resolved",
+        "m2": "resolved",
+        "m12": "resolved"
+      },
+      "changed_by": []
+    },
+    {
+      "case_id": "v2-pm-07",
+      "need_type": "PARTY",
+      "question_type": "parter",
+      "states": {
+        "m0": "unsolved",
+        "m1": "unsolved",
+        "m2": "unsolved",
+        "m12": "unsolved"
+      },
+      "changed_by": []
+    },
+    {
+      "case_id": "v2-sv-01",
+      "need_type": "PARTY",
+      "question_type": "parter",
+      "states": {
+        "m0": "ambiguous",
+        "m1": "ambiguous",
+        "m2": "ambiguous",
+        "m12": "ambiguous"
+      },
+      "changed_by": []
+    },
+    {
+      "case_id": "v2-sv-02",
+      "need_type": "PERIOD",
+      "question_type": "avtalstid",
+      "states": {
+        "m0": "resolved",
+        "m1": "resolved",
+        "m2": "resolved",
+        "m12": "resolved"
+      },
+      "changed_by": []
+    },
+    {
+      "case_id": "v2-sv-03",
+      "need_type": "DATE",
+      "question_type": "tidsfrister",
+      "states": {
+        "m0": "unsolved",
+        "m1": "resolved",
+        "m2": "unsolved",
+        "m12": "resolved"
+      },
+      "changed_by": [
+        "m1",
+        "m12"
+      ]
+    },
+    {
+      "case_id": "v2-if-01",
+      "need_type": "MONEY",
+      "question_type": "ersättning",
+      "states": {
+        "m0": "resolved",
+        "m1": "resolved",
+        "m2": "resolved",
+        "m12": "resolved"
+      },
+      "changed_by": []
+    },
+    {
+      "case_id": "v2-if-02",
+      "need_type": "MONEY",
+      "question_type": "ersättning",
+      "states": {
+        "m0": "resolved",
+        "m1": "resolved",
+        "m2": "resolved",
+        "m12": "resolved"
+      },
+      "changed_by": []
+    },
+    {
+      "case_id": "v2-if-03",
+      "need_type": "PERIOD",
+      "question_type": "avtalstid",
+      "states": {
+        "m0": "resolved",
+        "m1": "resolved",
+        "m2": "resolved",
+        "m12": "resolved"
+      },
+      "changed_by": []
+    },
+    {
+      "case_id": "v2-if-04",
+      "need_type": "DATE",
+      "question_type": "tidsfrister",
+      "states": {
+        "m0": "resolved",
+        "m1": "resolved",
+        "m2": "resolved",
+        "m12": "resolved"
+      },
+      "changed_by": []
+    },
+    {
+      "case_id": "v2-if-05",
+      "need_type": "PARTY",
+      "question_type": "parter",
+      "states": {
+        "m0": "unsolved",
+        "m1": "unsolved",
+        "m2": "unsolved",
+        "m12": "unsolved"
+      },
+      "changed_by": []
+    },
+    {
+      "case_id": "v2-if-06",
+      "need_type": "PARTY",
+      "question_type": "parter",
+      "states": {
+        "m0": "unsolved",
+        "m1": "unsolved",
+        "m2": "unsolved",
+        "m12": "unsolved"
+      },
+      "changed_by": []
+    }
+  ],
+  "d10_proxy": {
+    "note": "Answer-level D10 contamination requires answer-level facit, which blindtest v2 does not have (it is clause-level). Reported here is the clause-level proxy: a resolved need using a non-gold verified value. No such case occurred in any arm. The answer-level reference remains v1 D10: 0/20 contaminated answers.",
+    "contaminated_answers": 0,
+    "correct_abstentions": "n/a (v2 har inga olösliga behov)"
+  },
+  "costs": {
+    "model": {
+      "execution_jev_calls": "JEV-anrop strategin skulle göra från TOM cache (antal verifieringsbeslut efter armens spannbearbetning).",
+      "experiment_new_calls": "JEV-anrop som faktiskt behövde köras i experimentet eftersom tidigare frysta svar kunde återanvändas.",
+      "note": "Ekonomisk jämförelse ska använda execution_jev_calls (M0 32 → M2/M12 26), inte experimentets replay-kostnad. experiment_new_calls mäter bara vad körningen behövde betala utöver frysta svar."
+    },
+    "per_arm": {
+      "m0": {
+        "execution_jev_calls": 32,
+        "experiment_new_calls": 0,
+        "gliner_inferences": 0
+      },
+      "m1": {
+        "execution_jev_calls": 32,
+        "experiment_new_calls": 2,
+        "gliner_inferences": 0
+      },
+      "m2": {
+        "execution_jev_calls": 26,
+        "experiment_new_calls": 0,
+        "gliner_inferences": 0
+      },
+      "m12": {
+        "execution_jev_calls": 26,
+        "experiment_new_calls": 0,
+        "gliner_inferences": 0
+      }
+    },
+    "comparison": {
+      "m0_execution": 32,
+      "m12_execution": 26,
+      "execution_delta": -6,
+      "m12_additional_solved_vs_m0": 2,
+      "execution_cost_per_additional_solved": "6 färre JEV-anrop för +2 lösta"
+    },
+    "gliner_inferences": 0,
+    "jev_new_calls_total": 2,
+    "jev_calls_total": 116
+  },
+  "reservation": "These 16 cases are now a diagnostic development set for M1–M6; they are no longer an independent blind test for the improved versions. A new unseen document set is required before any broader activation.",
+  "details": {
+    "m0": {
+      "v2-pm-01": {
+        "case_id": "v2-pm-01",
+        "need_type": "NOTICE_PERIOD",
+        "state": "unsolved",
+        "verified_values_redacted": [],
+        "wrong_values_redacted": [],
+        "dropped_candidates": []
+      },
+      "v2-pm-02": {
+        "case_id": "v2-pm-02",
+        "need_type": "LIABILITY_CAP",
+        "state": "unsolved",
+        "verified_values_redacted": [],
+        "wrong_values_redacted": [],
+        "dropped_candidates": []
+      },
+      "v2-pm-03": {
+        "case_id": "v2-pm-03",
+        "need_type": "MONEY",
+        "state": "ambiguous",
+        "verified_values_redacted": [],
+        "wrong_values_redacted": [],
+        "dropped_candidates": []
+      },
+      "v2-pm-04": {
+        "case_id": "v2-pm-04",
+        "need_type": "PERIOD",
+        "state": "resolved",
+        "verified_values_redacted": [
+          "8cf66297379318c75cee1aaae0c25b6e7edc713830d5a0305b89df04a7c85e63"
+        ],
+        "wrong_values_redacted": [],
+        "dropped_candidates": []
+      },
+      "v2-pm-05": {
+        "case_id": "v2-pm-05",
+        "need_type": "PERIOD",
+        "state": "unsolved",
+        "verified_values_redacted": [],
+        "wrong_values_redacted": [],
+        "dropped_candidates": []
+      },
+      "v2-pm-06": {
+        "case_id": "v2-pm-06",
+        "need_type": "PERIOD",
+        "state": "resolved",
+        "verified_values_redacted": [
+          "c311d34de2a0671a91bec81145b11d1f88fef59957bb8b2d6fbc8d6baf47db6e"
+        ],
+        "wrong_values_redacted": [],
+        "dropped_candidates": []
+      },
+      "v2-pm-07": {
+        "case_id": "v2-pm-07",
+        "need_type": "PARTY",
+        "state": "unsolved",
+        "verified_values_redacted": [
+          "33a151ea011e8e9eaf448371aa5974bf15cc876b41d8be72e6193f4deb2bdcc0"
+        ],
+        "wrong_values_redacted": [],
+        "dropped_candidates": []
+      },
+      "v2-sv-01": {
+        "case_id": "v2-sv-01",
+        "need_type": "PARTY",
+        "state": "ambiguous",
+        "verified_values_redacted": [],
+        "wrong_values_redacted": [],
+        "dropped_candidates": []
+      },
+      "v2-sv-02": {
+        "case_id": "v2-sv-02",
+        "need_type": "PERIOD",
+        "state": "resolved",
+        "verified_values_redacted": [
+          "680d4b064d31da6eea7ec247337a81b8b411ef487804888839f248955c8193e7"
+        ],
+        "wrong_values_redacted": [],
+        "dropped_candidates": []
+      },
+      "v2-sv-03": {
+        "case_id": "v2-sv-03",
+        "need_type": "DATE",
+        "state": "unsolved",
+        "verified_values_redacted": [],
+        "wrong_values_redacted": [],
+        "dropped_candidates": []
+      },
+      "v2-if-01": {
+        "case_id": "v2-if-01",
+        "need_type": "MONEY",
+        "state": "resolved",
+        "verified_values_redacted": [
+          "53f43a804c530887d520d5c7594b176262f4c4cda6085984efc7d76919e0c4c1"
+        ],
+        "wrong_values_redacted": [],
+        "dropped_candidates": []
+      },
+      "v2-if-02": {
+        "case_id": "v2-if-02",
+        "need_type": "MONEY",
+        "state": "resolved",
+        "verified_values_redacted": [
+          "37b8a41fcb35d6799b201687be319aee25e01934e8d80048653ebb7399ae5edb"
+        ],
+        "wrong_values_redacted": [],
+        "dropped_candidates": []
+      },
+      "v2-if-03": {
+        "case_id": "v2-if-03",
+        "need_type": "PERIOD",
+        "state": "resolved",
+        "verified_values_redacted": [
+          "a91796c629eb1ef2ce139a8e700040dbb23f1465f41fc2afe1aaf5c1bfa2405e"
+        ],
+        "wrong_values_redacted": [],
+        "dropped_candidates": []
+      },
+      "v2-if-04": {
+        "case_id": "v2-if-04",
+        "need_type": "DATE",
+        "state": "resolved",
+        "verified_values_redacted": [
+          "630706fbc03e04e86c7e5e005600be779093701be7723e7f551f8af2b10298e6"
+        ],
+        "wrong_values_redacted": [],
+        "dropped_candidates": []
+      },
+      "v2-if-05": {
+        "case_id": "v2-if-05",
+        "need_type": "PARTY",
+        "state": "unsolved",
+        "verified_values_redacted": [],
+        "wrong_values_redacted": [],
+        "dropped_candidates": []
+      },
+      "v2-if-06": {
+        "case_id": "v2-if-06",
+        "need_type": "PARTY",
+        "state": "unsolved",
+        "verified_values_redacted": [],
+        "wrong_values_redacted": [],
+        "dropped_candidates": []
+      }
+    },
+    "m1": {
+      "v2-pm-01": {
+        "case_id": "v2-pm-01",
+        "need_type": "NOTICE_PERIOD",
+        "state": "unsolved",
+        "verified_values_redacted": [],
+        "wrong_values_redacted": [],
+        "dropped_candidates": [],
+        "normalized_spans": [
+          {
+            "original_span_sha256": "4f24fd09cce4cad9f0764c44ed1abee5bed2536e254ca35ae715293c8e97bede",
+            "normalized_span_sha256": "4f24fd09cce4cad9f0764c44ed1abee5bed2536e254ca35ae715293c8e97bede",
+            "changed": false,
+            "original_start_in_clause": 165,
+            "original_end_in_clause": 191
+          },
+          {
+            "original_span_sha256": "584b95bfb9bec9ad1f8ec3a172bd33a1cb0de98f599c99a2e67a3d2b84f9888b",
+            "normalized_span_sha256": "584b95bfb9bec9ad1f8ec3a172bd33a1cb0de98f599c99a2e67a3d2b84f9888b",
+            "changed": false,
+            "original_start_in_clause": 165,
+            "original_end_in_clause": 177
+          }
+        ]
+      },
+      "v2-pm-02": {
+        "case_id": "v2-pm-02",
+        "need_type": "LIABILITY_CAP",
+        "state": "unsolved",
+        "verified_values_redacted": [],
+        "wrong_values_redacted": [],
+        "dropped_candidates": [],
+        "normalized_spans": [
+          {
+            "original_span_sha256": "c878f18063f6ee530519d0b3c22499d296f6998be9d15159688a749e3d576369",
+            "normalized_span_sha256": "c878f18063f6ee530519d0b3c22499d296f6998be9d15159688a749e3d576369",
+            "changed": false,
+            "original_start_in_clause": 157,
+            "original_end_in_clause": 212
+          }
+        ]
+      },
+      "v2-pm-03": {
+        "case_id": "v2-pm-03",
+        "need_type": "MONEY",
+        "state": "ambiguous",
+        "verified_values_redacted": [],
+        "wrong_values_redacted": [],
+        "dropped_candidates": [],
+        "normalized_spans": [
+          {
+            "original_span_sha256": "b0ad9953d24cda1cb41163f954ab107338335b8170e97602e7b5e9aaa0214b02",
+            "normalized_span_sha256": "b0ad9953d24cda1cb41163f954ab107338335b8170e97602e7b5e9aaa0214b02",
+            "changed": false,
+            "original_start_in_clause": 164,
+            "original_end_in_clause": 193
+          },
+          {
+            "original_span_sha256": "6afd0b3ec66f6816de76cb3a5c72129b631c0299d654163bdc66a99c0c771177",
+            "normalized_span_sha256": "6afd0b3ec66f6816de76cb3a5c72129b631c0299d654163bdc66a99c0c771177",
+            "changed": false,
+            "original_start_in_clause": 178,
+            "original_end_in_clause": 188
+          },
+          {
+            "original_span_sha256": "04b23dfaad48555dd0aeb8d7057fa3af3626deaf9751cae6cadff521ee05b1ce",
+            "normalized_span_sha256": "04b23dfaad48555dd0aeb8d7057fa3af3626deaf9751cae6cadff521ee05b1ce",
+            "changed": false,
+            "original_start_in_clause": 164,
+            "original_end_in_clause": 176
+          }
+        ]
+      },
+      "v2-pm-04": {
+        "case_id": "v2-pm-04",
+        "need_type": "PERIOD",
+        "state": "resolved",
+        "verified_values_redacted": [
+          "8cf66297379318c75cee1aaae0c25b6e7edc713830d5a0305b89df04a7c85e63"
+        ],
+        "wrong_values_redacted": [],
+        "dropped_candidates": [],
+        "normalized_spans": [
+          {
+            "original_span_sha256": "8cf66297379318c75cee1aaae0c25b6e7edc713830d5a0305b89df04a7c85e63",
+            "normalized_span_sha256": "8cf66297379318c75cee1aaae0c25b6e7edc713830d5a0305b89df04a7c85e63",
+            "changed": false,
+            "original_start_in_clause": 58,
+            "original_end_in_clause": 75
+          },
+          {
+            "original_span_sha256": "8cf66297379318c75cee1aaae0c25b6e7edc713830d5a0305b89df04a7c85e63",
+            "normalized_span_sha256": "8cf66297379318c75cee1aaae0c25b6e7edc713830d5a0305b89df04a7c85e63",
+            "changed": false,
+            "original_start_in_clause": 58,
+            "original_end_in_clause": 75
+          }
+        ]
+      },
+      "v2-pm-05": {
+        "case_id": "v2-pm-05",
+        "need_type": "PERIOD",
+        "state": "unsolved",
+        "verified_values_redacted": [],
+        "wrong_values_redacted": [],
+        "dropped_candidates": [],
+        "normalized_spans": [
+          {
+            "original_span_sha256": "8df8e0dbc5eb49421d90a53bc4f0c15f53b9e6e726b8a7daf614624f08501645",
+            "normalized_span_sha256": "855abdadc0902bd35d969dd6878332491881fc3d2e86dbe0f3e354b995f100ab",
+            "changed": true,
+            "original_start_in_clause": 108,
+            "original_end_in_clause": 129
+          },
+          {
+            "original_span_sha256": "855abdadc0902bd35d969dd6878332491881fc3d2e86dbe0f3e354b995f100ab",
+            "normalized_span_sha256": "855abdadc0902bd35d969dd6878332491881fc3d2e86dbe0f3e354b995f100ab",
+            "changed": false,
+            "original_start_in_clause": -1,
+            "original_end_in_clause": 19
+          }
+        ]
+      },
+      "v2-pm-06": {
+        "case_id": "v2-pm-06",
+        "need_type": "PERIOD",
+        "state": "resolved",
+        "verified_values_redacted": [
+          "c311d34de2a0671a91bec81145b11d1f88fef59957bb8b2d6fbc8d6baf47db6e"
+        ],
+        "wrong_values_redacted": [],
+        "dropped_candidates": [],
+        "normalized_spans": [
+          {
+            "original_span_sha256": "c311d34de2a0671a91bec81145b11d1f88fef59957bb8b2d6fbc8d6baf47db6e",
+            "normalized_span_sha256": "c311d34de2a0671a91bec81145b11d1f88fef59957bb8b2d6fbc8d6baf47db6e",
+            "changed": false,
+            "original_start_in_clause": 74,
+            "original_end_in_clause": 84
+          },
+          {
+            "original_span_sha256": "c311d34de2a0671a91bec81145b11d1f88fef59957bb8b2d6fbc8d6baf47db6e",
+            "normalized_span_sha256": "c311d34de2a0671a91bec81145b11d1f88fef59957bb8b2d6fbc8d6baf47db6e",
+            "changed": false,
+            "original_start_in_clause": 74,
+            "original_end_in_clause": 84
+          }
+        ]
+      },
+      "v2-pm-07": {
+        "case_id": "v2-pm-07",
+        "need_type": "PARTY",
+        "state": "unsolved",
+        "verified_values_redacted": [
+          "33a151ea011e8e9eaf448371aa5974bf15cc876b41d8be72e6193f4deb2bdcc0"
+        ],
+        "wrong_values_redacted": [],
+        "dropped_candidates": [],
+        "normalized_spans": [
+          {
+            "original_span_sha256": "937a4ac83d497b5521af826980ef53b2157d34674bc0db6bbd2a65937f27a232",
+            "normalized_span_sha256": "937a4ac83d497b5521af826980ef53b2157d34674bc0db6bbd2a65937f27a232",
+            "changed": false,
+            "original_start_in_clause": 55,
+            "original_end_in_clause": 60
+          },
+          {
+            "original_span_sha256": "623c0453e1f1c2e34064a3e9d7b4e2749cd5051c31525b3b360207d51844be1d",
+            "normalized_span_sha256": "623c0453e1f1c2e34064a3e9d7b4e2749cd5051c31525b3b360207d51844be1d",
+            "changed": false,
+            "original_start_in_clause": 161,
+            "original_end_in_clause": 177
+          },
+          {
+            "original_span_sha256": "26cc19db2162e5f4303464b3b142d38d05c828d080ef5814b10f3f4c1ded5970",
+            "normalized_span_sha256": "26cc19db2162e5f4303464b3b142d38d05c828d080ef5814b10f3f4c1ded5970",
+            "changed": false,
+            "original_start_in_clause": -1,
+            "original_end_in_clause": 7
+          }
+        ]
+      },
+      "v2-sv-01": {
+        "case_id": "v2-sv-01",
+        "need_type": "PARTY",
+        "state": "ambiguous",
+        "verified_values_redacted": [],
+        "wrong_values_redacted": [],
+        "dropped_candidates": [],
+        "normalized_spans": [
+          {
+            "original_span_sha256": "4be5c3c9a18929a5ec9c53fd9140fcaa73007fead4ea9029912742bdc1160eb8",
+            "normalized_span_sha256": "4be5c3c9a18929a5ec9c53fd9140fcaa73007fead4ea9029912742bdc1160eb8",
+            "changed": false,
+            "original_start_in_clause": 130,
+            "original_end_in_clause": 162
+          },
+          {
+            "original_span_sha256": "ef9e532b6e671786dfff0011a9d06f90ada4886970b6002dcef98c7402151941",
+            "normalized_span_sha256": "ef9e532b6e671786dfff0011a9d06f90ada4886970b6002dcef98c7402151941",
+            "changed": false,
+            "original_start_in_clause": 301,
+            "original_end_in_clause": 315
+          },
+          {
+            "original_span_sha256": "75e82a2940f60353d18fc0bab9f06ec004db03e04c32fa8f679985d5f7553731",
+            "normalized_span_sha256": "75e82a2940f60353d18fc0bab9f06ec004db03e04c32fa8f679985d5f7553731",
+            "changed": false,
+            "original_start_in_clause": 316,
+            "original_end_in_clause": 333
+          }
+        ]
+      },
+      "v2-sv-02": {
+        "case_id": "v2-sv-02",
+        "need_type": "PERIOD",
+        "state": "resolved",
+        "verified_values_redacted": [
+          "680d4b064d31da6eea7ec247337a81b8b411ef487804888839f248955c8193e7"
+        ],
+        "wrong_values_redacted": [],
+        "dropped_candidates": [],
+        "normalized_spans": [
+          {
+            "original_span_sha256": "680d4b064d31da6eea7ec247337a81b8b411ef487804888839f248955c8193e7",
+            "normalized_span_sha256": "680d4b064d31da6eea7ec247337a81b8b411ef487804888839f248955c8193e7",
+            "changed": false,
+            "original_start_in_clause": 127,
+            "original_end_in_clause": 147
+          }
+        ]
+      },
+      "v2-sv-03": {
+        "case_id": "v2-sv-03",
+        "need_type": "DATE",
+        "state": "resolved",
+        "verified_values_redacted": [
+          "f8d2f9086e45f1719566cb263735cf36f03b7cadf1f4046b16d2c1b589a4d72b"
+        ],
+        "wrong_values_redacted": [],
+        "dropped_candidates": [],
+        "normalized_spans": [
+          {
+            "original_span_sha256": "222cbf40938cfed80893a0242a19894c5f7a8ea58f0adba74b175fa20f75ef95",
+            "normalized_span_sha256": "f8d2f9086e45f1719566cb263735cf36f03b7cadf1f4046b16d2c1b589a4d72b",
+            "changed": true,
+            "original_start_in_clause": 42,
+            "original_end_in_clause": 53
+          },
+          {
+            "original_span_sha256": "222cbf40938cfed80893a0242a19894c5f7a8ea58f0adba74b175fa20f75ef95",
+            "normalized_span_sha256": "f8d2f9086e45f1719566cb263735cf36f03b7cadf1f4046b16d2c1b589a4d72b",
+            "changed": true,
+            "original_start_in_clause": 42,
+            "original_end_in_clause": 53
+          }
+        ]
+      },
+      "v2-if-01": {
+        "case_id": "v2-if-01",
+        "need_type": "MONEY",
+        "state": "resolved",
+        "verified_values_redacted": [
+          "53f43a804c530887d520d5c7594b176262f4c4cda6085984efc7d76919e0c4c1"
+        ],
+        "wrong_values_redacted": [],
+        "dropped_candidates": [],
+        "normalized_spans": [
+          {
+            "original_span_sha256": "e9bb15f768060869970e28970482c88fe775afc7539c67adacf9691724a81e5e",
+            "normalized_span_sha256": "e9bb15f768060869970e28970482c88fe775afc7539c67adacf9691724a81e5e",
+            "changed": false,
+            "original_start_in_clause": 7,
+            "original_end_in_clause": 17
+          }
+        ]
+      },
+      "v2-if-02": {
+        "case_id": "v2-if-02",
+        "need_type": "MONEY",
+        "state": "resolved",
+        "verified_values_redacted": [
+          "37b8a41fcb35d6799b201687be319aee25e01934e8d80048653ebb7399ae5edb"
+        ],
+        "wrong_values_redacted": [],
+        "dropped_candidates": [],
+        "normalized_spans": [
+          {
+            "original_span_sha256": "0abb36f6b9ae89402039afe925fda08b11b641d988d7d13a04520050915d3aa8",
+            "normalized_span_sha256": "0abb36f6b9ae89402039afe925fda08b11b641d988d7d13a04520050915d3aa8",
+            "changed": false,
+            "original_start_in_clause": 18,
+            "original_end_in_clause": 28
+          }
+        ]
+      },
+      "v2-if-03": {
+        "case_id": "v2-if-03",
+        "need_type": "PERIOD",
+        "state": "resolved",
+        "verified_values_redacted": [
+          "a91796c629eb1ef2ce139a8e700040dbb23f1465f41fc2afe1aaf5c1bfa2405e"
+        ],
+        "wrong_values_redacted": [],
+        "dropped_candidates": [],
+        "normalized_spans": [
+          {
+            "original_span_sha256": "a91796c629eb1ef2ce139a8e700040dbb23f1465f41fc2afe1aaf5c1bfa2405e",
+            "normalized_span_sha256": "a91796c629eb1ef2ce139a8e700040dbb23f1465f41fc2afe1aaf5c1bfa2405e",
+            "changed": false,
+            "original_start_in_clause": 50,
+            "original_end_in_clause": 73
+          },
+          {
+            "original_span_sha256": "518ee2681a4d5042c8ecefe51637eecb0fdaffcbe9130013cf7cd8dcc3177ba9",
+            "normalized_span_sha256": "518ee2681a4d5042c8ecefe51637eecb0fdaffcbe9130013cf7cd8dcc3177ba9",
+            "changed": false,
+            "original_start_in_clause": 50,
+            "original_end_in_clause": 60
+          },
+          {
+            "original_span_sha256": "b0129a96caed304c7bbe8dbc5826f0d3d2152c6161ec1682852e001004697a64",
+            "normalized_span_sha256": "b0129a96caed304c7bbe8dbc5826f0d3d2152c6161ec1682852e001004697a64",
+            "changed": false,
+            "original_start_in_clause": 63,
+            "original_end_in_clause": 73
+          }
+        ]
+      },
+      "v2-if-04": {
+        "case_id": "v2-if-04",
+        "need_type": "DATE",
+        "state": "resolved",
+        "verified_values_redacted": [
+          "630706fbc03e04e86c7e5e005600be779093701be7723e7f551f8af2b10298e6"
+        ],
+        "wrong_values_redacted": [],
+        "dropped_candidates": [],
+        "normalized_spans": [
+          {
+            "original_span_sha256": "630706fbc03e04e86c7e5e005600be779093701be7723e7f551f8af2b10298e6",
+            "normalized_span_sha256": "630706fbc03e04e86c7e5e005600be779093701be7723e7f551f8af2b10298e6",
+            "changed": false,
+            "original_start_in_clause": 16,
+            "original_end_in_clause": 31
+          },
+          {
+            "original_span_sha256": "630706fbc03e04e86c7e5e005600be779093701be7723e7f551f8af2b10298e6",
+            "normalized_span_sha256": "630706fbc03e04e86c7e5e005600be779093701be7723e7f551f8af2b10298e6",
+            "changed": false,
+            "original_start_in_clause": 16,
+            "original_end_in_clause": 31
+          }
+        ]
+      },
+      "v2-if-05": {
+        "case_id": "v2-if-05",
+        "need_type": "PARTY",
+        "state": "unsolved",
+        "verified_values_redacted": [],
+        "wrong_values_redacted": [],
+        "dropped_candidates": [],
+        "normalized_spans": [
+          {
+            "original_span_sha256": "4d434a9a6df36572fc710753c9c0a8df73b2f93fe7d79562508ee9842bb00ab4",
+            "normalized_span_sha256": "4d434a9a6df36572fc710753c9c0a8df73b2f93fe7d79562508ee9842bb00ab4",
+            "changed": false,
+            "original_start_in_clause": 0,
+            "original_end_in_clause": 15
+          },
+          {
+            "original_span_sha256": "c3f39f3f1cf3db4f77d39887230bb26f5eb9706b727e91a656d9a33b7779aece",
+            "normalized_span_sha256": "c3f39f3f1cf3db4f77d39887230bb26f5eb9706b727e91a656d9a33b7779aece",
+            "changed": false,
+            "original_start_in_clause": 36,
+            "original_end_in_clause": 47
+          }
+        ]
+      },
+      "v2-if-06": {
+        "case_id": "v2-if-06",
+        "need_type": "PARTY",
+        "state": "unsolved",
+        "verified_values_redacted": [],
+        "wrong_values_redacted": [],
+        "dropped_candidates": [],
+        "normalized_spans": [
+          {
+            "original_span_sha256": "0f5cbd2198638bd90af7c0bfd23c144b6f695cccbdc089d5e51a3333799530d0",
+            "normalized_span_sha256": "0f5cbd2198638bd90af7c0bfd23c144b6f695cccbdc089d5e51a3333799530d0",
+            "changed": false,
+            "original_start_in_clause": 0,
+            "original_end_in_clause": 28
+          },
+          {
+            "original_span_sha256": "c1db72d15cc92fa8cd1fd2c0eac6da1f086b1701368ff37789032c85de45986f",
+            "normalized_span_sha256": "c1db72d15cc92fa8cd1fd2c0eac6da1f086b1701368ff37789032c85de45986f",
+            "changed": false,
+            "original_start_in_clause": -1,
+            "original_end_in_clause": 8
+          }
+        ]
+      }
+    },
+    "m2": {
+      "v2-pm-01": {
+        "case_id": "v2-pm-01",
+        "need_type": "NOTICE_PERIOD",
+        "state": "unsolved",
+        "verified_values_redacted": [],
+        "wrong_values_redacted": [],
+        "dropped_candidates": [
+          {
+            "span_canon_sha256": "584b95bfb9bec9ad1f8ec3a172bd33a1cb0de98f599c99a2e67a3d2b84f9888b",
+            "contained_in": [
+              "gold"
+            ]
+          }
+        ]
+      },
+      "v2-pm-02": {
+        "case_id": "v2-pm-02",
+        "need_type": "LIABILITY_CAP",
+        "state": "unsolved",
+        "verified_values_redacted": [],
+        "wrong_values_redacted": [],
+        "dropped_candidates": []
+      },
+      "v2-pm-03": {
+        "case_id": "v2-pm-03",
+        "need_type": "MONEY",
+        "state": "resolved",
+        "verified_values_redacted": [
+          "b7dff049d446a72fa5360bb5f2c118a5ba42e36501af0165ae4065831d65ca66"
+        ],
+        "wrong_values_redacted": [],
+        "dropped_candidates": [
+          {
+            "span_canon_sha256": "6afd0b3ec66f6816de76cb3a5c72129b631c0299d654163bdc66a99c0c771177",
+            "contained_in": [
+              "gold"
+            ]
+          },
+          {
+            "span_canon_sha256": "04b23dfaad48555dd0aeb8d7057fa3af3626deaf9751cae6cadff521ee05b1ce",
+            "contained_in": [
+              "gold"
+            ]
+          }
+        ]
+      },
+      "v2-pm-04": {
+        "case_id": "v2-pm-04",
+        "need_type": "PERIOD",
+        "state": "resolved",
+        "verified_values_redacted": [
+          "8cf66297379318c75cee1aaae0c25b6e7edc713830d5a0305b89df04a7c85e63"
+        ],
+        "wrong_values_redacted": [],
+        "dropped_candidates": []
+      },
+      "v2-pm-05": {
+        "case_id": "v2-pm-05",
+        "need_type": "PERIOD",
+        "state": "unsolved",
+        "verified_values_redacted": [],
+        "wrong_values_redacted": [],
+        "dropped_candidates": []
+      },
+      "v2-pm-06": {
+        "case_id": "v2-pm-06",
+        "need_type": "PERIOD",
+        "state": "resolved",
+        "verified_values_redacted": [
+          "c311d34de2a0671a91bec81145b11d1f88fef59957bb8b2d6fbc8d6baf47db6e"
+        ],
+        "wrong_values_redacted": [],
+        "dropped_candidates": []
+      },
+      "v2-pm-07": {
+        "case_id": "v2-pm-07",
+        "need_type": "PARTY",
+        "state": "unsolved",
+        "verified_values_redacted": [
+          "33a151ea011e8e9eaf448371aa5974bf15cc876b41d8be72e6193f4deb2bdcc0"
+        ],
+        "wrong_values_redacted": [],
+        "dropped_candidates": []
+      },
+      "v2-sv-01": {
+        "case_id": "v2-sv-01",
+        "need_type": "PARTY",
+        "state": "ambiguous",
+        "verified_values_redacted": [],
+        "wrong_values_redacted": [],
+        "dropped_candidates": []
+      },
+      "v2-sv-02": {
+        "case_id": "v2-sv-02",
+        "need_type": "PERIOD",
+        "state": "resolved",
+        "verified_values_redacted": [
+          "680d4b064d31da6eea7ec247337a81b8b411ef487804888839f248955c8193e7"
+        ],
+        "wrong_values_redacted": [],
+        "dropped_candidates": []
+      },
+      "v2-sv-03": {
+        "case_id": "v2-sv-03",
+        "need_type": "DATE",
+        "state": "unsolved",
+        "verified_values_redacted": [],
+        "wrong_values_redacted": [],
+        "dropped_candidates": []
+      },
+      "v2-if-01": {
+        "case_id": "v2-if-01",
+        "need_type": "MONEY",
+        "state": "resolved",
+        "verified_values_redacted": [
+          "53f43a804c530887d520d5c7594b176262f4c4cda6085984efc7d76919e0c4c1"
+        ],
+        "wrong_values_redacted": [],
+        "dropped_candidates": []
+      },
+      "v2-if-02": {
+        "case_id": "v2-if-02",
+        "need_type": "MONEY",
+        "state": "resolved",
+        "verified_values_redacted": [
+          "37b8a41fcb35d6799b201687be319aee25e01934e8d80048653ebb7399ae5edb"
+        ],
+        "wrong_values_redacted": [],
+        "dropped_candidates": []
+      },
+      "v2-if-03": {
+        "case_id": "v2-if-03",
+        "need_type": "PERIOD",
+        "state": "resolved",
+        "verified_values_redacted": [
+          "a91796c629eb1ef2ce139a8e700040dbb23f1465f41fc2afe1aaf5c1bfa2405e"
+        ],
+        "wrong_values_redacted": [],
+        "dropped_candidates": [
+          {
+            "span_canon_sha256": "518ee2681a4d5042c8ecefe51637eecb0fdaffcbe9130013cf7cd8dcc3177ba9",
+            "contained_in": [
+              "gold"
+            ]
+          },
+          {
+            "span_canon_sha256": "b0129a96caed304c7bbe8dbc5826f0d3d2152c6161ec1682852e001004697a64",
+            "contained_in": [
+              "gold"
+            ]
+          }
+        ]
+      },
+      "v2-if-04": {
+        "case_id": "v2-if-04",
+        "need_type": "DATE",
+        "state": "resolved",
+        "verified_values_redacted": [
+          "630706fbc03e04e86c7e5e005600be779093701be7723e7f551f8af2b10298e6"
+        ],
+        "wrong_values_redacted": [],
+        "dropped_candidates": []
+      },
+      "v2-if-05": {
+        "case_id": "v2-if-05",
+        "need_type": "PARTY",
+        "state": "unsolved",
+        "verified_values_redacted": [],
+        "wrong_values_redacted": [],
+        "dropped_candidates": []
+      },
+      "v2-if-06": {
+        "case_id": "v2-if-06",
+        "need_type": "PARTY",
+        "state": "unsolved",
+        "verified_values_redacted": [],
+        "wrong_values_redacted": [],
+        "dropped_candidates": [
+          {
+            "span_canon_sha256": "c1db72d15cc92fa8cd1fd2c0eac6da1f086b1701368ff37789032c85de45986f",
+            "contained_in": [
+              "gold"
+            ]
+          }
+        ]
+      }
+    },
+    "m12": {
+      "v2-pm-01": {
+        "case_id": "v2-pm-01",
+        "need_type": "NOTICE_PERIOD",
+        "state": "unsolved",
+        "verified_values_redacted": [],
+        "wrong_values_redacted": [],
+        "dropped_candidates": [
+          {
+            "span_canon_sha256": "584b95bfb9bec9ad1f8ec3a172bd33a1cb0de98f599c99a2e67a3d2b84f9888b",
+            "contained_in": [
+              "gold"
+            ]
+          }
+        ],
+        "normalized_spans": [
+          {
+            "original_span_sha256": "4f24fd09cce4cad9f0764c44ed1abee5bed2536e254ca35ae715293c8e97bede",
+            "normalized_span_sha256": "4f24fd09cce4cad9f0764c44ed1abee5bed2536e254ca35ae715293c8e97bede",
+            "changed": false,
+            "original_start_in_clause": 165,
+            "original_end_in_clause": 191
+          }
+        ]
+      },
+      "v2-pm-02": {
+        "case_id": "v2-pm-02",
+        "need_type": "LIABILITY_CAP",
+        "state": "unsolved",
+        "verified_values_redacted": [],
+        "wrong_values_redacted": [],
+        "dropped_candidates": [],
+        "normalized_spans": [
+          {
+            "original_span_sha256": "c878f18063f6ee530519d0b3c22499d296f6998be9d15159688a749e3d576369",
+            "normalized_span_sha256": "c878f18063f6ee530519d0b3c22499d296f6998be9d15159688a749e3d576369",
+            "changed": false,
+            "original_start_in_clause": 157,
+            "original_end_in_clause": 212
+          }
+        ]
+      },
+      "v2-pm-03": {
+        "case_id": "v2-pm-03",
+        "need_type": "MONEY",
+        "state": "resolved",
+        "verified_values_redacted": [
+          "b7dff049d446a72fa5360bb5f2c118a5ba42e36501af0165ae4065831d65ca66"
+        ],
+        "wrong_values_redacted": [],
+        "dropped_candidates": [
+          {
+            "span_canon_sha256": "6afd0b3ec66f6816de76cb3a5c72129b631c0299d654163bdc66a99c0c771177",
+            "contained_in": [
+              "gold"
+            ]
+          },
+          {
+            "span_canon_sha256": "04b23dfaad48555dd0aeb8d7057fa3af3626deaf9751cae6cadff521ee05b1ce",
+            "contained_in": [
+              "gold"
+            ]
+          }
+        ],
+        "normalized_spans": [
+          {
+            "original_span_sha256": "b0ad9953d24cda1cb41163f954ab107338335b8170e97602e7b5e9aaa0214b02",
+            "normalized_span_sha256": "b0ad9953d24cda1cb41163f954ab107338335b8170e97602e7b5e9aaa0214b02",
+            "changed": false,
+            "original_start_in_clause": 164,
+            "original_end_in_clause": 193
+          }
+        ]
+      },
+      "v2-pm-04": {
+        "case_id": "v2-pm-04",
+        "need_type": "PERIOD",
+        "state": "resolved",
+        "verified_values_redacted": [
+          "8cf66297379318c75cee1aaae0c25b6e7edc713830d5a0305b89df04a7c85e63"
+        ],
+        "wrong_values_redacted": [],
+        "dropped_candidates": [],
+        "normalized_spans": [
+          {
+            "original_span_sha256": "8cf66297379318c75cee1aaae0c25b6e7edc713830d5a0305b89df04a7c85e63",
+            "normalized_span_sha256": "8cf66297379318c75cee1aaae0c25b6e7edc713830d5a0305b89df04a7c85e63",
+            "changed": false,
+            "original_start_in_clause": 58,
+            "original_end_in_clause": 75
+          },
+          {
+            "original_span_sha256": "8cf66297379318c75cee1aaae0c25b6e7edc713830d5a0305b89df04a7c85e63",
+            "normalized_span_sha256": "8cf66297379318c75cee1aaae0c25b6e7edc713830d5a0305b89df04a7c85e63",
+            "changed": false,
+            "original_start_in_clause": 58,
+            "original_end_in_clause": 75
+          }
+        ]
+      },
+      "v2-pm-05": {
+        "case_id": "v2-pm-05",
+        "need_type": "PERIOD",
+        "state": "unsolved",
+        "verified_values_redacted": [],
+        "wrong_values_redacted": [],
+        "dropped_candidates": [],
+        "normalized_spans": [
+          {
+            "original_span_sha256": "8df8e0dbc5eb49421d90a53bc4f0c15f53b9e6e726b8a7daf614624f08501645",
+            "normalized_span_sha256": "855abdadc0902bd35d969dd6878332491881fc3d2e86dbe0f3e354b995f100ab",
+            "changed": true,
+            "original_start_in_clause": 108,
+            "original_end_in_clause": 129
+          },
+          {
+            "original_span_sha256": "855abdadc0902bd35d969dd6878332491881fc3d2e86dbe0f3e354b995f100ab",
+            "normalized_span_sha256": "855abdadc0902bd35d969dd6878332491881fc3d2e86dbe0f3e354b995f100ab",
+            "changed": false,
+            "original_start_in_clause": -1,
+            "original_end_in_clause": 19
+          }
+        ]
+      },
+      "v2-pm-06": {
+        "case_id": "v2-pm-06",
+        "need_type": "PERIOD",
+        "state": "resolved",
+        "verified_values_redacted": [
+          "c311d34de2a0671a91bec81145b11d1f88fef59957bb8b2d6fbc8d6baf47db6e"
+        ],
+        "wrong_values_redacted": [],
+        "dropped_candidates": [],
+        "normalized_spans": [
+          {
+            "original_span_sha256": "c311d34de2a0671a91bec81145b11d1f88fef59957bb8b2d6fbc8d6baf47db6e",
+            "normalized_span_sha256": "c311d34de2a0671a91bec81145b11d1f88fef59957bb8b2d6fbc8d6baf47db6e",
+            "changed": false,
+            "original_start_in_clause": 74,
+            "original_end_in_clause": 84
+          },
+          {
+            "original_span_sha256": "c311d34de2a0671a91bec81145b11d1f88fef59957bb8b2d6fbc8d6baf47db6e",
+            "normalized_span_sha256": "c311d34de2a0671a91bec81145b11d1f88fef59957bb8b2d6fbc8d6baf47db6e",
+            "changed": false,
+            "original_start_in_clause": 74,
+            "original_end_in_clause": 84
+          }
+        ]
+      },
+      "v2-pm-07": {
+        "case_id": "v2-pm-07",
+        "need_type": "PARTY",
+        "state": "unsolved",
+        "verified_values_redacted": [
+          "33a151ea011e8e9eaf448371aa5974bf15cc876b41d8be72e6193f4deb2bdcc0"
+        ],
+        "wrong_values_redacted": [],
+        "dropped_candidates": [],
+        "normalized_spans": [
+          {
+            "original_span_sha256": "937a4ac83d497b5521af826980ef53b2157d34674bc0db6bbd2a65937f27a232",
+            "normalized_span_sha256": "937a4ac83d497b5521af826980ef53b2157d34674bc0db6bbd2a65937f27a232",
+            "changed": false,
+            "original_start_in_clause": 55,
+            "original_end_in_clause": 60
+          },
+          {
+            "original_span_sha256": "623c0453e1f1c2e34064a3e9d7b4e2749cd5051c31525b3b360207d51844be1d",
+            "normalized_span_sha256": "623c0453e1f1c2e34064a3e9d7b4e2749cd5051c31525b3b360207d51844be1d",
+            "changed": false,
+            "original_start_in_clause": 161,
+            "original_end_in_clause": 177
+          },
+          {
+            "original_span_sha256": "26cc19db2162e5f4303464b3b142d38d05c828d080ef5814b10f3f4c1ded5970",
+            "normalized_span_sha256": "26cc19db2162e5f4303464b3b142d38d05c828d080ef5814b10f3f4c1ded5970",
+            "changed": false,
+            "original_start_in_clause": -1,
+            "original_end_in_clause": 7
+          }
+        ]
+      },
+      "v2-sv-01": {
+        "case_id": "v2-sv-01",
+        "need_type": "PARTY",
+        "state": "ambiguous",
+        "verified_values_redacted": [],
+        "wrong_values_redacted": [],
+        "dropped_candidates": [],
+        "normalized_spans": [
+          {
+            "original_span_sha256": "4be5c3c9a18929a5ec9c53fd9140fcaa73007fead4ea9029912742bdc1160eb8",
+            "normalized_span_sha256": "4be5c3c9a18929a5ec9c53fd9140fcaa73007fead4ea9029912742bdc1160eb8",
+            "changed": false,
+            "original_start_in_clause": 130,
+            "original_end_in_clause": 162
+          },
+          {
+            "original_span_sha256": "ef9e532b6e671786dfff0011a9d06f90ada4886970b6002dcef98c7402151941",
+            "normalized_span_sha256": "ef9e532b6e671786dfff0011a9d06f90ada4886970b6002dcef98c7402151941",
+            "changed": false,
+            "original_start_in_clause": 301,
+            "original_end_in_clause": 315
+          },
+          {
+            "original_span_sha256": "75e82a2940f60353d18fc0bab9f06ec004db03e04c32fa8f679985d5f7553731",
+            "normalized_span_sha256": "75e82a2940f60353d18fc0bab9f06ec004db03e04c32fa8f679985d5f7553731",
+            "changed": false,
+            "original_start_in_clause": 316,
+            "original_end_in_clause": 333
+          }
+        ]
+      },
+      "v2-sv-02": {
+        "case_id": "v2-sv-02",
+        "need_type": "PERIOD",
+        "state": "resolved",
+        "verified_values_redacted": [
+          "680d4b064d31da6eea7ec247337a81b8b411ef487804888839f248955c8193e7"
+        ],
+        "wrong_values_redacted": [],
+        "dropped_candidates": [],
+        "normalized_spans": [
+          {
+            "original_span_sha256": "680d4b064d31da6eea7ec247337a81b8b411ef487804888839f248955c8193e7",
+            "normalized_span_sha256": "680d4b064d31da6eea7ec247337a81b8b411ef487804888839f248955c8193e7",
+            "changed": false,
+            "original_start_in_clause": 127,
+            "original_end_in_clause": 147
+          }
+        ]
+      },
+      "v2-sv-03": {
+        "case_id": "v2-sv-03",
+        "need_type": "DATE",
+        "state": "resolved",
+        "verified_values_redacted": [
+          "f8d2f9086e45f1719566cb263735cf36f03b7cadf1f4046b16d2c1b589a4d72b"
+        ],
+        "wrong_values_redacted": [],
+        "dropped_candidates": [],
+        "normalized_spans": [
+          {
+            "original_span_sha256": "222cbf40938cfed80893a0242a19894c5f7a8ea58f0adba74b175fa20f75ef95",
+            "normalized_span_sha256": "f8d2f9086e45f1719566cb263735cf36f03b7cadf1f4046b16d2c1b589a4d72b",
+            "changed": true,
+            "original_start_in_clause": 42,
+            "original_end_in_clause": 53
+          },
+          {
+            "original_span_sha256": "222cbf40938cfed80893a0242a19894c5f7a8ea58f0adba74b175fa20f75ef95",
+            "normalized_span_sha256": "f8d2f9086e45f1719566cb263735cf36f03b7cadf1f4046b16d2c1b589a4d72b",
+            "changed": true,
+            "original_start_in_clause": 42,
+            "original_end_in_clause": 53
+          }
+        ]
+      },
+      "v2-if-01": {
+        "case_id": "v2-if-01",
+        "need_type": "MONEY",
+        "state": "resolved",
+        "verified_values_redacted": [
+          "53f43a804c530887d520d5c7594b176262f4c4cda6085984efc7d76919e0c4c1"
+        ],
+        "wrong_values_redacted": [],
+        "dropped_candidates": [],
+        "normalized_spans": [
+          {
+            "original_span_sha256": "e9bb15f768060869970e28970482c88fe775afc7539c67adacf9691724a81e5e",
+            "normalized_span_sha256": "e9bb15f768060869970e28970482c88fe775afc7539c67adacf9691724a81e5e",
+            "changed": false,
+            "original_start_in_clause": 7,
+            "original_end_in_clause": 17
+          }
+        ]
+      },
+      "v2-if-02": {
+        "case_id": "v2-if-02",
+        "need_type": "MONEY",
+        "state": "resolved",
+        "verified_values_redacted": [
+          "37b8a41fcb35d6799b201687be319aee25e01934e8d80048653ebb7399ae5edb"
+        ],
+        "wrong_values_redacted": [],
+        "dropped_candidates": [],
+        "normalized_spans": [
+          {
+            "original_span_sha256": "0abb36f6b9ae89402039afe925fda08b11b641d988d7d13a04520050915d3aa8",
+            "normalized_span_sha256": "0abb36f6b9ae89402039afe925fda08b11b641d988d7d13a04520050915d3aa8",
+            "changed": false,
+            "original_start_in_clause": 18,
+            "original_end_in_clause": 28
+          }
+        ]
+      },
+      "v2-if-03": {
+        "case_id": "v2-if-03",
+        "need_type": "PERIOD",
+        "state": "resolved",
+        "verified_values_redacted": [
+          "a91796c629eb1ef2ce139a8e700040dbb23f1465f41fc2afe1aaf5c1bfa2405e"
+        ],
+        "wrong_values_redacted": [],
+        "dropped_candidates": [
+          {
+            "span_canon_sha256": "518ee2681a4d5042c8ecefe51637eecb0fdaffcbe9130013cf7cd8dcc3177ba9",
+            "contained_in": [
+              "gold"
+            ]
+          },
+          {
+            "span_canon_sha256": "b0129a96caed304c7bbe8dbc5826f0d3d2152c6161ec1682852e001004697a64",
+            "contained_in": [
+              "gold"
+            ]
+          }
+        ],
+        "normalized_spans": [
+          {
+            "original_span_sha256": "a91796c629eb1ef2ce139a8e700040dbb23f1465f41fc2afe1aaf5c1bfa2405e",
+            "normalized_span_sha256": "a91796c629eb1ef2ce139a8e700040dbb23f1465f41fc2afe1aaf5c1bfa2405e",
+            "changed": false,
+            "original_start_in_clause": 50,
+            "original_end_in_clause": 73
+          }
+        ]
+      },
+      "v2-if-04": {
+        "case_id": "v2-if-04",
+        "need_type": "DATE",
+        "state": "resolved",
+        "verified_values_redacted": [
+          "630706fbc03e04e86c7e5e005600be779093701be7723e7f551f8af2b10298e6"
+        ],
+        "wrong_values_redacted": [],
+        "dropped_candidates": [],
+        "normalized_spans": [
+          {
+            "original_span_sha256": "630706fbc03e04e86c7e5e005600be779093701be7723e7f551f8af2b10298e6",
+            "normalized_span_sha256": "630706fbc03e04e86c7e5e005600be779093701be7723e7f551f8af2b10298e6",
+            "changed": false,
+            "original_start_in_clause": 16,
+            "original_end_in_clause": 31
+          },
+          {
+            "original_span_sha256": "630706fbc03e04e86c7e5e005600be779093701be7723e7f551f8af2b10298e6",
+            "normalized_span_sha256": "630706fbc03e04e86c7e5e005600be779093701be7723e7f551f8af2b10298e6",
+            "changed": false,
+            "original_start_in_clause": 16,
+            "original_end_in_clause": 31
+          }
+        ]
+      },
+      "v2-if-05": {
+        "case_id": "v2-if-05",
+        "need_type": "PARTY",
+        "state": "unsolved",
+        "verified_values_redacted": [],
+        "wrong_values_redacted": [],
+        "dropped_candidates": [],
+        "normalized_spans": [
+          {
+            "original_span_sha256": "4d434a9a6df36572fc710753c9c0a8df73b2f93fe7d79562508ee9842bb00ab4",
+            "normalized_span_sha256": "4d434a9a6df36572fc710753c9c0a8df73b2f93fe7d79562508ee9842bb00ab4",
+            "changed": false,
+            "original_start_in_clause": 0,
+            "original_end_in_clause": 15
+          },
+          {
+            "original_span_sha256": "c3f39f3f1cf3db4f77d39887230bb26f5eb9706b727e91a656d9a33b7779aece",
+            "normalized_span_sha256": "c3f39f3f1cf3db4f77d39887230bb26f5eb9706b727e91a656d9a33b7779aece",
+            "changed": false,
+            "original_start_in_clause": 36,
+            "original_end_in_clause": 47
+          }
+        ]
+      },
+      "v2-if-06": {
+        "case_id": "v2-if-06",
+        "need_type": "PARTY",
+        "state": "unsolved",
+        "verified_values_redacted": [],
+        "wrong_values_redacted": [],
+        "dropped_candidates": [
+          {
+            "span_canon_sha256": "c1db72d15cc92fa8cd1fd2c0eac6da1f086b1701368ff37789032c85de45986f",
+            "contained_in": [
+              "gold"
+            ]
+          }
+        ],
+        "normalized_spans": [
+          {
+            "original_span_sha256": "0f5cbd2198638bd90af7c0bfd23c144b6f695cccbdc089d5e51a3333799530d0",
+            "normalized_span_sha256": "0f5cbd2198638bd90af7c0bfd23c144b6f695cccbdc089d5e51a3333799530d0",
+            "changed": false,
+            "original_start_in_clause": 0,
+            "original_end_in_clause": 28
+          }
+        ]
+      }
+    }
+  }
+}
