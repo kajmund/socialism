@@ -156,10 +156,19 @@ The tests assert three different things, and they must not be conflated:
   also means an unconfirmed external charge may be unknown rather than zero:
   the journal reserves `pending_reconciliation` for that case.
 
-This demo's journal stores completed invocation results only. The attempt /
-confirmed-result / charge event model that separates those three cases is
-specified in `docs/swe-standalone/09-contract-decision.md` §4 and
-`12-pr3-b3-journal-resume.md`, and implemented in PR 3.
+**The demo now uses the engine journal.** Every metered action is recorded in
+`swe_native::journal` as four events — `AttemptStarted`, `ChargeReserved`,
+`ResultConfirmed`, `ChargeSettled` — and those events are persisted with the run
+journal and replayed into a fresh engine journal on resume. The walkthrough
+prints the summary: over a paused-and-resumed run, 132 events with 33 attempts,
+33 confirmations, 33 reservations and 33 settlements.
+
+Because every action here is a deterministic pure function, the delivery is
+declared `Pure`: an interrupted attempt is recomputed, never replayed from an
+unknown. The external delivery strategies (`ExternalIdempotent`,
+`ExternalNonIdempotent` → `fail_stop`) and `plan_recovery` exist in the engine
+and are unit-tested there; this experiment does not exercise them, because it
+has no external side effects to exercise them with.
 
 ## Pause/resume design
 

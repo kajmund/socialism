@@ -522,10 +522,24 @@ och crash-/replay-tester vid varje kritisk övergång.
 | 2. `delivery_key` stabil över retries | `sha256(run_id, invocation_id, action)`; `attempt_id` lägger på försöksnumret | lägg till ett `attempt`-fält i nyckeln | `the_delivery_key_is_a_pure_function_of_run_invocation_and_action` (pinnar exakt digest) |
 | 3. Inga dubbla settlements | `ChargeSettled` på redan settled → `DuplicateSettlement` | tillåt andra settle | `a_charge_cannot_settle_twice` |
 | 4. Obekräftat externt anrop | `plan_recovery`: `Pure`→recompute, `Replayable`→kräver resultat, `ExternalIdempotent`→retry med samma nyckel, `ExternalNonIdempotent`→fail stop; okänd kostnad → `PendingReconciliation` | (a) behandla obekräftat som bekräftat, (b) låt irreversibel extern retrya, (c) settla före bekräftelse | (a) `an_unconfirmed_attempt_is_open_not_confirmed`, (b) `recovery_never_reruns_an_external_irreversible_attempt`, (c) `a_charge_cannot_settle_before_its_attempt_is_confirmed` |
-| 5. Versionskontroll vid resume | `JournalHeader::verify` prövar schema-version, definition-hash, kontraktsversion och beroendeversioner | (a) skippa definition-hash, (b) skippa beroendeversioner | (a) `resume_rejects_a_changed_definition`, (b) `resume_rejects_a_changed_or_missing_dependency` |
+| 5. Versionskontroll vid resume | `JournalHeader::verify` prövar schema-version, definition-hash, kontraktsversion och beroendeversioner | (a) skippa definition-hash, (b) skippa beroendeversioner | (a) `resume_rejects_a_changed_definition`, (b) `resume_rejects_a_changed_or_missing_dependency`. **Obs:** i demon jämförs beroendekartan mot en konstant — kontrollen är verkningslös där (granskarens H1, ej åtgärdad) |
 | 6. Crash/replay vid varje kritisk övergång | `every_critical_transition_survives_a_pause_and_resume` pausar vid varje mätad åtgärd i tur och ordning | — | kräver samma slutsats, samma spend och samma unika exekveringsantal |
 
-**Mutationstabell: 7 av 7 fångas.** Två av dem fångades inte först:
+**Den första mutationstabellen täckte bara de sex garantierna och sade
+"7 av 7". Det var överdrivet:** en oberoende granskning körde 47 mutationer och
+fann **7 som inte fångades**. Det korrekta påståendet är att de sex
+garantierna var pinnade, inte att journalen var mutationssäker. De sju missade
+låg i kanter som ingen av mina sex tester rörde: en release av en
+avstämningspost, en andra reservation för samma leverans, dold
+`PendingReconciliation` i `unresolved_charges`, `schema_version` utan
+testtäckning, och tre demo-mutationer där versionstesterna jämförde konstanter
+med sig själva.
+
+Fem av de sju är åtgärdade (nya regler + tester, mutationsverifierade). Kvar som
+känd svaghet: `schema_version`-checken testas bara indirekt, och
+`JournalHeader` jämför beroendekartan i en riktning.
+
+Två av mina egna tester fångade inte först:
 
 - **`delivery_key`-mutationen.** Det ursprungliga testet jämförde nyckeln med sig
   själv, så ett försöksnummer i nyckeln gick igenom. Testet pinnar nu den exakta
@@ -559,6 +573,32 @@ garanteras inte**. Det är bara sant när verktyget respekterar `delivery_key`
 (`ExternalIdempotent`) eller när åtgärden är ren (`Pure`). För
 `ExternalNonIdempotent` är utfallet okänt och run:et stannar. Det står i
 journalens egna typer, inte bara i dokumentationen.
+
+## 7.9 B3-granskningen: fyra fynd och deras läge
+
+Den oberoende granskningen av B3 körde **47 mutationer** och gav
+`changes required`. Den fann kärnan sund — varje mutation som ändrar
+beteende fångades av rätt test — men fyra verkliga problem:
+
+| Fynd | Bedömning | Läge |
+| --- | --- | --- |
+| **H4: demon använde inte journalen alls.** `Attempt*`/`plan_recovery`/`JournalHeader` hade noll referenser i `swe-reference`; journalen fanns men ingenting konsumerade den. Kriterierna 1, 4 och 6 var bevisade bara av enhetstester på oanvänd API. | **Riktigt och allvarligast** | **Åtgärdat.** Demon bokför varje mätad åtgärd genom kärnans journal: `AttemptStarted` → `ChargeReserved` → exekvering → `ResultConfirmed` → `ChargeSettled`. Händelserna persisteras med demonjournalen och replayas in i en fräsch motorjournal vid resume. Walkthrough skriver ut **132 händelser: 33 försök, 33 bekräftelser, 33 reservationer, 33 settlements** över en pausad och återupptagen körning. Ett nytt test fångade att den återupptagna journalen annars startade tom. |
+| **H2: en leverans kunde reservera två kostnader.** `ChargeReserved` kontrollerade `attempt_id` men aldrig `delivery_key`, så två försök av samma logiska leverans kunde var och en reservera och settlementa — mot `09` §4.6.2. | **Riktigt** | **Åtgärdat.** En leverans får högst en reservation; test + mutation. |
+| **H3: en okänd kostnad kunde skrivas av som noll.** `ChargeReleased` accepterade en `PendingReconciliation`-post, som då försvann ur operatörens kö med `settled_total() == 0`. | **Riktigt** — motsäger `12` §3.2 och acceptanskriterium 5 | **Åtgärdat.** Typat `Conflict`; test + mutation. |
+| **H1: demon jämförde beroendekartan mot en konstant** (`{"mock.supplier_facts": CONTRACT_VERSION}` skickades till `verify` som både inspelade och aktuella versioner). | **Riktigt** | **Ej åtgärdat.** Den inspelade beroendeversionen måste skrivas till fil och läsas tillbaka. Mindre allvarligt: demon har en enda beroendeversion som är låst till bygget, så en kraschande missmatchning kan inte uppstå i praktiken — men kontrollen *påstås* finnas och gör inget. |
+| **M1: demon prissätter om vid resume.** Tarifferna ingår inte i `definition_sha256`. | Riktigt | **Ej åtgärdat.** Bör pinnas som `tariff_sha256` i demonjournalen. |
+
+### Vad detta säger om verifieringen
+
+Min första tabell sade "7 av 7 mutationer fångas". Granskarens 47-mutationstest
+visade att **7 missades**. Skillnaden är inte kosmetisk: den visar att mina sex
+tester täckte *de sex garantierna* men inte journalens kanter, och att jag skrev
+ett starkare påstående än underlaget. Tabellen i `7.8` är rättad, och de fem
+åtgärdade fynden är mutationsverifierade en och en.
+
+Det är samma mönster som i B2 (tautologin) och B1 (den kringgåbara gaten):
+**verifieringen var svagare än självförtroende**. Den enda pålitliga motvikten
+har varit den oberoende granskningen, tre gånger i rad.
 
 ## 8. Vad denna PR innehåller (scope)
 
