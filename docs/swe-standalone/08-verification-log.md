@@ -600,6 +600,41 @@ Det är samma mönster som i B2 (tautologin) och B1 (den kringgåbara gaten):
 **verifieringen var svagare än självförtroende**. Den enda pålitliga motvikten
 har varit den oberoende granskningen, tre gånger i rad.
 
+## 7.10 Befintlig flake i `test_ready_execute_returns_persisted_panel_result`
+
+Backend-shard 1 fallerade i CI två gånger i rad på:
+
+```
+tests/test_execution_api.py::test_ready_execute_returns_persisted_panel_result
+  > assert result["evidence_refs"]["E1"]["ordinal"] == 0
+  E assert 1 == 0
+```
+
+Det finns ingen ändring i min PR som rör den vägen: `git diff 666eccb0..HEAD`
+rör endast en importrad i `app/services/sme_panel_chat.py` (flytten av
+`prompt_render`), ingenting i `app/api/execution.py`, `app/services/panel/` eller
+`answer_review`.
+
+**Verifierat att felet är befintligt**, på samma sätt som `test_wiring`-flaken i
+B1 — genom att checka ut orörd `origin/main` (`666eccb0`) i en tillfällig
+worktree och köra samma fil upprepat:
+
+```
+baseline (666eccb0), tests/test_execution_api.py:
+  run 1: 36 passed
+  run 2: 36 passed
+  run 3: 1 failed, 35 passed      <-- samma test
+```
+
+Mot min branch: 5/5 gröna isolerat och 36/36 i filen. Felet är alltså
+ordnings-/tidsberoende och finns före B1–B3. Den tillfälliga worktreen togs bort
+efter mätningen (`git worktree list` verifierad).
+
+**Åtgärd:** ingen i denna PR. Flaken bör fixas separat (testet verkar anta att
+en evidensreferens får ordinal 0, vilket inte är garanterat när
+panelsessionen bygger referenserna). Att röra den vore att blanda in en
+oberoende bugg i en arkitektur-PR.
+
 ## 8. Vad denna PR innehåller (scope)
 
 ```console
