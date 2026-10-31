@@ -731,6 +731,34 @@ backend SWE+research 163 tester; ruff och maintainability rena
 CI                    alla 13 checks gröna
 ```
 
+## 7.12 Tredje kända flaken: `test_lagen_nu_connection_release`
+
+Backend-shard 1 föll på:
+
+```
+tests/test_lagen_nu_connection_release.py::test_four_cached_needs_leave_connection_available_during_routing[True]
+  sqlalchemy.exc.TimeoutError: QueuePool limit of size 1 overflow 0 reached,
+  connection timed out, timeout 0.20
+```
+
+**Bedömning: tidskänslig, inte orsakad av denna branch.** Testet använder
+avsiktligt en pool med **storlek 1 och timeout 0,2 s** för att bevisa att
+anslutningen släpps före externa anrop; fyra samtidiga `gather`-anrop ska rymmas
+i tur och ordning. Under CI:s fyra parallella shards räcker 200 ms inte alltid.
+
+Bevis:
+
+- ingen fil i den vägen (`lagen_nu`, `connection_release`, `LegalResearchResult`)
+  ändras av PR:en: `git diff --name-only 666eccb0..HEAD` ger noll träffar;
+- testet passerar 4/4 på orörd `origin/main` i en tillfällig worktree, och 3/3
+  isolerat på denna branch, samt 3/3 omgångar tillsammans med grannsviterna.
+
+Till skillnad från de två andra flakerna kunde jag alltså **inte** reproducera
+den på baslinjen. Det svagare men ärliga påståendet är: den rörs inte av
+ändringen, den är konstruerad med en 200 ms-timeout, och den föll en gång i CI.
+Den bör åtgärdas separat (t.ex. genom att höja timeouten eller göra testet
+deterministiskt), inte blandas in i en arkitektur-PR.
+
 ## 8. Vad denna PR innehåller (scope)
 
 ```console
