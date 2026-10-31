@@ -231,7 +231,7 @@ def test_uncertain_policy_flag_is_honoured_across_the_boundary() -> None:
     assert adapter_view(permissive)["status"] == "UNRESOLVED"
 
 
-def test_need_projection_round_trips_through_the_wire_shape() -> None:
+def test_need_projection_emits_the_wire_shape() -> None:
     from app.swe.needs import project_need
 
     projected = project_need(fact="fact_a", subject="subject_a", priority="SUPPORTING")

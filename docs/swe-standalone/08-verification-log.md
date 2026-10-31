@@ -777,8 +777,8 @@ Mutationsbevis:
 
 | Mutation | Fångas av |
 | --- | --- |
-| Demon ignorerar kärnans utfall (`_ => Ok(None)`) | 3 tester, bl.a. `the_demo_cannot_accept_an_input_the_engine_refuses` |
-| Demon mappar `AMBIGUOUS` som användbar | 2 tester |
+| Demon ignorerar kärnans utfall (`_ => Ok(None)`) | **5 tester**, bl.a. `the_demo_cannot_accept_an_input_the_engine_refuses` |
+| Demon mappar `AMBIGUOUS` som användbar | **4 tester** |
 
 ### 2. Dubblerade statusposter avvisas
 
@@ -811,7 +811,7 @@ Mutationsbevis:
 
 | Mutation | Fångas av |
 | --- | --- |
-| Ta bort dubblettkontrollen | 5 kärntester + 6 Python-tester |
+| Ta bort dubblettkontrollen i `gate` | **5 kärntester + 6 Python-tester** (de två `execute`-testerna fångas av `execute`s egen förkontroll, se nedan) |
 
 ### 3. Ny verifieringsstandard
 
@@ -834,10 +834,10 @@ fem punkter. Alla är åtgärdade:
 
 | Fynd | Vad som var fel | Nu |
 | --- | --- | --- |
-| **B1** `test_swe_core_differential.py:85` | `assert projected["status"] == read_need_state(engine)["status"]` — exakt den förbjudna formen `read == f(engine)`. Kunde aldrig upptäcka en divergens. | Varje fall bär en **separat förväntad status** (`CASES`), och både motor och adapter prövas mot den literalen. Mutationsbevis: låter adaptern rapportera `AMBIGUOUS` som `RESOLVED` blir **7 tester röda** (tidigare 0). |
-| **B2** `execute()` | Kastade `GateError::DuplicateState` som `StopReason::InsufficientEvidence` — Req 5 bruten, och nåbar både via anroparens statuslista och via en resolver som svarar för ett redan känt behov. | `execute` returnerar `Result<Investigation, GateError>`; endast `Unsatisfied` blir en slutsats. Två nya tester (anropardubblett, resolver-skapad dubblett). |
+| **B1** `test_swe_core_differential.py:85` | `assert projected["status"] == read_need_state(engine)["status"]` — exakt den förbjudna formen `read == f(engine)`. Kunde aldrig upptäcka en divergens. | Varje fall bär en **separat förväntad status** (`CASES`), och både motor och adapter prövas mot den literalen. Mutationsbevis: låter adaptern rapportera `AMBIGUOUS` som `RESOLVED` blir **7 tester röda**. Före rättelsen gav samma mutation **2** röda — båda i tester som jämförde mot explicita literaler; det tautologiska kärntestet gav 0. |
+| **B2** `execute()` | Kastade `GateError::DuplicateState` som `StopReason::InsufficientEvidence` — Req 5 bruten, och nåbar både via anroparens statuslista och via en resolver som svarar för ett redan känt behov. | `execute` returnerar `Result<Investigation, GateError>`; endast `Unsatisfied` blir en slutsats. Statuslistan valideras **före** loopen, så även `max_rounds = 0` avvisar en dubblett i stället för att rapportera `RoundLimit`. Tre nya tester. |
 | **B3** denna sektion | Saknade standardens egna redovisningskrav. | Denna tabell. |
-| **M4** `Screening::Insufficient` | Demon avgjorde lokalt (`if !entry.is_verified()`) och motorn anropades bara för att bekräfta; grenen var otestad och en mutation förbi anropet förblev grön. | `screen_candidate` frågar `gate_inputs` **först** och grenar på motorns utfall. Nytt `AmbiguousException`-scenario gör grenen nåbar; testet kräver statusen `AMBIGUOUS` som bara motorn kan ge. Mutationsbevis: lokal `GateFailure` i stället för motorns → testet rött. |
+| **M4** `Screening::Insufficient` | Demon avgjorde lokalt (`if !entry.is_verified()`) och motorn anropades bara för att bekräfta; grenen var otestad och en mutation förbi anropet förblev grön. | `screen_candidate` frågar `gate_inputs` **först** och grenar på motorns utfall. Nytt `AmbiguousException`-scenario gör grenen nåbar; testet kräver statusen `AMBIGUOUS` i payloaden. En lokal kopia som återanvänder demots egen mappning kan producera samma sträng — det är bevisat grönt — men **källmutation** fäller testet (5 röda), liksom det gamla lokala beteendet (1 röd). Delegationen är alltså bevisad, inte strängen. |
 | **M5/M6/M7** | "enda implementationen" gällde inte repo-vid täckning (`swe-gym` har en egen grind, G4); gym sades ha 13 tester (faktiskt 97); `swe-reference` README/lib/evidence sade att grinden var applikationslager. | Påståendet skopat till `swe-native` + `swe-reference` med gym-dubbletten namngiven som G4; siffran rättad; dokumenten uppdaterade. |
 
 Mindre fynd som också stängdes:
@@ -860,17 +860,34 @@ Standardens avsnitt *Tillämpning* kräver fyra rader. Här är de:
 
 | Krav | Redovisning |
 | --- | --- |
-| Nya kritiska tester med mutation | `the_gate_is_the_engines_and_lists_every_missing_input`, `the_demo_cannot_accept_an_input_the_engine_refuses`, `a_discovered_fact_the_engine_refuses_stops_the_investigation`, `the_refusal_payload_reports_every_missing_input_and_its_status`, fem kärntester för dubbletter, `execute_refuses_a_caller_supplied_duplicate_instead_of_abstaining`, `execute_refuses_a_duplicate_that_the_resolver_creates`, `the_named_duplicate_follows_input_order_not_identity_order`, fyra Python-fall för ordningar + namn + inte-abstention. Var och en har minst en mutation som gör den röd. |
-| Missade mutationer | **12 av 40** i runda 8 (rapporterade i `7.11`), **8 av 8** i den första versionen av runda 9 innan rättelserna: B1-self-jämförelsen, `execute`-armen, `gate_failure_json`, `Screening::Insufficient`, gym-siffran, de tre dokumentfynden och indataordningen. Alla utom `execute`-gränssnittsanmärkningen är nu stängda. |
-| Differentialtest-audit | Alla 31 tester i `test_swe_core_differential.py` genomgångna: nio fall jämför nu mot `CASES`-literaler; `test_need_projection_round_trips_through_the_wire_shape` döptes om eftersom den aldrig anropar motorn; `test_unknown_role_counts_as_competing_in_both_layers` prövar nu båda sidor. Kvarvarande jämförelser är mot explicita literaler eller mot motorns payload i rent formatkontrollsyfte. |
-| Grön baslinje efter varje återställning | Bekräftad efter varje mutation: `swe-native` 73 lib-tester, `swe-reference` 30, Python 31 differentialtester. |
+| Nya kritiska tester **med vilken mutation som bevisar var och en** | Se tabellen nedan. |
+| Missade mutationer | **12 av 40** i runda 8 (rapporterade i `7.11`). I den första versionen av runda 9 hittade granskningen **9 missade**: B1-self-jämförelsen, `execute`-armen, `gate_failure_json`, `Screening::Insufficient`, gym-siffran, tre dokumentfynd (`07`, `13`, `08`) och indataordningen — alltså 9 punkter, inte 8. Alla nio är stängda. Kvar som dokumenterad svaghet: `execute`-gränssnittet är publik API men bara anropad från tester. |
+| Differentialtest-audit | Alla 31 tester i `test_swe_core_differential.py` genomgångna: nio fall jämför nu mot `CASES`-literaler och båda sidor prövas; den tidigare självjämförelsen är borttagen. `test_need_projection_emits_the_wire_shape` döptes om eftersom den aldrig anropar motorn; `test_unknown_role_counts_as_competing_in_both_layers` prövar nu båda sidor. Kvarvarande jämförelser är mot explicita literaler eller mot motorns payload i rent formatkontrollsyfte. |
+| Grön baslinje efter varje återställning | Bekräftad efter varje mutation: `swe-native` 74 lib-tester, `swe-reference` 30 integrationstester (+ 5 codec), Python 31 differentialtester. |
+
+**Vilken mutation bevisar vilket test** (alla uppmätta på denna tree, inte
+härledda):
+
+| Test | Bevisande mutation | Röda |
+| --- | --- | --- |
+| `the_gate_is_the_engines_and_lists_every_missing_input` | `gate_inputs` ignorerar motorns utfall | 5 |
+| `the_demo_cannot_accept_an_input_the_engine_refuses` | mappar `AMBIGUOUS` som användbar | 4 |
+| `a_discovered_fact_the_engine_refuses_stops_the_investigation` | lokal `GateFailure` i stället för motorns anrop | 1 |
+| `the_refusal_payload_reports_every_missing_input_and_its_status` | `gate_failure_json` tappar `missing` | 2 |
+| fem kärntester för dubbletter | tar bort dubblettkontrollen i `gate` | 5 |
+| `execute_refuses_a_caller_supplied_duplicate_instead_of_abstaining` | återställer `DuplicateState` → `InsufficientEvidence` | 2 |
+| `execute_refuses_a_duplicate_that_the_resolver_creates` | tar bort resolver-kontrollen | 2 |
+| `a_zero_round_budget_cannot_hide_a_duplicate` | tar bort förkontrollen före loopen | 1 |
+| `the_named_duplicate_follows_input_order_not_identity_order` | namnger lexikografiskt minsta dubblett | 1 |
+| fyra Python-fall för ordningar + namn + inte-abstention | tar bort dubblettkontrollen i `gate` | 6 (Python) |
+| `test_engine_and_projection_both_match_the_specification` m.fl. | adaptern rapporterar `AMBIGUOUS` som `RESOLVED` | 7 |
 
 ### Resultat
 
 ```console
-crates/swe-native     87 tester   (73 lib + 2 boundary + 12 machine)
+crates/swe-native     88 tester   (74 lib + 2 boundary + 12 machine)
 crates/swe-budget      9 tester
-crates/swe-reference  30 tester; walkthrough exit 0
+crates/swe-reference  35 tester   (30 integration + 5 journal codec); walkthrough exit 0
 crates/swe-gym       97 tester   (17 targets)
 backend SWE+research 170 tester; ruff och maintainability rena
 ```

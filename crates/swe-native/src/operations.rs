@@ -259,6 +259,15 @@ where
     X: FnMut() -> OpOutcome,
     R: FnMut(&NeedRef) -> Option<NeedStatus>,
 {
+    // Validate the state list before the loop, not only inside it: with a round
+    // budget of zero the loop body never runs, and a malformed list would then
+    // look like a clean round-limit stop — a conclusion about the world.
+    let mut seen_check = std::collections::BTreeSet::new();
+    for (need, _) in states.iter() {
+        if !seen_check.insert(need.clone()) {
+            return Err(GateError::DuplicateState { need: need.clone() });
+        }
+    }
     let mut seen: Vec<NeedRef> = Vec::new();
     for _ in 0..max_rounds {
         match spec.gate(states) {
@@ -480,6 +489,29 @@ mod tests {
             Err(GateError::DuplicateState { need }) => assert_eq!(need.id(), "doc-a.fact_a"),
             other => panic!("expected a typed duplicate error, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn a_zero_round_budget_cannot_hide_a_duplicate() {
+        // The gate runs inside the loop, so a round budget of zero would let a
+        // malformed state list slip through as a clean round-limit stop. The
+        // list is validated before the loop for exactly this case.
+        let spec = spec(&["doc-a"]);
+        let mut states = vec![
+            (need("fact_a", "doc-a"), NeedStatus::Resolved),
+            (need("fact_a", "doc-a"), NeedStatus::Ambiguous),
+        ];
+        let outcome = execute(
+            &spec,
+            &mut states,
+            || OpOutcome::Answer("x".into()),
+            |_| None,
+            0,
+        );
+        assert!(
+            matches!(outcome, Err(GateError::DuplicateState { .. })),
+            "a duplicate must not become a round-limit conclusion, got {outcome:?}"
+        );
     }
 
     #[test]

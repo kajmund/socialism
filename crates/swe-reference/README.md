@@ -24,13 +24,15 @@ krav?"*
 **Expected conclusion:** **Beta** — the only supplier that meets all three
 requirements, and therefore the cheapest compliant one.
 
-The mock provider serves three deterministic scenarios, all offline:
+The mock provider serves five deterministic scenarios, all offline:
 
 | Scenario | What changes | Outcome |
 | --- | --- | --- |
 | `baseline` | nothing — all facts found and unambiguous | **Beta**, 950 SEK |
 | `missing_evidence` | `beta.req_c` is absent, `gamma.price` has conflicting sources | terminal `INSUFFICIENT_EVIDENCE` (incomplete run), price operation never runs |
 | `no_compliant_supplier` | every fact found, but no supplier meets requirement B | terminal `NO_COMPLIANT_SUPPLIER` (completed run, no winner) |
+| `two_exceptions` | two suppliers fail requirement C, so one screening round discovers two missing facts | the engine surfaces one need per round; both are resolved over subsequent rounds, then **Beta** |
+| `ambiguous_exception` | the discovered `c_exception` fact exists but its source is ambiguous | the engine refuses the discovered input with status `AMBIGUOUS`; terminal `INSUFFICIENT_EVIDENCE` |
 
 ## What is reused vs. what is application layer
 
@@ -227,9 +229,9 @@ walkthrough):
 
 ## Tests
 
-`cargo test --offline` runs these tests (plus five journal codec
-unit tests in `src/journal.rs`):
+`cargo test --offline` runs these integration tests (plus five journal codec unit tests in `src/journal.rs`):
 
+- `a_discovered_fact_the_engine_refuses_stops_the_investigation`
 - `a_journal_from_another_contract_version_is_refused`
 - `a_journal_missing_a_recorded_dependency_is_refused`
 - `a_journal_recording_another_dependency_version_is_refused`
@@ -240,7 +242,6 @@ unit tests in `src/journal.rs`):
 - `a_run_priced_with_custom_tariffs_round_trips_and_resumes`
 - `a_tampered_journal_is_rejected`
 - `a_tampered_tariff_hash_is_refused`
-- `the_gate_is_the_engines_and_lists_every_missing_input`
 - `conclusion_is_beta`
 - `confirmed_outcomes_survive_the_round_trip`
 - `deterministic_comparison_prefers_cheapest_compliant`
@@ -256,7 +257,10 @@ unit tests in `src/journal.rs`):
 - `pause_and_resume_charge_and_execute_exactly_once`
 - `repeated_runs_are_deterministic`
 - `several_discovered_needs_are_resolved_over_several_rounds`
+- `the_demo_cannot_accept_an_input_the_engine_refuses`
+- `the_gate_is_the_engines_and_lists_every_missing_input`
 - `the_journal_round_trip_is_lossless`
+- `the_refusal_payload_reports_every_missing_input_and_its_status`
 
 ## Gaps found in SWE core
 
