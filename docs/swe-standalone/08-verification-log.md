@@ -387,6 +387,128 @@ $ grep -rn "make_jev_provider\|swe_providers" app/ tests/ scripts/
 Detta räknas inte som en "ny förmåga" under separationen — det är borttagning av
 död kod enligt `AGENTS.md` ("No backwards-compat shims", "remove legacy paths").
 
+## 7.6 B2 genomförd (2026-10-31)
+
+Projektägaren godkände B1 och gav klartecken för B2 med fem acceptanskriterier.
+Ordningen behölls: **behov → evidens → operationer → budget → Python-projektion**,
+en commit per steg.
+
+| Steg | Leverans | Commit |
+| --- | --- | --- |
+| C2.1 | `swe-core::needs`: `NeedRef`, prioritet, kardinalitet, status, `derive_needs`, `NeedDiscovery` (loopskydd) | `7ec8f3fe` |
+| C2.2 | `swe-core::evidence`: `EvidenceAssessment`, `classify`, `resolve_need` | `231e8af7` |
+| C2.3 | `swe-core::operations`: `OperationSpec`, grind, `execute`, `OpOutcome`/`StopReason` | `7de66581` |
+| — | Ramverksgrinden som permanent test | `d75446d6` |
+| C2.5 | Python-projektion (`app/swe/needs.py`) + adaptörsgrind | `839121b6` |
+| C2.4 | `swe-budget`: ledgern ut ur experimentcraten | `af15a396` |
+| — | Differentialtester via `swe_native.resolve_evidence` | `6347d2a4` |
+
+### De fem acceptanskriterierna
+
+| # | Krav | Hur det uppfylls | Bevis |
+| --- | --- | --- | --- |
+| 1 | Rust ensam normativ för övergångar och exekveringsvillkor | `classify`/`resolve_need`/`OperationSpec::gate`/`execute` äger all logik; `NeedStatus` har ingen setter | `crates/swe-native/src/{needs,evidence,operations}.rs` |
+| 2 | Python får inte fatta konkurrerande beslut | Adaptern konverterar och läser; `test_swe_core_adapter` failar om den tilldelar/returnerar en motorägd status eller grenar på en | `839121b6` |
+| 3 | Differentialtester: samma indata, identiskt utfall | `test_swe_core_differential`, 10 fall genom `swe_native.resolve_evidence` | `6347d2a4` |
+| 4 | Research-kontrakt och regressionstester fungerar | `swe_bridge`/research orörda; hela sviten grön | se nedan |
+| 5 | Inga juridiska/Socialism-specifika begrepp i generiska typer | `crates/swe-native/tests/boundary.rs` skannar all källkod | `d75446d6` |
+
+### Kriterium 2 och 3 är prövade, inte bara påstådda
+
+Båda grindarna mutationstestades. Det är den del av verifieringen som
+faktiskt skiljer "det står i dokumentet" från "det kan inte gå fel":
+
+**Kriterium 2:** att lägga in `if status == "AMBIGUOUS": status = "RESOLVED"`
+i adaptern gör `test_swe_core_adapter` rött.
+
+**Kriterium 3:** samma mutation gör differentialtestet rött med
+`AssertionError: assert 'RESOLVED' == 'AMBIGUOUS'` — exakt det scenario
+projektägaren beskrev. Noterbart: **första mutationsförsöket slog inte igenom**
+eftersom strängankaret pekade fel. Det upptäcktes först när utfallet
+kontrollerades; ett differentialtest som inte kan faila bevisar ingenting.
+Andra försöket verifierade att mutationen applicerats innan testet kördes.
+
+**Kriterium 5:** grinden hittade en riktig kvarleva — kärnans egen
+provider-testdata använde `prompt_key: "research.assessment.user"`. Neutraliserad
+till `demo.decision.user`.
+
+### Faktiska testresultat
+
+```console
+$ cd crates/swe-native && cargo test --offline
+  43 passed (lib) + 2 passed (boundary) + 12 passed (machine)     # var 30
+$ cd crates/swe-budget && cargo test --offline
+  9 passed                        # oförändrade, bara crate-sökvägen bytt
+$ cd crates/swe-reference && cargo test --offline
+  12 passed                       # referensdemon är kvar som regression
+$ cd backend
+  pytest tests/test_swe_* ... tests/test_research_swe
+  154 passed
+  pytest -m "not smoke and not research_reuse and not swe_runtime" --collect-only
+  4025/4337 collected, 0 errors
+  ruff check app tests          All checks passed
+  check_maintainability.py      passed
+```
+
+Kärnan gick från 30 till 57 tester, varav 43 är enhets- och gränstester för de
+nya kontrakten. `crates/swe-reference` beror inte längre på experimentcraten:
+den är nu `swe-native` + `swe-budget`, vilket är rätt form för en domänneutral
+host.
+
+### Ramverksgränsen hölls
+
+Ingen ny förmåga tillkom utöver mekanismen. Explicit **inte** byggt, enligt
+projektägarens beslut: cache och `ActionOffer`. Kontrakten är förberedda för
+dem — behov har stabila id (`subject.fact`), evidens har
+`equivalence_key`/`conflict_scope`, operationer har namn och krav, och
+budgetposter har idempotensnycklar — men ingressen kommer efter B3.
+
+## 7.7 Oberoende granskning av B2 — fynd och rättelser
+
+En fristående granskning av `5fb83b8d..6347d2a4` gav **changes required**. Den
+mutationstestade kärnan och fann den sund — tio mutationer, var och en fångad av
+exakt rätt Rust-test — men påpekade att **verifieringen var svagare än den
+påstod**. Det stämde.
+
+| Fynd | Bedömning | Åtgärd |
+| --- | --- | --- |
+| Differentialtestets assertion var en tautologi: den jämförde adapterns läsning av motorns payload med payloadens eget fält | **Riktigt.** Testet kunde inte faila | Ersatt med ett test som pinnar konkurrerande värden hela vägen, plus att adaptern ekar motorns status och avvisar okänd status. **Mutation i Rust** (`if false && ambiguous_scope`) ger nu `'RESOLVED' == 'AMBIGUOUS'` |
+| Tre av sex C2.2-scenarier var feldata: rejected-kandidaten hade `key=None` och tog därför "samma nyckel"-vägen i stället för att bevisa att rejected inte blockerar; ekvivalensfallen jämförde redan lika strängar | **Riktigt** | Rejected får egen nyckel, ekvivalens använder två olika råvärden som domänen normaliserar till en nyckel, `uncertain_blocks_scope` prövas i båda riktningarna genom motorn |
+| Adapterns "beslutar aldrig"-gate såg bara `Assign`/`Return`; en if-expression, walrus eller assert kunde smuggla in ett beslut | **Riktigt** | Gaten flaggar nu **varje** användning av en motorägd statusliteral utanför vokabulärdefinitionen. Bevisat: en `IfExp` fångas |
+| Ramverksgrinden skannade bara `src/`, så testfixtures läckte | **Riktigt** | Skannar nu `tests/` också — och hittade direkt `provider: "jev"` / `prompt_key: "research.assessment.user"` i `tests/machine.rs` samt en "OverGraph sink" i `src/events.rs`. Alla neutraliserade |
+| **Påståendet att adapterns payload avvisas av motorn (`need.fact must be a string`)** | **Felaktigt.** Verifierat mot den byggda extensionen: adapterns payload accepteras och ger `RESOLVED` | Ingen åtgärd; granskaren testade mot en annan payload-form än adaptern faktiskt emitterar |
+
+Det är värt att notera **båda** riktningarna: granskaren hittade att mitt test var
+en tautologi (allvarligt), och att dess egen blockerare inte reproducerade. Därför
+verifieras varje granskningspåstående innan det åtgärdas — inte bara B1 lärde ut
+det.
+
+### Verifiering efter rättelserna
+
+```console
+$ cd crates/swe-native && cargo test --offline
+  43 passed (lib) + 2 (boundary) + 12 (machine)
+  mutation (if false && ambiguous_scope)  -> 3 differential tests fail with
+                                             'RESOLVED' == 'AMBIGUOUS'; restored
+$ cd crates/{swe-budget,swe-gym,swe-reference} && cargo fmt --check
+  alla tre gröna
+$ cd backend && pytest tests/test_swe_* ... tests/test_swe_core_differential.py
+  155 passed
+$ .venv/bin/python -m ruff check app tests          All checks passed
+$ .venv/bin/python scripts/check_maintainability.py passed (1407 modules)
+$ pytest -m "not smoke and not research_reuse and not swe_runtime" -q
+  4004 passed, 36 skipped   (19m42s)
+```
+
+### Kvarstående, medvetet inte åtgärdat i B2
+
+| Punkt | Skäl |
+| --- | --- |
+| `crates/swe-reference` använder fortfarande sina lokala `Need`/`OpOutcome`-kopior i stället för `swe-core`-typerna | Demots byteste är 12/12 grönt; omkopplingen är en mekanisk följd som hör till ett eget steg, inte till semantiken. **Måste göras före PR 4** annars finns två sanningskällor för behovstyper |
+| Operation-grinden och `derive_needs` saknar Python-bindningar | Kriterium 1 gäller inom Rust; att exponera dem över gränsen hör till när en Research-väg faktiskt använder dem. Får inte påstås vara testat över gränsen |
+| `read_operation_outcome` har ingen producent ännu | Samma som ovan — död tills grinden exponeras |
+| `EvidencePolicy` saknar `majority_vote` från skissen i `11` | Avsiktligt: ingen ny förmåga under separationen (ägarens princip) |
+
 ## 8. Vad denna PR innehåller (scope)
 
 ```console
