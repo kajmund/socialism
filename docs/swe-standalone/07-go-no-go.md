@@ -223,6 +223,20 @@ Uppskattad omfattning (grov, för planering): B1 ~0,5–1 dag; B2 ~2–4 dagar;
 B3 ~1–2 dagar; B4 ~1–2 dagar; PR 4–5 (repo + konsumtion) ~1–2 dagar. Gym-split
 är ett separat spår (~2–4 dagar) och blockerar inte SWE-extraktionen.
 
+### B2-status: godkänd inom sin omfattning, med två öppna skulder
+
+B2 är genomförd och godkänd inom sin definierade omfattning. Två punkter är
+uttryckligen **inte** färdiga och hör till GO-grinden:
+
+| Skuld | Varför den inte är stängd | Blockerar |
+| --- | --- | --- |
+| Referensdemon har kvar en lokal `OpOutcome` | Kärnans `NeedMore(NeedRef)` bär ett behov per utfall; demon bär en lista. Byten är en beteendeförändring och ska vara eget granskat steg (C2.4b) | **PR 4** |
+| Operationsgrinden saknar Python-bindningar | Kriterium 1 gäller inom Rust; över gränsen är det otestat. Krävs bara om Python ska vara stödd konsument av grinden | **GO-grinden**, inte B3 |
+
+Det som är stängt och mutationstestat: Rust normativ semantik, Python utan egen
+statuslogik, differentialtest som faktiskt kan faila, domänneutral kärna,
+`swe-budget` utan beteendeförändring.
+
 ## 7. Rekommendation (uppdaterad ordning, beslutad)
 
 1. **Kontraktsbeslut** (`09-contract-decision.md`) — definierar Rust som

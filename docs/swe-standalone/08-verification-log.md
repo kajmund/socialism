@@ -509,6 +509,57 @@ $ pytest -m "not smoke and not research_reuse and not swe_runtime" -q
 | `read_operation_outcome` har ingen producent ännu | Samma som ovan — död tills grinden exponeras |
 | `EvidencePolicy` saknar `majority_vote` från skissen i `11` | Avsiktligt: ingen ny förmåga under separationen (ägarens princip) |
 
+## 7.8 B3 genomförd (2026-10-31)
+
+Projektägaren godkände B2 och krävde sex saker verifierade i B3: append-only
+journal med separata händelser, stabil `delivery_key`, inga dubbla settlements,
+korrekt återhämtning av obekräftade externa anrop, versionskontroll vid resume
+och crash-/replay-tester vid varje kritisk övergång.
+
+| Krav | Implementerat | Mutation | Fångas av |
+| --- | --- | --- | --- |
+| 1. Append-only, separata händelser | `AttemptStarted`/`ResultConfirmed`/`AttemptAbandoned`/`ChargeReserved`/`ChargeSettled`/`ChargeReleased`/`ChargePendingReconciliation`; all tillstånd härleds | — | `every_event_is_kept_in_order`, `a_confirmed_attempt_leaves_the_open_set` |
+| 2. `delivery_key` stabil över retries | `sha256(run_id, invocation_id, action)`; `attempt_id` lägger på försöksnumret | lägg till ett `attempt`-fält i nyckeln | `the_delivery_key_is_a_pure_function_of_run_invocation_and_action` (pinnar exakt digest) |
+| 3. Inga dubbla settlements | `ChargeSettled` på redan settled → `DuplicateSettlement` | tillåt andra settle | `a_charge_cannot_settle_twice` |
+| 4. Obekräftat externt anrop | `plan_recovery`: `Pure`→recompute, `Replayable`→kräver resultat, `ExternalIdempotent`→retry med samma nyckel, `ExternalNonIdempotent`→fail stop; okänd kostnad → `PendingReconciliation` | (a) behandla obekräftat som bekräftat, (b) låt irreversibel extern retrya, (c) settla före bekräftelse | (a) `an_unconfirmed_attempt_is_open_not_confirmed`, (b) `recovery_never_reruns_an_external_irreversible_attempt`, (c) `a_charge_cannot_settle_before_its_attempt_is_confirmed` |
+| 5. Versionskontroll vid resume | `JournalHeader::verify` prövar schema-version, definition-hash, kontraktsversion och beroendeversioner | (a) skippa definition-hash, (b) skippa beroendeversioner | (a) `resume_rejects_a_changed_definition`, (b) `resume_rejects_a_changed_or_missing_dependency` |
+| 6. Crash/replay vid varje kritisk övergång | `every_critical_transition_survives_a_pause_and_resume` pausar vid varje mätad åtgärd i tur och ordning | — | kräver samma slutsats, samma spend och samma unika exekveringsantal |
+
+**Mutationstabell: 7 av 7 fångas.** Två av dem fångades inte först:
+
+- **`delivery_key`-mutationen.** Det ursprungliga testet jämförde nyckeln med sig
+  själv, så ett försöksnummer i nyckeln gick igenom. Testet pinnar nu den exakta
+  digesten av de tre indatafälten. Det här är samma felklass som B2:s tautologi.
+- **`contract_version` skrevs aldrig till JSON.** Versionstestet "gick igenom"
+  eftersom fältet saknades och läste en default — kontrollen var en
+  självuppfyllande profetia. Testet kräver nu att felet *nämner versionen*, och
+  serialiseringen rättades.
+
+Båda hittades genom att kontrollera att mutationen faktiskt applicerats och att
+fel *orsak* uppstod — inte bara att testet var rött.
+
+### Resultat
+
+```console
+$ cd crates/swe-native && cargo test --offline
+  62 passed (lib) + 2 (boundary) + 12 (machine)      # var 57 före B3, 76 efter
+  clippy -D warnings: 0 issues; fmt --check: clean
+$ cd crates/swe-reference && cargo test --offline
+  15 passed                                          # var 12
+$ cargo run --offline ; echo $?
+  0
+$ cd backend && pytest -m "not smoke and not research_reuse and not swe_runtime" -q
+  (CI grönt: alla 13 checks passerade)
+```
+
+### Vad journalen INTE garanterar
+
+Precis som `09` §4.5 säger: **exakt-engångs*utförande* av externa verktyg
+garanteras inte**. Det är bara sant när verktyget respekterar `delivery_key`
+(`ExternalIdempotent`) eller när åtgärden är ren (`Pure`). För
+`ExternalNonIdempotent` är utfallet okänt och run:et stannar. Det står i
+journalens egna typer, inte bara i dokumentationen.
+
 ## 8. Vad denna PR innehåller (scope)
 
 ```console

@@ -168,6 +168,27 @@ def project_evidence(candidates: Sequence[Mapping[str, Any]]) -> list[dict[str, 
 Kontrakt (`09` §3): `swe.need_spec.v1`, `swe.evidence_candidate.v1`,
 `swe.need_state.v1`, `swe.operation_outcome.v1`.
 
+### C2.4b — Referensdemon använder kärnans typer (öppen punkt)
+
+Projektägaren prioriterade att demon inte får behålla en lokal behovsmodell
+tills flytten: när Rust är enda sanningskälla ska demon konsumera kärnan.
+
+**Läge:** `crates/swe-reference` importerar nu `swe_native::NeedRef` via en tunn
+adapter (`need_ref`, `need_to_json_pub`) i stället för en egen struct; den
+lokala behovsidentiteten är därmed borta, och demon är 12/12 grön med oförändrat
+beteende.
+
+**Inte gjort:** demon har kvar en lokal `OpOutcome`-typ. Vid försök att ersätta
+den med `swe_native::OpOutcome` visade det sig att den lokala typen bär
+demon-specifik payload (`Vec<Need>` som behovslista) medan kärnans typ bär
+`NeedMore(NeedRef)` — ett behov per utfall. Att byta kräver att demon modellerar
+"flera upptäckta behov" som flera `NeedMore`-utfall eller som en lista i
+payloaden, vilket är en beteendeförändring i demon och ska därför vara ett eget,
+granskat steg — inte en sidoändring i B2.
+
+**Status:** lokal `OpOutcome` kvar; **måste lösas före PR 4** (GO-grinden),
+tillsammans med Python-bindningar för operationsgrinden. Båda står i `07` §6.
+
 ## 3. Differentialtest — den avgörande kontrollen
 
 För varje semantik som flyttas:
