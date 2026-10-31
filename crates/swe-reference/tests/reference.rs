@@ -9,7 +9,7 @@ use swe_reference::{
     all_required, candidates, cheapest_compliant, question, read_journal, resume, run,
     workflow_document, workflow_document_sha256, workflow_input, write_journal, ActionKind,
     Evidence, EvidenceSet, EvidenceStatus, InvocationLog, Json, Need, NeedRef, OpOutcome,
-    ResumeConfig, RunConfig, RunReport, RunStatus, Scenario,
+    ResumeConfig, RunConfig, RunReport, RunStatus, Scenario, NO_COMPLIANT_SUPPLIER,
 };
 
 fn document() -> Json {
@@ -171,6 +171,42 @@ fn missing_and_ambiguous_evidence_abstains() {
         .invocations
         .iter()
         .all(|invocation| invocation.node_id != "price"));
+}
+
+#[test]
+fn no_compliant_supplier_is_a_terminal_report_not_a_crash() {
+    let report = run_scenario(Scenario::NoCompliantSupplier, "test-no-compliant");
+    assert_eq!(report.status, RunStatus::Completed);
+    assert_eq!(
+        report.conclusion_str("conclusion"),
+        Some(NO_COMPLIANT_SUPPLIER)
+    );
+    let conclusion = report.conclusion.as_ref().expect("terminal report");
+    assert_eq!(conclusion.get("conclusion_id"), Some(&Json::Null));
+    assert_eq!(conclusion.get("price_sek"), Some(&Json::Null));
+
+    // Every fact was verified; screening completed and listed nobody.
+    assert!(report.evidence.iter().all(Evidence::is_verified));
+    let screens: Vec<&InvocationLog> = report
+        .invocations
+        .iter()
+        .filter(|invocation| invocation.node_id == "screen")
+        .collect();
+    let compliant = screens
+        .last()
+        .and_then(|screen| screen.output.get("compliant"))
+        .and_then(Json::as_array)
+        .expect("compliant list");
+    assert!(compliant.is_empty());
+
+    // The comparison ran on an empty candidate set and the report still built.
+    let price = report
+        .invocations
+        .iter()
+        .find(|invocation| invocation.node_id == "price")
+        .expect("price operation ran");
+    assert_eq!(price.status(), Some("ok"));
+    assert_eq!(price.output.get("answer"), Some(&Json::Null));
 }
 
 #[test]

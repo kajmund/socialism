@@ -49,33 +49,87 @@ Semantik som flyttas (och stannar i Rust):
 **Tester:** `ops.rs`-testerna portas med neutraliserade värden (`doc-a/b/c`), plus
 nya för prioritet/kardinalitet.
 
-### C2.2 — `swe-core::evidence`
+### C2.2 — `swe-core::evidence` (bedömningsdata i domänen, reduktion i Rust)
+
+**Rättelse mot första versionen:** API:t hade bara `min_confidence_bp`, vilket
+inte gör konfliktpolicyn faktiskt injicerbar — Rust kan inte avgöra om två
+gods­tyckliga JSON-värden "kan förenas". Dessutom motsade regeln "REJECTED
+blockerar RESOLVED" dagens GLiNER-kontrakt, där NO/UNCERTAIN blir REJECTED och
+sedan inte deltar i konfliktberäkningen
+(`backend/app/services/research/gliner/contract.py:261-327`). Det hade ändrat
+Research-resultat.
+
+**Låst gräns:**
+
+- **Domänen producerar typad, versionssatt bedömningsdata** — den avgör *vad*
+  som är relevant, likvärdigt och konkurrerande.
+- **Rust validerar och äger reduktionen** till `VERIFIED`/`AMBIGUOUS`/
+  `REJECTED` och till slutlig `NeedStatus`.
 
 ```rust
-pub struct Provenance { pub source_id: String, pub locator: Option<String>,
-                        pub content_hash: Option<String>,
-                        pub retrieved_at_ms: Option<u64>, pub provider: Option<String> }
-pub enum EvidenceStatus { Verified, Ambiguous, Rejected }
-pub struct EvidenceCandidate { pub need: NeedRef, pub value: Option<Json>,
-                               pub provenance: Option<Provenance>,
-                               pub confidence_bp: Option<u16>,
-                               pub conflict_group: Option<String> }
-pub struct ConflictPolicy { pub min_confidence_bp: u16 }   // domänen injicerar tröskel
-pub fn derive_status(candidate: &EvidenceCandidate, policy: &ConflictPolicy) -> EvidenceStatus;
-pub fn resolve_need(need: &Need, evidence: &[EvidenceCandidate], policy: &ConflictPolicy)
-    -> NeedStatus;
+// swe.evidence_assessment.v1  (produceras av domänen)
+pub struct EvidenceAssessment {
+    pub need: NeedRef,
+    pub value: Option<Json>,
+    pub admissibility: Admissibility,      // Admitted | NotAdmitted | Uncertain
+    pub equivalence_key: Option<String>,   // normaliserat värde; lika nyckel = ej konflikt
+    pub conflict_scope: String,            // t.ex. "notice_period@Avtal_17"
+    pub operational_role: Option<String>,  // E3: roll inom scopet
+    pub reason_code: String,               // domänens kod, sparas för revision
+    pub policy_version: String,            // vilken domänregel som gällde
+    pub provenance: Provenance,
+}
+
+pub enum Admissibility { Admitted, NotAdmitted, Uncertain }
 ```
 
-Generisk regel (från `tools/eval_uncertainty_states.py:60-81`, samma semantik):
+```rust
+// swe-core::evidence  (reduktionen, Rust-normativ)
+pub fn reduce(assessments: &[EvidenceAssessment], policy: &EvidencePolicy)
+    -> Vec<EvidenceState>;            // VERIFIED | AMBIGUOUS | REJECTED per behov
 
-- inget värde **eller** ingen proveniens → `REJECTED`;
-- flera kandidater i samma `conflict_group` som inte kan förenas, eller
-  konfidens under tröskeleln → `AMBIGUOUS`;
-- annars `VERIFIED`;
-- ett behov är `RESOLVED` **endast** om det finns minst en VERIFIED och ingen
-  AMBIGUOUS eller REJECTED i konfliktgruppen.
+pub struct EvidencePolicy {
+    /// Om Uncertain får blockera: den blockerar endast inom ett conflict_scope
+    /// som domänen uttryckligen har deklarerat som operativt.
+    pub uncertain_blocks_scope: bool,
+    /// Om AMBIGUOUS-värden får redas ut av en majoritet (default: nej).
+    pub majority_vote: bool,
+}
+```
 
-Domänen äger: vilka källor som får tala, vad som är en konflikt, tröskeln.
+**Reduktionsregler (kontraktet):**
+
+1. `NotAdmitted` → `REJECTED`. Rejected evidens **sparas för revision** och
+   **blockerar inte** ett accepterat värde (samma semantik som
+   `derive_findings`: icke-YES blir REJECTED och deltar inte i konfliktberäkningen).
+2. Två eller fler **distinkta** `equivalence_key` inom samma `conflict_scope`
+   → `AMBIGUOUS` för den scopets accepterade kandidater.
+3. Semantiskt likvärdiga normaliserade värden har **samma** `equivalence_key`
+   och skapar alltså ingen konflikt.
+4. Olika `operational_role` inom samma scope konkurrerar inte — men en kandidat
+   vars roll inte kan avgöras räknas som konkurrerande (fail-safe, samma som
+   `derive_findings`).
+5. `Uncertain` blockerar **endast** när domänen har deklarerat scopet som
+   operativt; annars påverkar den inte reduktionen.
+6. `NeedStatus`: `RESOLVED` kräver minst en `VERIFIED` och ingen `AMBIGUOUS`
+   inom behovets scope; annars `UNRESOLVED`.
+
+**Vad som följer av gränsen:** ingen domänregel (normalisering, rollavgörande,
+relevansbedömning) hamnar i `swe-core`. `swe-core` känner bara till
+`equivalence_key`, `conflict_scope`, `operational_role` och `admissibility` som
+**opaka strängar/enum** — det kan beskrivas utan avtal, JEV eller GLiNER2.
+
+**Obligatoriska differentialtester** (varje par måste ge samma utfall via ren
+Rust-väg och via Python-projektionen):
+
+| Scenario | Förväntat |
+| --- | --- |
+| rejected + verified | `RESOLVED` (rejected blockerar inte) |
+| normaliserat likvärdiga värden (samma `equivalence_key`) | `VERIFIED`, ingen konflikt |
+| olika operativa roller i samma scope | ingen konflikt, båda kan accepteras |
+| två verkligt konkurrerande värden | `AMBIGUOUS` → `UNRESOLVED` |
+| `Uncertain` i ett icke-operativt scope | påverkar inte |
+| `Uncertain` i ett operativt scope | `AMBIGUOUS` → `UNRESOLVED` |
 
 ### C2.3 — `swe-core::operations`
 
@@ -142,6 +196,8 @@ konfliktgrupp) och assertar att: Rust → `AMBIGUOUS`, Python-adapterns projekti
    har Rust-tester (porterade + nya).
 2. Python-adaptern innehåller **ingen** egen övergångslogik (grep-gate: inga
    `RESOLVED`/`AMBIGUOUS`-tilldelningar i `backend/app/swe/`; de bara läses).
+   Domänen producerar `EvidenceAssessment` och får aldrig skriva en slutlig
+   `NeedStatus`.
 3. Differentialtestet är grönt för varje flyttad semantik.
 4. `crates/swe-reference` använder de nya typerna; dess 11 tester gröna
    (eventuellt fler).
@@ -164,5 +220,7 @@ konfliktgrupp) och assertar att: Rust → `AMBIGUOUS`, Python-adapterns projekti
 | --- | --- |
 | SWE blir ett för stort ramverk (ägarens huvudinvändning) | `09` §5 är en del av acceptanskriterierna; allt som bara kan beskrivas med domänord stannar utanför `swe-core` |
 | Två sanningskällor under övergången | Diff-testet + grep-gaten i §5.2; Python får inte beräkna tillstånd |
+| Konfliktpolicyn blir en gissning i Rust | Rust reducerar bara över `equivalence_key`/`conflict_scope`; semantiken för likvärdighet ägs av domänens bedömningsdata |
+| Ny reduktion ändrar Research-resultat | De sex differentialtesterna ovan pinnar dagens GLiNER-semantik; samtliga research-sviter måste vara gröna |
 | Portningen tappar `ops.rs`-skydden | De fyra skyddsreglerna har exakta befintliga tester som flyttas, inte skrivs om |
 | `swe-reference` bryts av typbytet | Demon uppdateras i samma PR (C2.3/C2.5), inte i efterhand |

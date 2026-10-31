@@ -24,13 +24,21 @@ krav?"*
 **Expected conclusion:** **Beta** — the only supplier that meets all three
 requirements, and therefore the cheapest compliant one.
 
+The mock provider serves three deterministic scenarios, all offline:
+
+| Scenario | What changes | Outcome |
+| --- | --- | --- |
+| `baseline` | nothing — all facts found and unambiguous | **Beta**, 950 SEK |
+| `missing_evidence` | `beta.req_c` is absent, `gamma.price` has conflicting sources | terminal `INSUFFICIENT_EVIDENCE` (incomplete run), price operation never runs |
+| `no_compliant_supplier` | every fact found, but no supplier meets requirement B | terminal `NO_COMPLIANT_SUPPLIER` (completed run, no winner) |
+
 ## What is reused vs. what is application layer
 
 | Concern | Where it lives | Role in this crate |
 | ------- | -------------- | ------------------ |
 | SWD 1.0 document loading, SHA-256 definition hash, canonical JSON | `swe-native` | Embedded definition is hashed and executed as-is |
 | Host-paced machine, effects, routing, fork/join, map, expression + provider decisions, `end` statuses | `swe-native` | The workflow graph; the host only answers effects |
-| Append-only Sweycoin ledger (`allocate` / `reserve` / `settle` / `balance` / `events` / `replay`) | `swe-gym::ledger` | Budget and exactly-once cost reporting |
+| Append-only Sweycoin ledger (`allocate` / `reserve` / `settle` / `balance` / `events` / `replay`) | `swe-gym::ledger` | Budget, per-action metering and deduplicated (at-most-once) settlement |
 | Evidence, information needs, operation contracts (typed `OpOutcome`: `Answer` / `NeedMore` / `Insufficient`), ALL_REQUIRED gate, supplier register, mock provider, run journal | **This crate (application layer)** | Demo-level objects. `swe-native` has no such primitives today |
 
 No engine logic is copied: the only "driver" code here is effect dispatch,
@@ -127,23 +135,31 @@ Conclusion: Beta (950 SEK) — Beta has the lowest price (950 SEK) among 1 compl
 
 ## What the pause/resume guarantee is — and is not
 
-The tests assert two different things, and they must not be conflated:
+The tests assert three different things, and they must not be conflated:
 
-* **Exactly-once charging (guaranteed here).** The ledger is rebuilt from its
-  own event log with `Ledger::replay`, and every completed invocation carries an
-  idempotency key, so a resumed run spends exactly what the uninterrupted run
-  spends: 46 000 milli in both cases, identical ledger event logs.
-* **Exactly-once *execution* of the demo's own actions (guaranteed here).** All
-  actions in this experiment are deterministic pure functions (handlers and a
-  mock provider), so replaying a confirmed result is provably identical to
-  re-running it: 33 unique invocations in both runs, nothing ran twice.
-* **Exactly-once execution of *external* tools (NOT claimed).** If a real
+* **Deduplicated (at-most-once) settlement — guaranteed here.** The ledger is
+  rebuilt from its own event log with `Ledger::replay`, so a resumed run cannot
+  settle the same logical call twice: a resumed run spends exactly what the
+  uninterrupted run spends (46 000 milli in both cases), with identical ledger
+  event logs. *Exact* settlement per confirmed call holds under the liveness
+  assumption that the journal reaches durable storage.
+* **At-least-once delivery of the demo's own actions, idempotent here —
+  guaranteed here.** All actions in this experiment are deterministic pure
+  functions (handlers and a mock provider), so replaying a confirmed result is
+  provably identical to re-running it: 33 unique invocations in both runs,
+  nothing ran twice.
+* **Exactly-once execution of *external* tools — NOT claimed.** If a real
   provider performs a side effect and the process crashes before the result is
-  journaled, the engine cannot know whether the side effect happened. That
-  needs an idempotency key honoured by the tool itself, or an explicit
-  recovery policy — see `docs/swe-standalone/09-contract-decision.md` §4 and
-  `12-pr3-b3-journal-resume.md` for the attempt / confirmed-result / charge
-  model that PR 3 adds.
+  journaled, the outcome is *unknown*: it is not the same as "did not happen".
+  That needs the tool to honour an idempotency key (at-least-once delivery,
+  at most one external effect), or an explicit fail-stop recovery policy. It
+  also means an unconfirmed external charge may be unknown rather than zero:
+  the journal reserves `pending_reconciliation` for that case.
+
+This demo's journal stores completed invocation results only. The attempt /
+confirmed-result / charge event model that separates those three cases is
+specified in `docs/swe-standalone/09-contract-decision.md` §4 and
+`12-pr3-b3-journal-resume.md`, and implemented in PR 3.
 
 ## Pause/resume design
 
@@ -185,7 +201,7 @@ walkthrough):
 
 ## Tests
 
-`cargo test --offline` runs eleven integration tests:
+`cargo test --offline` runs twelve integration tests:
 
 1. `conclusion_is_beta` — completed run, conclusion Beta, 950 SEK, 13 verified
    evidence entries with provenance.
@@ -212,6 +228,10 @@ walkthrough):
     ledger spend and stay inside the allocation.
 11. `need_more_is_a_typed_operation_outcome` — `OpOutcome::NeedMore` serialises
     to the handler protocol (`status: "need_more"` plus the new needs).
+12. `no_compliant_supplier_is_a_terminal_report_not_a_crash` — when screening
+    verifies every fact but nobody is compliant, the comparison runs on an empty
+    candidate set and the report is a terminal `NO_COMPLIANT_SUPPLIER` with null
+    supplier and price, rather than crashing on a null answer.
 
 ## Gaps found in SWE core
 

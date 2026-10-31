@@ -19,6 +19,8 @@ pub const PRICE_FACT: &str = "price";
 pub const EXCEPTION_FACT: &str = "c_exception";
 pub const SCREEN_OPERATION: &str = "screen_compliance";
 pub const PRICE_OPERATION: &str = "select_cheapest";
+/// Terminal conclusion when screening succeeds but nobody is compliant.
+pub const NO_COMPLIANT_SUPPLIER: &str = "NO_COMPLIANT_SUPPLIER";
 
 /// A fact a need refers to: `(supplier, fact)` with a stable id.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -573,26 +575,42 @@ pub fn build_report_handler(input: &Json) -> DemoResult<Json> {
     let price = field(input, "price")?;
     let evidence = EvidenceSet::from_json(field(input, "evidence")?)?;
     let answer = field(price, "answer")?;
+    let reason = field_str(price, "reason")?;
+    let evidence_status_counts = evidence.counts().to_json();
+    let supplier_states = screen
+        .get("supplier_states")
+        .cloned()
+        .unwrap_or(Json::Array(Vec::new()));
+
+    if answer.is_missing_compatible_null() {
+        // Screening ran and every required fact was verified, but no candidate
+        // satisfies the requirements. That is a complete answer: abstain from
+        // naming a supplier instead of dereferencing a missing one.
+        return Ok(obj([
+            ("status", Json::from("no_compliant_supplier")),
+            ("conclusion", Json::from(NO_COMPLIANT_SUPPLIER)),
+            ("conclusion_id", Json::Null),
+            ("price_sek", Json::Null),
+            ("reason", Json::from(reason)),
+            ("supplier_states", supplier_states),
+            ("evidence", evidence.to_json()),
+            ("evidence_status_counts", evidence_status_counts),
+        ]));
+    }
+
     let conclusion = field_str(answer, "name")?;
     let conclusion_id = field_str(answer, "id")?;
     let price_sek = as_u64(field(answer, "price_sek")?)
         .ok_or_else(|| DemoError::new("answer.price_sek must be an unsigned integer"))?;
-    let reason = field_str(price, "reason")?;
     Ok(obj([
         ("status", Json::from("ok")),
         ("conclusion", Json::from(conclusion)),
         ("conclusion_id", Json::from(conclusion_id)),
         ("price_sek", Json::from_u64(price_sek)),
         ("reason", Json::from(reason)),
-        (
-            "supplier_states",
-            screen
-                .get("supplier_states")
-                .cloned()
-                .unwrap_or(Json::Array(Vec::new())),
-        ),
+        ("supplier_states", supplier_states),
         ("evidence", evidence.to_json()),
-        ("evidence_status_counts", evidence.counts().to_json()),
+        ("evidence_status_counts", evidence_status_counts),
     ]))
 }
 

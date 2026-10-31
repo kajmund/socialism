@@ -39,6 +39,7 @@ pub use mock_provider::MockSupplierFacts;
 pub use operations::{
     all_required, cheapest_compliant, screen_compliance, select_cheapest, GateResult, MissingInput,
     Need, NeedRef, OpOutcome, OperationContract, OperationRegistry, RankedSupplier,
+    NO_COMPLIANT_SUPPLIER,
 };
 pub use swe_native::{Json, RunStatus};
 pub use workflow::{

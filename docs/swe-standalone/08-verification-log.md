@@ -51,8 +51,9 @@ $ cargo fmt --check                 # inga fel
 $ cargo clippy --offline --all-targets -- -D warnings
     Finished `dev` profile ...      # inga varningar
 $ cargo test --offline
-running 11 tests
+running 12 tests
 test all_required_gate_lists_every_missing_input ... ok
+test no_compliant_supplier_is_a_terminal_report_not_a_crash ... ok
 test deterministic_comparison_prefers_cheapest_compliant ... ok
 test need_more_is_a_typed_operation_outcome ... ok
 test needs_are_derived_from_operation_contracts_not_data ... ok
@@ -63,7 +64,7 @@ test conclusion_is_beta ... ok
 test need_more_is_resolved_and_operation_reruns ... ok
 test repeated_runs_are_deterministic ... ok
 test pause_and_resume_charge_and_execute_exactly_once ... ok
-test result: ok. 11 passed; 0 failed; ...
+test result: ok. 12 passed; 0 failed; ...
 ```
 
 `cargo run --offline` (exit 0) visar de tio demonstrationerna. Utdrag ur
@@ -168,6 +169,45 @@ guarantee is — and is not") som skiljer exakt-engångs**debitering** från
 exakt-engångs**exekvering av externa verktyg**. Inga kodändringar; testerna är
 oförändrade (11/11).
 
+## 7.2 Ägarens granskning: P1/P2 åtgärdade (2026-10-31)
+
+Ägaren svarade **NO-GO för B1** med tre P1-blockerare plus ett kvarstående P2
+i demon. Alla fyra är åtgärdade. Ingen produktionskod är ändrad; P1.1–P1.3 är
+kontraktstext, P2 är kod i referensexperimentet.
+
+| Fynd | Vad som kontrollerades | Åtgärd |
+| --- | --- | --- |
+| P1.1 Journalens identitet/återhämtning | `09` §4.2–4.3 och `12` §2–3: nyckeln innehöll `attempt` men skulle återanvändas vid retry; muterbara statusfält; global recovery; okänd kostnad sattes till noll | `delivery_key` = `sha256(run_id, invocation_id, action)`, stabil över försök; `attempt_id` = leverans + `attempt_no`; journalen är en append-only händelselogg (`AttemptStarted`, `ResultConfirmed`, `AttemptAbandoned`, `ChargeReserved`, `ChargeSettled`, `ChargeReleased`, `ChargePendingReconciliation`); `Delivery` per åtgärd sparas före dispatch; `recompute_pure` för obekräftade rena anrop; `unconfirmed` = okänt utfall; okänd kostnad = `pending_reconciliation`; "exakt-engångsdebitering" ersatt av deduplicerad/at-most-once settlement |
+| P1.2 Konfliktpolicyn | `11` §C2.2: bara `min_confidence_bp` var injicerbar; "REJECTED blockerar RESOLVED" motsade `backend/app/services/research/gliner/contract.py:261-327`, där NO/UNCERTAIN blir REJECTED och inte deltar i konfliktberäkningen | Domänen producerar `EvidenceAssessment` (`admissibility`, `equivalence_key`, `conflict_scope`, `operational_role`, `reason_code`, `policy_version`, `provenance`); Rust validerar och äger reduktionen; rejected sparas men blockerar inte; lika `equivalence_key` = ingen konflikt; `uncertain` blockerar bara i deklarerat operativt scope; sex differentialtester |
+| P1.3 Prompt-whitelisten | `10` §2 punkt 1 föreskrev fail-open (`None` = allt tillåtet) medan `backend/app/swe/definition.py:152-163` alltid validerar mot `PROMPT_KEY_SET` | Fail-closed: provider-nod kräver injicerad allowlist, saknad allowlist = typat fel, definition utan provider-noder får utelämna den; fyra nya tester; ren strukturvalidering får bara vara ett separat API |
+| P2 Demon: `answer: null` | `select_cheapest` kan returnera `answer: null` medan rapportbyggaren läste `name`/`id`/`price_sek` ovillkorligt (`src/operations.rs:542-579`) | Nytt scenario `NoCompliantSupplier` + terminal rapport `NO_COMPLIANT_SUPPLIER` (null supplier/pris med per-leverantör-skäl) och nytt integrationstest |
+
+Verifiering efter ändringarna:
+
+```console
+$ cd crates/swe-reference
+$ cargo fmt --check                          # rent
+$ cargo clippy --offline --all-targets -- -D warnings
+    Finished `dev` profile ...                # inga varningar
+$ cargo test --offline
+    running 12 tests
+    test no_compliant_supplier_is_a_terminal_report_not_a_crash ... ok
+    ... (11 tidigare, oförändrade)
+    test result: ok. 12 passed; 0 failed
+$ cargo run --offline ; echo $?               # 0
+```
+
+Snabbtest av det nya utfallet (utdrag ur terminal rapport):
+
+```text
+STATUS=Completed
+conclusion = NO_COMPLIANT_SUPPLIER
+conclusion_id = null          price_sek = null
+reason = "no supplier meets all three requirements"
+supplier_states = Alpha/Beta/Gamma: compliant=false, "requirement B is not met"
+evidence_status_counts = { VERIFIED: 12, AMBIGUOUS: 0, REJECTED: 0 }
+```
+
 ## 8. Vad denna PR innehåller (scope)
 
 ```console
@@ -176,6 +216,9 @@ $ git status --short
 ?? crates/swe-reference/
 ?? docs/swe-standalone/
 ```
+
+(tre commits: dokumentation, referensexperiment, CI-rad; därefter
+beslutsdokumenten `09`–`12` och denna P1/P2-rättelse)
 
 - Nya dokument `docs/swe-standalone/README.md` + `01`–`12` (denna fil är 08; `09`–`12` är besluts- och PR-underlag).
 - Ny crate `crates/swe-reference` (eget `Cargo.lock`, `.gitignore` med `/target`).

@@ -19,7 +19,7 @@ påbörjas:
 | --- | --- | --- |
 | D1 | **Rust är enda sanningskällan för behovs-, evidens- och operationssemantik**; Python är adapter | B1 inverterar mot serialiseringskontrakt, inte mot Python-typer; B2 implementerar semantiken i Rust; B3 gör journalen till motorgaranti |
 | D2 | **Versionssatta serialiseringskontrakt** mellan Rust och Python | Varje korsad gräns bär `schema_version`; avvisning sker typat, inte tyst |
-| D3 | **Journalen skiljer försök, bekräftelse och debitering**; exakt-engångs*exekvering* av externa verktyg är inte en motorgaranti | B3 inför `InvocationAttempt` / `ConfirmedResult` / `ChargeRecord`; demon får fler tester |
+| D3 | **Journalen är en append-only händelselogg** för försök, bekräftelse och debitering; `delivery_key` identifierar den logiska leveransen och är stabil över försök; exakt-engångs*exekvering* av externa verktyg är inte en motorgaranti, och settlement är *deduplicerad/at-most-once* | B3 inför händelsetyperna i §4.3, per-leverans `Delivery` och återhämtningsstrategierna; demon får fler tester |
 | D4 | **SWE äger mekanismen, inte domänens innehåll** | B2:s acceptanskriterier får ett explicit ramverksstopp (`§5`) |
 | D5 | **B1 motverkar inte framtida flytt:** Python-adaptern exponerar exakt de exporter som redan finns | B1 är en rigorös omdirigering, inte en ny API-yta; Research-imports ändras inte |
 
@@ -100,63 +100,113 @@ Regler:
 5. **Inga bakåtkompatibla shims** medan det inte finns kunder; bara exakta
    versioner (`06` §5).
 
-## 4. Journalen: försök, bekräftelse och debitering
+## 4. Journalen: leverans, försök, bekräftelse och debitering
 
 ### 4.1 Problemformulering
 
-Referensexperimentet visar **exakt-engångsdebitering** vid resume: ledger-event
-replayas och ingen dubbeldebiteras. Det är korrekt — men det är en ekonomisk
-garanti, inte en garanti om externa sidoeffekter. Vid en krasch efter att ett
-externt verktyg utförts men före journalföringen kan ett försök ha runnit iväg
-utan att resultatet finns. Motorn får inte påstå annat.
+Referensexperimentet visar att ledger-eventen replayas och att ingen
+dubbeldebiteras. Men en ekonomisk garanti är inte en garanti om externa
+sidoeffekter. Vid en krasch efter att ett externt verktyg utförts men före
+journalföringen är exekveringsutfallet **okänt** — det är inte detsamma som att
+åtgärden inte utfördes. Motorn får varken påstå eller anta något annat.
 
-### 4.2 Tre tillstånd
+### 4.2 Identitet: en logisk leverans, flera försök
+
+Den tidigare formuleringen lät idempotensnyckeln innehålla `attempt`, vilket
+motsäger kravet att en retry återanvänder samma nyckel. Nyckeln identifierar
+därför den **logiska leveransen**, inte försöket:
 
 ```text
-InvocationAttempt  { attempt_id, invocation_id, action, started_at_ms,
-                     idempotency_key }
-ConfirmedResult    { invocation_id, attempt_id, outcome, payload, confirmed_at_ms }
-ChargeRecord       { charge_id, invocation_id, attempt_id, amount_milli,
-                     tariff_milli, idempotency_key, state: reserved|settled|released }
+delivery_key  = sha256(run_id, invocation_id, action)   # stabil över försök
+attempt_id    = delivery_key + ":" + attempt_no          # ett försök
 ```
 
-Regler:
+- `delivery_key` delas med den externa åtgärden (idempotens), den används
+  aldrig som försöks-id.
+- `attempt_id` är unikt per försök och används bara för spårbarhet och
+  debiteringskoppling.
+- En retry skapar ett nytt `attempt_id` men behåller `delivery_key`.
 
-1. **Ett försök bokförs innan åtgärden utförs.** Journalen medger därför
-   "försök utan bekräftelse" — ett ärligt tillstånd, inte ett fel.
-2. **Bekräftat resultat är det enda som räknas som exekverat.** Ett försök utan
-   bekräftelse vid resume blir *inte* automatiskt "gjort"; motorn frågar
-   åtgärden via idempotensnyckeln (se 4.3) eller rapporterar
-   `unconfirmed_attempt` typat.
-3. **Debitering följer reservationen, inte försöket.** En avbruten, obekräftad
-   åtgärd ska släppa reservationen (`release`), inte debiteras; en bekräftad
-   åtgärd debiteras exakt en gång (`settle` med samma nyckel).
-4. **Idempotensnyckeln är deterministisk och delas med den externa åtgärden:**
-   `idempotency_key = sha256(run_id, invocation_id, action, attempt_index)`.
-   En provider som stödjer idempotens (eller en host som gör det lokalt) kan då
-   avgöra om åtgärden redan utförts.
-5. **Journalen är append-only och replaybar:** `Ledger::replay` för ekonomi,
-   kompletions-replay för maskinen, attempts för ärlighetsbedömningen.
+### 4.3 Journalen är en append-only händelselogg
 
-### 4.3 Återhämtningsstrategier (väljs av hosten, deklareras i journalen)
+Fält som muteras mellan `started|confirmed|abandoned` motsäger append-only.
+Tillstånd härleds därför ur händelser — ingen post skrivs över:
 
-| Strategi | När | Vad motorn gör | Vad hosten måste göra |
+```text
+JournalEvent =
+  | AttemptStarted     { attempt_id, delivery_key, invocation_id, action,
+                         delivery: Delivery, started_at_ms }
+  | ResultConfirmed    { attempt_id, outcome, payload, confirmed_at_ms }
+  | AttemptAbandoned   { attempt_id, reason, abandoned_at_ms }
+  | ChargeReserved     { charge_id, attempt_id, delivery_key, amount_milli,
+                         tariff_milli, reserved_at_ms }
+  | ChargeSettled      { charge_id, amount_milli, settled_at_ms }
+  | ChargeReleased     { charge_id, reason, released_at_ms }
+  | ChargePendingReconciliation { charge_id, reason, at_ms }
+```
+
+Härledda vyer (inte egna sanningar): `confirmed(attempt_id)`,
+`open_attempts()`, `charge_state(charge_id)` (`reserved`/`settled`/`released`/
+`pending_reconciliation`), `settled_total()`.
+
+### 4.4 `Delivery` per åtgärd, sparat före första dispatch
+
+En run kan blanda rena beräkningar och externa sidoeffekter, så en global
+recovery-policy räcker inte. Varje logisk leverans deklarerar sin strategi
+**innan** första `AttemptStarted`:
+
+| `Delivery` | Semantik | Exekvering | Sidoeffekt |
 | --- | --- | --- | --- |
-| `replay_result` | Åtgärden är ren/deterministisk (mock, fryst fixture) | Replayar bekräftat resultat, ingen ny exekvering | Inget |
-| `idempotent_retry` | Åtgärden stödjer idempotensnyckel | Nytt försök med **samma** nyckel; debiterar bara om åtgärden bekräftat ett nytt svar | Levererar idempotens i sin klient |
-| `unconfirmed_abort` | Åtgärden har oåterkalleliga sidoeffekter och ingen idempotens | Stoppar typat (`unconfirmed_attempt`), ingen gissning, ingen dubbeldebitering | Löser manuellt eller markerar run som overifierad |
+| `Pure` | Deterministisk funktion av indata | `recompute` — får köras om | Ingen |
+| `Replayable` | Resultatet finns fryst (mock, fixture) | `replay_result` — kräver bekräftat resultat | Ingen |
+| `ExternalIdempotent` | Verktyget respekterar `delivery_key` | `idempotent_retry` — at-least-once leverans | Högst en, förutsatt att verktyget respekterar nyckeln |
+| `ExternalNonIdempotent` | Oåterkallelig sidoeffekt utan nyckelstöd | `fail_stop` — ingen retry | Okänt vid krash |
 
-Ingen av strategierna är en tyst fallback: valet står i journalen
-(`recovery: replay_result | idempotent_retry | unconfirmed_abort`) och
-granskas i PR 3.
+### 4.5 Garantier per strategi
 
-### 4.4 Vad referensexperimentet bevisar idag
+| Strategi | Leveransgaranti | Får påstås? |
+| --- | --- | --- |
+| `recompute_pure` | **at-least-once**, men idempotent eftersom åtgärden är ren | Ja |
+| `replay_result` | Ingen ny exekvering; kräver ett `ResultConfirmed` — ett obekräftat *rent* anrop använder `recompute_pure` i stället | Ja |
+| `idempotent_retry` | **at-least-once** leverans; högst en extern effekt **endast** om verktyget respekterar `delivery_key` | Ja, med förbehållet uttalat |
+| `fail_stop` | Ingen leveransgaranti; utfallet är okänt | Ja — som **okänt**, inte som lyckat |
+
+Överordnad regel: **om en åtgärd redan kan ha utförts får motorn inte anta att
+den inte gjorde det.** Ett obekräftat `ExternalNonIdempotent`-försök leder
+alltid till `fail_stop` + `pending_reconciliation`, aldrig till en tyst retry
+och aldrig till en tyst avskrivning.
+
+### 4.6 Ekonomi: deduplicerad settlement, inte "exakt-engångsdebitering"
+
+Den tidigare formuleringen "exakt-engångsdebitering = högst en gång" var för
+stark. Kontraktet är:
+
+> **At-most-once (deduplicerad) settlement:** en `ChargeSettled` per
+> `charge_id`, och `charge_id` är knutet till `attempt_id` + `delivery_key`.
+> En `ChargeSettled` **garanteras** endast för bekräftade, debiterbara logiska
+> anrop, under förutsättning att journalen når hållbar lagring (liveness).
+
+Följder:
+
+1. **Obekräftat försök ger ingen `ChargeSettled`.** Reservationen får bara
+   `ChargeReleased` om hosten kan bevisa att ingen kostnad uppstod. Annars
+   `ChargePendingReconciliation` — kostnaden är okänd och får inte skrivas av
+   som noll.
+2. **Retry får inte reservera en ny kostnad för samma `delivery_key`.** En
+   andra reservation på samma nyckel är ett typat fel, inte en ny debitering.
+3. **Replay debiterar aldrig.** `recompute_pure`/`replay_result` skapar inga
+   `ChargeReserved`.
+4. **Avstämning är ett uttalat tillstånd.** `pending_reconciliation` måste
+   lösas innan en run får ett slutligt ekonomiskt facit.
+
+### 4.7 Vad referensexperimentet bevisar idag
 
 | Påstående | Status |
 | --- | --- |
-| Exakt-engångs**debitering** vid resume | **Bevisat** (ledger-eventloggen är identisk; 46 000 milli i båda fallen) |
-| Exakt-engångs**exekvering** av lösta/mockade åtgärder | **Bevisat för deterministiska åtgärder** (33 unika invocations i båda fallen) |
-| Exakt-engångs**exekvering av externa verktyg** | **Inte bevisat och inte påstått** — kräver idempotens eller kvittens från toolens sida (PR 3) |
+| Deduplicerad (at-most-once) settlement vid resume för demoåtgärderna | **Bevisat** — ledger-eventloggen är identisk, 46 000 milli i båda fallen |
+| Leverans av demoåtgärderna sker högst en gång i effektiv mening | **Bevisat för `Pure`/`Replayable`** (33 unika invocations i båda fallen) |
+| Högst en extern sidoeffekt | **Inte bevisat och inte påstått** — kräver idempotent verktyg (PR 3) |
+| Okänd kostnad hanteras ärligt | **Inte implementerat** — `pending_reconciliation` är PR 3 |
 
 ## 5. Ramverksgränsen för B2 (SWE äger mekanismen, inte innehållet)
 
@@ -213,7 +263,7 @@ Rust, gör vi arbete två gånger. Därför:
 | --- | --- | --- |
 | 1 (B1) | Flytta JEV-provider, prompt-renderare, prompt-key-whitelist och feature/host-modell ut ur `app/swe`; lägga till import-gate och injektionstester | Ändra researchbeteende; införa nya semantiktyper; ändra SWD-format |
 | 2 (B2) | Lägga till generic needs/evidence/operations i Rust; låta Python projektera; differentialtester | Låta Python behålla en egen övergång; lägga domänbegrepp i `swe-core`; ändra researchresultat |
-| 3 (B3) | Journal-/resume-kontrakt, attempts/confirm/charge, recovery-strategier, Rust-journal i demon | Påstå exakt-engångs*exekvering* av externa verktyg; ändra övergripande run-semantik för Research |
+| 3 (B3) | Journal-/resume-kontrakt som append-only händelser, per-leverans `Delivery`, återhämtningsstrategier, `pending_reconciliation`, Rust-journal i demon | Påstå exakt-engångs*exekvering* av externa verktyg eller exakt-engångs*sättlement* utan liveness-förbehåll; ändra övergripande run-semantik för Research |
 
 **Gemensamt för alla tre:** Research- och research-wiring-testerna förblir gröna;
 inga ändringar i `crates/swe-gym`; ingen fysisk repo-flytt.

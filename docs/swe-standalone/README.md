@@ -23,6 +23,18 @@ kontraktsbeslutet ligger före B1, B1–B3 genomförs som tre separata PR:er, oc
 den fysiska flytten sker först därefter. Se `07` §0 och
 [`09-contract-decision.md`](09-contract-decision.md).
 
+**Ägarens granskning gav NO-GO för B1 med tre P1-blockerare.** De är åtgärdade
+i kontrakten och demon är utökad (12/12 tester):
+
+| Fynd | Rättelse |
+| --- | --- |
+| P1.1 Journalens identitet/återhämtning motsade sig själv | `delivery_key` stabil över försök, append-only händelselogg, `Delivery` per åtgärd, `recompute_pure`, okänt utfall ≠ ej utfört, `pending_reconciliation` för okänd kostnad (`09` §4, `12` §2–3) |
+| P1.2 Konfliktpolicyn var inte injicerbar och ändrade GLiNER-semantiken | Domänen producerar typad bedömningsdata; Rust validerar och reducerar; rejected blockerar inte; sex differentialtester (`11` §C2.2) |
+| P1.3 Prompt-whitelisten blev fail-open | Fail-closed: provider-nod kräver allowlist, typat fel annars (`10` §3) |
+| P2 Demon kraschade på `answer: null` | Terminal `NO_COMPLIANT_SUPPLIER`-rapport + nytt integrationstest |
+
+Detaljer och verifiering: `07` §0 och `08` §7.2.
+
 **SWE Core är inte hela SWE.** Målbilden är SWE = Workflowmotor · Behov ·
 Evidens · Operationer · Budget · Providers · Exekveringsjournal; Socialism =
 Research · JEV · OverGraph · GLiNER2 · Juridiska operationer · Dokument och

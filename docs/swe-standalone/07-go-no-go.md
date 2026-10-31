@@ -38,11 +38,24 @@ Två principiella ställningstaganden från ägaren ingår i kontraktsbeslutet:
 1. **En sanningskälla:** Rust är normativ implementation; Python är adapter med
    versionssatta serialiseringskontrakt. Samma behov får inte bli `RESOLVED` i
    Python och `INSUFFICIENT_EVIDENCE` i Rust.
-2. **Journalen är en motorgaranti** — men exakt-engångs*debitering* är inte
-   samma sak som exakt-engångs*exekvering* av externa verktyg. Journalen ska
-   skilja på **exekveringsförsök**, **bekräftade resultat** och **ekonomisk
-   debitering**; externa sidoeffekter behöver idempotensnycklar eller annan
-   återhämtningsstrategi.
+2. **Journalen är en motorgaranti** — men deduplicerad (at-most-once)
+   *settlement* är inte samma sak som exakt-engångs*exekvering* av externa
+   verktyg. Journalen är en append-only logg över **försök**, **bekräftade
+   resultat** och **ekonomisk debitering**; ett obekräftat försök betyder okänt
+   utfall (inte "ej utfört"), och okänd kostnad får aldrig skrivas av som noll.
+   Se `09` §4.
+
+**Rättelse efter ägarens granskning (2026-10-31):** tre blockerare (P1) är
+åtgärdade i dokumenten innan någon implementation:
+
+| # | Fynd | Rättelse |
+| --- | --- | --- |
+| P1.1 | Journalens identitet och återhämtning motsade sig själv (nyckel innehöll `attempt`, muterbara statusfält, global recovery) | `delivery_key` är stabil över försök; journalen är en append-only händelselogg; `Delivery` per åtgärd sparas före dispatch; `recompute_pure` för obekräftade rena anrop; okänd kostnad = `pending_reconciliation`. Se `09` §4.2–4.6, `12` §2–3 |
+| P1.2 | Konfliktpolicyn var inte injicerbar och ändrade GLiNER-semantiken (REJECTED blockerade RESOLVED) | Domänen producerar typad bedömningsdata (`admissibility`, `equivalence_key`, `conflict_scope`, `operational_role`, `policy_version`); Rust validerar och äger reduktionen; rejected sparas men blockerar inte; sex differentialtester. Se `11` §C2.2 |
+| P1.3 | Prompt-whitelisten blev fail-open i B1 | Fail-closed: provider-nod kräver injicerad allowlist; saknad allowlist ger typat kompileringfel; definition utan provider-noder får utelämna den. Se `10` §3 |
+| P2 | Demon kraschade på `answer: null` när ingen leverantör uppfyllde kraven | Terminal `NO_COMPLIANT_SUPPLIER`-rapport + nytt integrationstest; demon är nu 12/12 grön |
+
+Se `08` §7.2 för verifieringen.
 
 **Ramverksbegränsning för B2:** SWE äger *mekanismen* för behov, evidens och
 operationer — inte domänens faktatyper, verifieringsregler eller

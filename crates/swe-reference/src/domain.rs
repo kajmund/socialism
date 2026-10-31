@@ -19,6 +19,9 @@ pub enum Scenario {
     Baseline,
     /// One fact is absent and one fact has conflicting sources.
     MissingEvidence,
+    /// Every fact is present and verified, but no supplier meets all three
+    /// requirements: screening succeeds and the comparison has no candidate.
+    NoCompliantSupplier,
 }
 
 impl Scenario {
@@ -26,6 +29,7 @@ impl Scenario {
         match self {
             Self::Baseline => "baseline",
             Self::MissingEvidence => "missing_evidence",
+            Self::NoCompliantSupplier => "no_compliant_supplier",
         }
     }
 
@@ -33,6 +37,7 @@ impl Scenario {
         match value {
             "baseline" => Ok(Self::Baseline),
             "missing_evidence" => Ok(Self::MissingEvidence),
+            "no_compliant_supplier" => Ok(Self::NoCompliantSupplier),
             other => Err(DemoError::new(format!("unknown scenario {other:?}"))),
         }
     }
@@ -119,6 +124,12 @@ pub(crate) fn fetch_observation(
             ("conflicting_sources", Json::Bool(false)),
         ])
     };
+
+    if scenario == Scenario::NoCompliantSupplier && fact == "req_b" {
+        // Every supplier keeps its price and requirement A, but nobody meets
+        // requirement B: screening succeeds and lists nobody as compliant.
+        return Ok(found(Json::Bool(false)));
+    }
 
     if scenario == Scenario::MissingEvidence {
         if supplier == "beta" && fact == "req_c" {
