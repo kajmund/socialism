@@ -303,3 +303,85 @@ def test_the_gate_cannot_be_talked_into_ready_by_an_unknown_status() -> None:
     # And an unknown conclusion from the wire is refused, not reinterpreted.
     with pytest.raises(ValueError, match="unknown gate conclusion"):
         read_operation_gate({"schema_version": 1, "satisfied": True, "conclusion": "maybe"})
+
+
+DUPLICATE_ORDERS = {
+    "resolved_then_ambiguous": ["RESOLVED", "AMBIGUOUS"],
+    "ambiguous_then_resolved": ["AMBIGUOUS", "RESOLVED"],
+    "both_resolved": ["RESOLVED", "RESOLVED"],
+    "both_ambiguous": ["AMBIGUOUS", "AMBIGUOUS"],
+}
+
+
+@pytest.mark.parametrize("case", sorted(DUPLICATE_ORDERS))
+def test_a_duplicated_status_entry_is_refused_in_every_order(case: str) -> None:
+    """Two statuses for one need is a malformed call, not a verdict.
+
+    The gate must refuse it regardless of order, and refuse it *even when the two
+    statuses agree*, because accepting them would mean the gate silently tolerates
+    a state list it cannot interpret. The expected behaviour is stated here
+    independently of the engine payload.
+    """
+    states = [
+        {"fact": "notice_period", "subject": "contract", "status": status}
+        for status in DUPLICATE_ORDERS[case]
+    ]
+    with pytest.raises(ValueError, match="duplicate need status"):
+        swe_native.operation_gate(
+            "OP", [{"fact": "notice_period", "subject": "contract"}], states
+        )
+
+
+def test_a_duplicated_entry_names_the_need_it_cannot_interpret() -> None:
+    # A typed error must say which need is duplicated, not just that something
+    # is wrong: the host has to be able to point at its own bug.
+    with pytest.raises(ValueError, match="contract.notice_period"):
+        swe_native.operation_gate(
+            "OP",
+            [{"fact": "notice_period", "subject": "contract"}],
+            [
+                {"fact": "notice_period", "subject": "contract", "status": "RESOLVED"},
+                {"fact": "notice_period", "subject": "contract", "status": "UNRESOLVED"},
+            ],
+        )
+
+
+def test_a_duplicate_is_not_reported_as_insufficient_evidence() -> None:
+    """A host bug must never masquerade as an abstention."""
+    from app.swe.needs import read_operation_gate
+
+    with pytest.raises(ValueError) as raised:
+        swe_native.operation_gate(
+            "OP",
+            [{"fact": "f", "subject": "s"}],
+            [
+                {"fact": "f", "subject": "s", "status": "RESOLVED"},
+                {"fact": "f", "subject": "s", "status": "RESOLVED"},
+            ],
+        )
+    # It raised, so no adapter reading was produced at all. If a future host
+    # caught this and turned it into a payload, the adapter would report it.
+    assert "INSUFFICIENT_EVIDENCE" not in str(raised.value)
+    # And a payload that did claim insufficient evidence would still be read
+    # faithfully rather than reinterpreted.
+    read = read_operation_gate(
+        {"schema_version": 1, "satisfied": False, "conclusion": "INSUFFICIENT_EVIDENCE", "missing": []}
+    )
+    assert read["conclusion"] == "INSUFFICIENT_EVIDENCE"
+
+
+def test_a_distinct_entry_for_each_need_is_accepted() -> None:
+    # The guard must reject duplicates without rejecting legitimate state lists.
+    verdict = swe_native.operation_gate(
+        "OP",
+        [
+            {"fact": "notice_period", "subject": "contract"},
+            {"fact": "price", "subject": "supplier"},
+        ],
+        [
+            {"fact": "notice_period", "subject": "contract", "status": "RESOLVED"},
+            {"fact": "price", "subject": "supplier", "status": "RESOLVED"},
+        ],
+    )
+    assert verdict["satisfied"] is True
+    assert verdict["conclusion"] == "ready"

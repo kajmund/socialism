@@ -642,10 +642,10 @@ fn py_operation_gate(
         resolved.push((need, status));
     }
     let spec = crate::operations::OperationSpec::new(operation, inputs);
-    with_gelf_placeholder(&spec, &resolved)
+    gate_payload(&spec, &resolved)
 }
 
-fn with_gelf_placeholder(
+fn gate_payload(
     spec: &crate::operations::OperationSpec,
     resolved: &[(NeedRef, crate::needs::NeedStatus)],
 ) -> PyResult<Py<PyAny>> {
@@ -658,7 +658,15 @@ fn with_gelf_placeholder(
                 ("conclusion", Json::String("ready".to_string())),
                 ("missing", Json::Array(Vec::new())),
             ]),
-            Err(failure) => object_json(vec![
+            // A malformed state list is not an abstention: it is a caller bug.
+            // Report it as such so it can never be mistaken for a conclusion.
+            Err(crate::operations::GateError::DuplicateState { need }) => {
+                return Err(PyValueError::new_err(format!(
+                    "duplicate need status for {}: the gate refuses to guess which one wins",
+                    need.id()
+                )))
+            }
+            Err(crate::operations::GateError::Unsatisfied(failure)) => object_json(vec![
                 ("schema_version", Json::from_u64(1)),
                 ("satisfied", Json::Bool(false)),
                 (

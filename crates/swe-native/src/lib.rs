@@ -39,8 +39,8 @@ pub use needs::{
     NeedStatus,
 };
 pub use operations::{
-    execute, ExecutionPolicy, GateFailure, Investigation, MissingInput, MissingOutcome, OpOutcome,
-    OperationSpec, StopReason,
+    execute, ExecutionPolicy, GateError, GateFailure, Investigation, MissingInput, MissingOutcome,
+    OpOutcome, OperationSpec, StopReason,
 };
 
 #[cfg(feature = "python")]

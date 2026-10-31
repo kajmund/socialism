@@ -52,7 +52,18 @@ impl OperationSpec {
     ///
     /// Returns every missing input, not just the first, so the abstention can
     /// say exactly what was missing.
-    pub fn gate(&self, states: &[(NeedRef, NeedStatus)]) -> Result<(), GateFailure> {
+    ///
+    /// Refuses a state list that names the same need twice. Guessing which of
+    /// two conflicting statuses wins would make the answer depend on input
+    /// order, and the gate's whole purpose is that its verdict is not a matter
+    /// of ordering.
+    pub fn gate(&self, states: &[(NeedRef, NeedStatus)]) -> Result<(), GateError> {
+        let mut seen = std::collections::BTreeSet::new();
+        for (need, _) in states {
+            if !seen.insert(need.clone()) {
+                return Err(GateError::DuplicateState { need: need.clone() });
+            }
+        }
         match self.execution_policy {
             ExecutionPolicy::AllRequired => {
                 let missing: Vec<MissingInput> = self
@@ -77,16 +88,56 @@ impl OperationSpec {
                 if missing.is_empty() {
                     Ok(())
                 } else {
-                    Err(GateFailure {
+                    Err(GateError::Unsatisfied(GateFailure {
                         operation: self.name.clone(),
                         outcome: self.on_missing,
                         missing,
-                    })
+                    }))
                 }
             }
         }
     }
 }
+
+/// Why an operation was not allowed to run.
+///
+/// The two cases are different facts and must not be conflated. A contract that
+/// is not satisfied is a normal abstention. A state list that names the same
+/// need twice is a malformed call: reporting it as "insufficient evidence"
+/// would turn a host bug into a conclusion.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum GateError {
+    /// Two statuses were supplied for the same need. `need` is the first one
+    /// that appeared twice, in input order, so the error is deterministic.
+    DuplicateState { need: NeedRef },
+    /// The contract is not satisfied.
+    Unsatisfied(GateFailure),
+}
+
+impl GateError {
+    /// The contract was genuinely not satisfied.
+    pub fn unsatisfied(&self) -> Option<&GateFailure> {
+        match self {
+            Self::Unsatisfied(failure) => Some(failure),
+            Self::DuplicateState { .. } => None,
+        }
+    }
+}
+
+impl fmt::Display for GateError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::DuplicateState { need } => write!(
+                f,
+                "the gate refuses a state list that names {} twice: which status wins would depend on order",
+                need.id()
+            ),
+            Self::Unsatisfied(failure) => failure.fmt(f),
+        }
+    }
+}
+
+impl std::error::Error for GateError {}
 
 /// One declared input the gate could not accept.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -206,7 +257,21 @@ where
 {
     let mut seen: Vec<NeedRef> = Vec::new();
     for _ in 0..max_rounds {
-        if let Err(failure) = spec.gate(states) {
+        if let Err(error) = spec.gate(states) {
+            let failure = match error {
+                GateError::Unsatisfied(failure) => failure,
+                // `execute` owns the state list, so a duplicate is a bug in the
+                // engine loop, not in a caller. Surface it as unresolved rather
+                // than pretending the contract was merely unsatisfied.
+                GateError::DuplicateState { need } => GateFailure {
+                    operation: spec.name.clone(),
+                    outcome: spec.on_missing,
+                    missing: vec![MissingInput {
+                        need,
+                        status: NeedStatus::Unresolved,
+                    }],
+                },
+            };
             return Investigation::Stopped(StopReason::InsufficientEvidence(failure));
         }
         match executor() {
@@ -271,10 +336,91 @@ mod tests {
     fn gate_blocks_partial_inputs() {
         let spec = spec(&["doc-a", "doc-b", "doc-c"]);
         let states = vec![(need("fact_a", "doc-a"), NeedStatus::Resolved)];
-        let failure = spec.gate(&states).unwrap_err();
+        let error = spec.gate(&states).unwrap_err();
+        let failure = error.unsatisfied().expect("a real verdict");
         assert_eq!(failure.missing.len(), 2);
         assert_eq!(failure.outcome, MissingOutcome::InsufficientEvidence);
-        assert!(failure.to_string().contains("doc-b.fact_a"));
+        assert!(error.to_string().contains("doc-b.fact_a"));
+    }
+
+    #[test]
+    fn a_duplicated_status_is_refused_and_names_the_need() {
+        let spec = spec(&["doc-a"]);
+        let states = vec![
+            (need("fact_a", "doc-a"), NeedStatus::Resolved),
+            (need("fact_a", "doc-a"), NeedStatus::Ambiguous),
+        ];
+        let error = spec.gate(&states).expect_err("a duplicate must be refused");
+        match error {
+            GateError::DuplicateState { need: duplicated } => {
+                assert_eq!(duplicated.id(), "doc-a.fact_a");
+            }
+            other => panic!("a duplicate must be its own error, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn a_duplicate_is_refused_even_when_both_statuses_agree() {
+        // Two identical statuses are still one need described twice. Accepting
+        // them would mean the gate silently tolerates a malformed state list.
+        let spec = spec(&["doc-a"]);
+        let states = vec![
+            (need("fact_a", "doc-a"), NeedStatus::Resolved),
+            (need("fact_a", "doc-a"), NeedStatus::Resolved),
+        ];
+        assert!(matches!(
+            spec.gate(&states),
+            Err(GateError::DuplicateState { .. })
+        ));
+    }
+
+    #[test]
+    fn the_duplicate_verdict_does_not_depend_on_input_order() {
+        // The point of the rule: ordering must never decide whether an
+        // operation may run, so both orderings produce the same error.
+        let spec = spec(&["doc-a"]);
+        let resolved = (need("fact_a", "doc-a"), NeedStatus::Resolved);
+        let ambiguous = (need("fact_a", "doc-a"), NeedStatus::Ambiguous);
+        let first = spec.gate(&[resolved.clone(), ambiguous.clone()]);
+        let second = spec.gate(&[ambiguous, resolved]);
+        assert_eq!(first, second);
+        assert!(matches!(first, Err(GateError::DuplicateState { .. })));
+    }
+
+    #[test]
+    fn the_named_duplicate_is_deterministic_for_the_same_input() {
+        // With more than one duplicated need, the same input must always name
+        // the same one: the first need that appears twice.
+        let spec = spec(&["doc-a", "doc-b"]);
+        let states = vec![
+            (need("fact_a", "doc-a"), NeedStatus::Resolved),
+            (need("fact_a", "doc-a"), NeedStatus::Ambiguous),
+            (need("fact_b", "doc-b"), NeedStatus::Resolved),
+            (need("fact_b", "doc-b"), NeedStatus::Ambiguous),
+        ];
+        let first = spec.gate(&states);
+        let second = spec.gate(&states);
+        assert_eq!(first, second);
+        match first {
+            Err(GateError::DuplicateState { need: duplicated }) => {
+                assert_eq!(duplicated.id(), "doc-a.fact_a");
+            }
+            other => panic!("expected the first duplicated need, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn a_duplicate_is_not_reported_as_insufficient_evidence() {
+        // A malformed call must never masquerade as an abstention.
+        let spec = spec(&["doc-a"]);
+        let states = vec![
+            (need("fact_a", "doc-a"), NeedStatus::Unresolved),
+            (need("fact_a", "doc-a"), NeedStatus::Resolved),
+        ];
+        let error = spec.gate(&states).unwrap_err();
+        assert!(error.unsatisfied().is_none());
+        assert!(!error.to_string().starts_with("INSUFFICIENT_EVIDENCE"));
+        assert!(error.to_string().contains("doc-a.fact_a"));
     }
 
     #[test]
@@ -417,7 +563,8 @@ mod tests {
     #[test]
     fn every_stop_reason_reports_insufficient_evidence() {
         let spec = spec(&["doc-a"]);
-        let failure = spec.gate(&[]).unwrap_err();
+        let error = spec.gate(&[]).unwrap_err();
+        let failure = error.unsatisfied().expect("a real verdict").clone();
         for reason in [
             StopReason::InsufficientEvidence(failure.clone()),
             StopReason::RepeatedNeed(need("x", "doc-x")),

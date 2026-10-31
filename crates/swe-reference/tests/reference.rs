@@ -6,7 +6,7 @@
 use std::path::PathBuf;
 
 use swe_reference::{
-    all_required, candidates, cheapest_compliant, question, read_journal, resume, run,
+    candidates, cheapest_compliant, gate_inputs, question, read_journal, resume, run,
     workflow_document, workflow_document_sha256, workflow_input, write_journal, ActionKind,
     Evidence, EvidenceSet, EvidenceStatus, InvocationLog, Json, OperationResult, ResumeConfig,
     RunConfig, RunReport, RunStatus, Scenario, Tariffs, NO_COMPLIANT_SUPPLIER,
@@ -313,17 +313,20 @@ fn need_more_is_resolved_and_operation_reruns() {
 }
 
 #[test]
-fn all_required_gate_lists_every_missing_input() {
+fn the_gate_is_the_engines_and_lists_every_missing_input() {
+    // The demo has no gate of its own: this asks the engine and only projects
+    // the answer. The engine decides; the demo reports.
     let required = vec![
         swe_reference::need_ref("alpha", "price"),
         swe_reference::need_ref("beta", "price"),
     ];
     let mut evidence = EvidenceSet::new();
 
-    let gate = all_required(&required, &evidence);
-    assert!(!gate.satisfied());
-    assert_eq!(gate.missing.len(), 2);
-    assert!(gate.summary().contains("alpha.price"));
+    let failure = gate_inputs("OP", &required, &evidence)
+        .expect("call")
+        .expect("two inputs are missing");
+    assert_eq!(failure.missing.len(), 2);
+    assert_eq!(failure.operation, "OP");
 
     evidence.insert(verified(
         "alpha.price",
@@ -331,21 +334,67 @@ fn all_required_gate_lists_every_missing_input() {
         "price",
         Json::from_u64(800),
     ));
-    let gate = all_required(&required, &evidence);
-    assert!(!gate.satisfied());
-    assert_eq!(gate.missing.len(), 1);
-    assert_eq!(gate.missing[0].need.id(), "beta.price");
+    let failure = gate_inputs("OP", &required, &evidence)
+        .expect("call")
+        .expect("one input is missing");
+    assert_eq!(failure.missing.len(), 1);
+    assert_eq!(failure.missing[0].need.id(), "beta.price");
 
     let mut ambiguous = verified("beta.price", "beta", "price", Json::from_u64(950));
     ambiguous.status = EvidenceStatus::Ambiguous;
     evidence.insert(ambiguous);
-    let gate = all_required(&required, &evidence);
-    assert!(
-        !gate.satisfied(),
-        "AMBIGUOUS is not accepted by the ALL_REQUIRED gate"
+    let failure = gate_inputs("OP", &required, &evidence)
+        .expect("call")
+        .expect("ambiguous is not usable");
+    assert_eq!(failure.missing.len(), 1);
+    // The status comes from the engine, not from a demo-side rule.
+    assert_eq!(failure.missing[0].status, swe_native::NeedStatus::Ambiguous);
+
+    // A rejected input is unresolved as far as the engine is concerned.
+    let mut rejected = verified("beta.price", "beta", "price", Json::from_u64(950));
+    rejected.status = EvidenceStatus::Rejected;
+    evidence.insert(rejected);
+    let failure = gate_inputs("OP", &required, &evidence)
+        .expect("call")
+        .expect("rejected is not usable");
+    assert_eq!(
+        failure.missing[0].status,
+        swe_native::NeedStatus::Unresolved
     );
-    assert_eq!(gate.missing.len(), 1);
-    assert!(gate.missing[0].reason.contains("AMBIGUOUS"));
+
+    // And a satisfied contract yields no failure at all.
+    evidence.insert(verified("beta.price", "beta", "price", Json::from_u64(950)));
+    assert!(gate_inputs("OP", &required, &evidence)
+        .expect("call")
+        .is_none());
+}
+
+#[test]
+fn the_demo_cannot_accept_an_input_the_engine_refuses() {
+    // Pins the direction of the dependency: whatever the demo's evidence says,
+    // the verdict is the engine's. A VERIFIED entry is the only thing that
+    // passes, because that is the mapping the engine's policy implies.
+    let required = vec![swe_reference::need_ref("alpha", "req_a")];
+    for (status, usable) in [
+        (EvidenceStatus::Verified, true),
+        (EvidenceStatus::Ambiguous, false),
+        (EvidenceStatus::Rejected, false),
+    ] {
+        let mut evidence = EvidenceSet::new();
+        let mut entry = verified("alpha.req_a", "alpha", "req_a", Json::Bool(true));
+        entry.status = status;
+        evidence.insert(entry);
+        let refused = gate_inputs("OP", &required, &evidence).expect("call");
+        assert_eq!(
+            refused.is_none(),
+            usable,
+            "engine and demo disagree for {status:?}"
+        );
+    }
+    // An empty evidence set is never usable.
+    assert!(gate_inputs("OP", &required, &EvidenceSet::new())
+        .expect("call")
+        .is_some());
 }
 
 #[test]

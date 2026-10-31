@@ -11,7 +11,7 @@
 use swe_native::Json;
 
 use crate::domain::Candidate;
-use crate::evidence::EvidenceSet;
+use crate::evidence::{EvidenceSet, EvidenceStatus};
 use crate::{as_u64, field, field_array, field_str, obj, DemoError, DemoResult};
 use swe_native::OpOutcome;
 
@@ -185,65 +185,82 @@ impl OperationRegistry {
     }
 }
 
-/// A required input the ALL_REQUIRED gate could not accept.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct MissingInput {
-    pub need: NeedRef,
-    pub reason: String,
-}
-
-impl MissingInput {
-    pub fn to_json(&self) -> Json {
-        obj([
-            ("need", need_to_json_pub(&self.need)),
-            ("reason", Json::from(self.reason.as_str())),
-        ])
-    }
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct GateResult {
-    pub missing: Vec<MissingInput>,
-}
-
-impl GateResult {
-    pub fn satisfied(&self) -> bool {
-        self.missing.is_empty()
-    }
-
-    pub fn to_json(&self) -> Json {
-        Json::Array(self.missing.iter().map(MissingInput::to_json).collect())
-    }
-
-    pub fn summary(&self) -> String {
-        self.missing
-            .iter()
-            .map(|input| input.need.id())
-            .collect::<Vec<_>>()
-            .join(", ")
-    }
-}
-
-/// ALL_REQUIRED: every declared input must have VERIFIED evidence.
+/// The engine's gate, applied to the demo's evidence.
 ///
-/// There is no partial pass and no fallback: `AMBIGUOUS` and `REJECTED` both
-/// count as missing, and the gate returns the exact list.
-pub fn all_required(required: &[NeedRef], evidence: &EvidenceSet) -> GateResult {
-    let mut missing = Vec::new();
-    for need in required {
-        match evidence.get(&need.id()) {
-            None => missing.push(MissingInput {
-                need: need.clone(),
-                reason: "no evidence recorded for this required input".to_string(),
-            }),
-            Some(entry) if !entry.is_verified() => missing.push(MissingInput {
-                need: need.clone(),
-                reason: format!("{}: {}", entry.status.as_str(), entry.reason),
-            }),
-            Some(_) => {}
-        }
+/// This is a projection, not a policy. It converts each piece of evidence into
+/// the engine's [`swe_native::NeedStatus`] and asks
+/// [`swe_native::OperationSpec::gate`]. The demo owns the mapping from its own
+/// evidence vocabulary to the engine's; it does not own the rule.
+///
+/// B2 review debt: the demo used to carry a second `all_required`
+/// implementation of the same rule, which is exactly the "two sources of truth"
+/// this programme exists to remove.
+pub fn gate_inputs(
+    operation: &str,
+    required: &[NeedRef],
+    evidence: &EvidenceSet,
+) -> DemoResult<Option<swe_native::GateFailure>> {
+    let states: Vec<(NeedRef, swe_native::NeedStatus)> = evidence
+        .to_vec()
+        .iter()
+        .map(|entry| {
+            let need = need_ref(entry.supplier.clone(), entry.fact.clone());
+            (need, engine_status(entry.status))
+        })
+        .collect();
+    let spec = swe_native::OperationSpec::new(operation, required.to_vec());
+    match spec.gate(&states) {
+        Ok(()) => Ok(None),
+        Err(swe_native::GateError::Unsatisfied(failure)) => Ok(Some(failure)),
+        // An `EvidenceSet` is keyed by need id, so it cannot contain the same
+        // need twice. If this ever fires, the demo's own bookkeeping is broken.
+        Err(swe_native::GateError::DuplicateState { need }) => Err(DemoError::new(format!(
+            "the evidence set produced two statuses for {}",
+            need.id()
+        ))),
     }
-    GateResult { missing }
+}
+
+/// The demo's evidence vocabulary, mapped onto the engine's need states.
+fn engine_status(status: EvidenceStatus) -> swe_native::NeedStatus {
+    match status {
+        EvidenceStatus::Verified => swe_native::NeedStatus::Resolved,
+        EvidenceStatus::Ambiguous => swe_native::NeedStatus::Ambiguous,
+        EvidenceStatus::Rejected => swe_native::NeedStatus::Unresolved,
+    }
+}
+
+/// The handler-protocol rendering of a gate refusal.
+///
+/// Every field is read from the engine's [`swe_native::GateFailure`]; nothing
+/// here decides anything.
+pub fn gate_failure_json(failure: &swe_native::GateFailure) -> Json {
+    obj([
+        (
+            "missing",
+            Json::Array(
+                failure
+                    .missing
+                    .iter()
+                    .map(|input| {
+                        obj([
+                            ("need", need_to_json_pub(&input.need)),
+                            ("status", Json::from(input.status.as_str())),
+                            (
+                                "reason",
+                                Json::from(format!(
+                                    "{}: {}",
+                                    input.status.as_str(),
+                                    input.need.id()
+                                )),
+                            ),
+                        ])
+                    })
+                    .collect(),
+            ),
+        ),
+        ("detail", Json::from(failure.to_string())),
+    ])
 }
 
 /// Handler that plans the information needs from operation contracts.
@@ -297,9 +314,11 @@ impl OperationResult {
     }
 
     pub fn insufficient(failure: swe_native::GateFailure) -> Self {
+        // Every field comes from the engine's failure; the demo only formats it.
+        let payload = gate_failure_json(&failure);
         Self {
-            outcome: OpOutcome::InsufficientEvidence(failure.clone()),
-            payload: obj([("detail", Json::from(failure.to_string()))]),
+            outcome: OpOutcome::InsufficientEvidence(failure),
+            payload,
         }
     }
 
@@ -355,22 +374,6 @@ fn canonical_text(value: &Json) -> String {
         .unwrap_or_default()
 }
 
-/// Convert the demo's gate result into the engine's typed gate failure.
-fn gate_failure(operation: &str, gate: &GateResult) -> swe_native::GateFailure {
-    swe_native::GateFailure {
-        operation: operation.to_string(),
-        outcome: swe_native::MissingOutcome::InsufficientEvidence,
-        missing: gate
-            .missing
-            .iter()
-            .map(|input| swe_native::MissingInput {
-                need: input.need.clone(),
-                status: swe_native::NeedStatus::Unresolved,
-            })
-            .collect(),
-    }
-}
-
 fn with_status(payload: Json, status: &str, extra: (&str, Json)) -> Json {
     match payload {
         Json::Object(mut map) => {
@@ -386,7 +389,7 @@ enum Screening {
     Compliant(String),
     NonCompliant(String),
     NeedsException(Need),
-    Insufficient(String),
+    Insufficient { need: NeedRef, reason: String },
 }
 
 /// Handler wrapper: serialises the typed [`OpOutcome`] for the kernel.
@@ -404,12 +407,8 @@ pub fn screen_compliance(input: &Json) -> DemoResult<OperationResult> {
     let registry = OperationRegistry::from_json(field(input, "operations")?)?;
     let evidence = EvidenceSet::from_json(field(input, "evidence")?)?;
     let contract = registry.contract(SCREEN_OPERATION)?;
-    let gate = all_required(&contract.required, &evidence);
-    if !gate.satisfied() {
-        return Ok(OperationResult::insufficient(gate_failure(
-            SCREEN_OPERATION,
-            &gate,
-        )));
+    if let Some(failure) = gate_inputs(SCREEN_OPERATION, &contract.required, &evidence)? {
+        return Ok(OperationResult::insufficient(failure));
     }
 
     let mut needs = Vec::new();
@@ -425,8 +424,14 @@ pub fn screen_compliance(input: &Json) -> DemoResult<OperationResult> {
                 supplier_states.push(supplier_state(candidate, false, reason));
             }
             Screening::NeedsException(need) => needs.push(need),
-            Screening::Insufficient(reason) => {
-                let failure = gate_failure(SCREEN_OPERATION, &all_required(&[], &evidence));
+            Screening::Insufficient { need, reason } => {
+                let Some(failure) =
+                    gate_inputs(SCREEN_OPERATION, std::slice::from_ref(&need), &evidence)?
+                else {
+                    return Err(DemoError::new(
+                        "the engine accepted an input the screening rule found unusable",
+                    ));
+                };
                 return Ok(OperationResult {
                     outcome: OpOutcome::InsufficientEvidence(failure),
                     payload: obj([("reason", Json::from(reason))]),
@@ -435,14 +440,10 @@ pub fn screen_compliance(input: &Json) -> DemoResult<OperationResult> {
         }
     }
 
-    if !needs.is_empty() {
-        if let Some(first) = needs.first() {
-            return Ok(OperationResult::need_more(first.reference.clone()));
-        }
-        return Ok(OperationResult::insufficient(gate_failure(
-            SCREEN_OPERATION,
-            &all_required(&[], &evidence),
-        )));
+    if let Some(first) = needs.first() {
+        // One need per round: the engine's protocol is singular, so the demo
+        // resolves this one deterministically and the others surface later.
+        return Ok(OperationResult::need_more(first.reference.clone()));
     }
 
     Ok(OperationResult::answer(obj([
@@ -475,7 +476,8 @@ fn screen_candidate(candidate: &Candidate, evidence: &EvidenceSet) -> DemoResult
         ));
     }
     let exception = need_ref(&candidate.id, EXCEPTION_FACT);
-    match evidence.get(&exception.id()) {
+    let exception_id = exception.id();
+    match evidence.get(&exception_id) {
         None => Ok(Screening::NeedsException(Need::new(
             exception,
             format!(
@@ -483,12 +485,15 @@ fn screen_candidate(candidate: &Candidate, evidence: &EvidenceSet) -> DemoResult
                 candidate.name
             ),
         ))),
-        Some(entry) if !entry.is_verified() => Ok(Screening::Insufficient(format!(
-            "INSUFFICIENT_EVIDENCE: exception fact {} is {}: {}",
-            exception.id(),
-            entry.status.as_str(),
-            entry.reason
-        ))),
+        Some(entry) if !entry.is_verified() => Ok(Screening::Insufficient {
+            need: exception,
+            reason: format!(
+                "INSUFFICIENT_EVIDENCE: exception fact {} is {}: {}",
+                exception_id,
+                entry.status.as_str(),
+                entry.reason
+            ),
+        }),
         Some(entry) => {
             if entry.value.as_bool() == Some(true) {
                 Ok(Screening::Compliant(
@@ -592,12 +597,8 @@ pub fn select_cheapest(input: &Json) -> DemoResult<OperationResult> {
         })
         .collect::<DemoResult<Vec<_>>>()?;
     let contract = registry.contract(PRICE_OPERATION)?;
-    let gate = all_required(&contract.required, &evidence);
-    if !gate.satisfied() {
-        return Ok(OperationResult::insufficient(gate_failure(
-            PRICE_OPERATION,
-            &gate,
-        )));
+    if let Some(failure) = gate_inputs(PRICE_OPERATION, &contract.required, &evidence)? {
+        return Ok(OperationResult::insufficient(failure));
     }
     let ranked = cheapest_compliant(&candidates, &compliant, &evidence)?;
     let Some(winner) = ranked.first() else {
