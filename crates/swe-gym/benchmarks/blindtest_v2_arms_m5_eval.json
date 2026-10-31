@@ -1,0 +1,333 @@
+{
+  "version": 1,
+  "name": "blindtest-v2-arms-m5",
+  "redacted": true,
+  "redaction_note": "M5 multi-value experiment on the frozen v2 material. No contract text: case ids, types, cardinalities, counts, states and hashes only.",
+  "design": {
+    "arms": {
+      "m0": "frozen single-value reference",
+      "m5": "cardinality model only",
+      "m12+m3+m4": "accumulated M1-M4, single-value",
+      "m12+m3+m4+m5": "accumulated + cardinality model"
+    },
+    "cardinality": {
+      "single": "unchanged frozen contract",
+      "multiple": "expected_count from independent facit; resolved only when ALL expected values are verified, no extras, count matches",
+      "unknown": "values alone never resolve; a completeness result is required",
+      "expected_count_source": "facit annotation, never the number of verified candidates"
+    },
+    "generality": "cardinality is need-level, not a party special case (reusable for exceptions, liability parties, competing clauses, multiple sources)",
+    "m6_not_mixed": "verification recovery is a separate experiment"
+  },
+  "policy_conformance": {
+    "multiple_all_expected_resolves": true,
+    "multiple_missing_is_partial_not_resolved": true,
+    "multiple_extra_is_not_resolved": true,
+    "unknown_never_resolves_from_values": true,
+    "single_keeps_frozen_outcome": true
+  },
+  "single_value_needs_unchanged": {
+    "m5": {
+      "single_value_needs_unchanged": true,
+      "changed": []
+    },
+    "m12+m3+m4+m5": {
+      "single_value_needs_unchanged": true,
+      "changed": []
+    }
+  },
+  "metrics": {
+    "m0": {
+      "needs_total": 16,
+      "needs_solved": 7,
+      "needs_partial": 0,
+      "needs_ambiguous_extra": 0,
+      "needs_unknown_cardinality_incomplete": 0,
+      "needs_unsolved": 7,
+      "false_resolved_need_ids": [],
+      "contaminated_need_ids": []
+    },
+    "m5": {
+      "needs_total": 16,
+      "needs_solved": 8,
+      "needs_partial": 1,
+      "needs_ambiguous_extra": 0,
+      "needs_unknown_cardinality_incomplete": 0,
+      "needs_unsolved": 6,
+      "false_resolved_need_ids": [],
+      "contaminated_need_ids": []
+    },
+    "m12+m3+m4": {
+      "needs_total": 16,
+      "needs_solved": 13,
+      "needs_partial": 0,
+      "needs_ambiguous_extra": 0,
+      "needs_unknown_cardinality_incomplete": 0,
+      "needs_unsolved": 2,
+      "false_resolved_need_ids": [],
+      "contaminated_need_ids": []
+    },
+    "m12+m3+m4+m5": {
+      "needs_total": 16,
+      "needs_solved": 14,
+      "needs_partial": 1,
+      "needs_ambiguous_extra": 0,
+      "needs_unknown_cardinality_incomplete": 0,
+      "needs_unsolved": 1,
+      "false_resolved_need_ids": [],
+      "contaminated_need_ids": []
+    }
+  },
+  "costs": {
+    "per_arm": {
+      "m0": {
+        "execution_jev_calls": 32,
+        "experiment_new_calls": 0,
+        "gliner_inferences": 0
+      },
+      "m5": {
+        "execution_jev_calls": 32,
+        "experiment_new_calls": 0,
+        "gliner_inferences": 0
+      },
+      "m12+m3+m4": {
+        "execution_jev_calls": 26,
+        "experiment_new_calls": 0,
+        "gliner_inferences": 0
+      },
+      "m12+m3+m4+m5": {
+        "execution_jev_calls": 26,
+        "experiment_new_calls": 0,
+        "gliner_inferences": 0
+      }
+    },
+    "note": "execution_jev_calls = decisions from empty cache; experiment_new_calls = extra calls beyond frozen answers. M5 itself adds no verifications."
+  },
+  "per_case": [
+    {
+      "case_id": "v2-pm-01",
+      "need_type": "NOTICE_PERIOD",
+      "question_type": "uppsägningsvillkor",
+      "cardinality": "SINGLE",
+      "expected_count": null,
+      "states": {
+        "m0": "unsolved",
+        "m5": "unsolved",
+        "m12+m3+m4": "resolved",
+        "m12+m3+m4+m5": "resolved"
+      }
+    },
+    {
+      "case_id": "v2-pm-02",
+      "need_type": "LIABILITY_CAP",
+      "question_type": "ansvarsbegränsning",
+      "cardinality": "SINGLE",
+      "expected_count": null,
+      "states": {
+        "m0": "unsolved",
+        "m5": "unsolved",
+        "m12+m3+m4": "resolved",
+        "m12+m3+m4+m5": "resolved"
+      }
+    },
+    {
+      "case_id": "v2-pm-03",
+      "need_type": "MONEY",
+      "question_type": "ersättning",
+      "cardinality": "SINGLE",
+      "expected_count": null,
+      "states": {
+        "m0": "ambiguous",
+        "m5": "ambiguous",
+        "m12+m3+m4": "resolved",
+        "m12+m3+m4+m5": "resolved"
+      }
+    },
+    {
+      "case_id": "v2-pm-04",
+      "need_type": "PERIOD",
+      "question_type": "tidsfrister",
+      "cardinality": "SINGLE",
+      "expected_count": null,
+      "states": {
+        "m0": "resolved",
+        "m5": "resolved",
+        "m12+m3+m4": "resolved",
+        "m12+m3+m4+m5": "resolved"
+      }
+    },
+    {
+      "case_id": "v2-pm-05",
+      "need_type": "PERIOD",
+      "question_type": "tidsfrister",
+      "cardinality": "SINGLE",
+      "expected_count": null,
+      "states": {
+        "m0": "unsolved",
+        "m5": "unsolved",
+        "m12+m3+m4": "unsolved",
+        "m12+m3+m4+m5": "unsolved"
+      }
+    },
+    {
+      "case_id": "v2-pm-06",
+      "need_type": "PERIOD",
+      "question_type": "tidsfrister",
+      "cardinality": "SINGLE",
+      "expected_count": null,
+      "states": {
+        "m0": "resolved",
+        "m5": "resolved",
+        "m12+m3+m4": "resolved",
+        "m12+m3+m4+m5": "resolved"
+      }
+    },
+    {
+      "case_id": "v2-pm-07",
+      "need_type": "PARTY",
+      "question_type": "parter",
+      "cardinality": "MULTIPLE",
+      "expected_count": 2,
+      "states": {
+        "m0": "unsolved",
+        "m5": "partial",
+        "m12+m3+m4": "unsolved",
+        "m12+m3+m4+m5": "partial"
+      },
+      "m5_found_expected": 1,
+      "m5_missing": 1,
+      "m5_extras": 0,
+      "m12+m3+m4+m5_found_expected": 1,
+      "m12+m3+m4+m5_missing": 1,
+      "m12+m3+m4+m5_extras": 0
+    },
+    {
+      "case_id": "v2-sv-01",
+      "need_type": "PARTY",
+      "question_type": "parter",
+      "cardinality": "MULTIPLE",
+      "expected_count": 3,
+      "states": {
+        "m0": "ambiguous",
+        "m5": "resolved",
+        "m12+m3+m4": "ambiguous",
+        "m12+m3+m4+m5": "resolved"
+      },
+      "m5_found_expected": 3,
+      "m5_missing": 0,
+      "m5_extras": 0,
+      "m12+m3+m4+m5_found_expected": 3,
+      "m12+m3+m4+m5_missing": 0,
+      "m12+m3+m4+m5_extras": 0
+    },
+    {
+      "case_id": "v2-sv-02",
+      "need_type": "PERIOD",
+      "question_type": "avtalstid",
+      "cardinality": "SINGLE",
+      "expected_count": null,
+      "states": {
+        "m0": "resolved",
+        "m5": "resolved",
+        "m12+m3+m4": "resolved",
+        "m12+m3+m4+m5": "resolved"
+      }
+    },
+    {
+      "case_id": "v2-sv-03",
+      "need_type": "DATE",
+      "question_type": "tidsfrister",
+      "cardinality": "SINGLE",
+      "expected_count": null,
+      "states": {
+        "m0": "unsolved",
+        "m5": "unsolved",
+        "m12+m3+m4": "resolved",
+        "m12+m3+m4+m5": "resolved"
+      }
+    },
+    {
+      "case_id": "v2-if-01",
+      "need_type": "MONEY",
+      "question_type": "ersättning",
+      "cardinality": "SINGLE",
+      "expected_count": null,
+      "states": {
+        "m0": "resolved",
+        "m5": "resolved",
+        "m12+m3+m4": "resolved",
+        "m12+m3+m4+m5": "resolved"
+      }
+    },
+    {
+      "case_id": "v2-if-02",
+      "need_type": "MONEY",
+      "question_type": "ersättning",
+      "cardinality": "SINGLE",
+      "expected_count": null,
+      "states": {
+        "m0": "resolved",
+        "m5": "resolved",
+        "m12+m3+m4": "resolved",
+        "m12+m3+m4+m5": "resolved"
+      }
+    },
+    {
+      "case_id": "v2-if-03",
+      "need_type": "PERIOD",
+      "question_type": "avtalstid",
+      "cardinality": "SINGLE",
+      "expected_count": null,
+      "states": {
+        "m0": "resolved",
+        "m5": "resolved",
+        "m12+m3+m4": "resolved",
+        "m12+m3+m4+m5": "resolved"
+      }
+    },
+    {
+      "case_id": "v2-if-04",
+      "need_type": "DATE",
+      "question_type": "tidsfrister",
+      "cardinality": "SINGLE",
+      "expected_count": null,
+      "states": {
+        "m0": "resolved",
+        "m5": "resolved",
+        "m12+m3+m4": "resolved",
+        "m12+m3+m4+m5": "resolved"
+      }
+    },
+    {
+      "case_id": "v2-if-05",
+      "need_type": "PARTY",
+      "question_type": "parter",
+      "cardinality": "SINGLE",
+      "expected_count": null,
+      "states": {
+        "m0": "unsolved",
+        "m5": "unsolved",
+        "m12+m3+m4": "resolved",
+        "m12+m3+m4+m5": "resolved"
+      }
+    },
+    {
+      "case_id": "v2-if-06",
+      "need_type": "PARTY",
+      "question_type": "parter",
+      "cardinality": "SINGLE",
+      "expected_count": null,
+      "states": {
+        "m0": "unsolved",
+        "m5": "unsolved",
+        "m12+m3+m4": "resolved",
+        "m12+m3+m4+m5": "resolved"
+      }
+    }
+  ],
+  "d10_proxy": {
+    "note": "Clause-level proxy: a resolved need using an outside-expected value. 0 in all arms; true D10 on the new unseen set.",
+    "contaminated_answers": 0
+  },
+  "reservation": "The 16 cases are a diagnostic development set. M5 changes what a resolved need means; M6 (verification recovery) must stay separate. No broader activation before a new unseen test set."
+}
