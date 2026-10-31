@@ -14,7 +14,7 @@ from app.config import settings
 from app.jev.system import JevClientError, JevSystemOneResult, JevUsage
 from app.services.overgraph.jev_cache import JevDecisionCache, decision_cache_key
 from app.swe.definition import CompiledDefinition, compile_definition
-from app.swe.providers import make_jev_provider
+from app.services.research.swe_providers import make_jev_provider
 from app.swe.runtime import WorkflowResources, run_workflow
 from app.swe.runtime_errors import SwePreflightError
 from tests.swe.runtime_helpers import swe_tasks
@@ -22,6 +22,7 @@ from tests.swe.runtime_helpers import swe_tasks
 pytestmark = pytest.mark.swe_runtime
 
 PROMPT_KEY = "research.assessment.user"
+PROMPT_KEYS = frozenset({PROMPT_KEY})
 PROMPTS = {PROMPT_KEY: "Question: {plan_json}. Evidence: {evidence_json}"}
 INPUT = {"plan_json": '{"objective": "x"}', "evidence_json": "[]"}
 
@@ -77,6 +78,7 @@ def _compile(**kwargs: Any) -> CompiledDefinition:
     return compile_definition(
         _provider_document(**kwargs),
         providers=frozenset({"fake"}),
+        prompt_keys=PROMPT_KEYS,
     )
 
 
@@ -89,6 +91,7 @@ def _resources(
     return WorkflowResources(
         providers={"fake": provider},
         prompts=prompts,
+        prompt_keys=PROMPT_KEYS,
         cache=cache,
     )
 

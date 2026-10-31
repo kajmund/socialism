@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from collections.abc import Mapping, Sequence
+from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -104,10 +104,16 @@ class _RunStart:
 
 @dataclass(frozen=True)
 class WorkflowResources:
-    """Optional run resources shared by the runner and provider dispatch."""
+    """Optional run resources shared by the runner and provider dispatch.
+
+    ``prompt_keys`` is the active prompt catalog. It is required once the
+    definition contains a provider decision, exactly like the compile-time
+    allowlist: execution never renders a prompt that is not declared.
+    """
 
     providers: Mapping[str, Provider] = field(default_factory=dict)
     prompts: Mapping[str, str] | None = None
+    prompt_keys: Collection[str] | None = None
     cache: DecisionCache | None = None
     cancel_event: asyncio.Event | None = None
 
@@ -157,6 +163,7 @@ class WorkflowRunner:
             self.resources.providers,
             self.resources.prompts,
             self.resources.cache,
+            self.resources.prompt_keys,
         )
         machine = native.Machine()
         run_id = run_id or f"run-{uuid.uuid4().hex[:12]}"
@@ -212,6 +219,7 @@ class WorkflowRunner:
             self.resources.providers,
             self.resources.prompts,
             self.resources.cache,
+            self.resources.prompt_keys,
         )
         machine = native.Machine()
         clock = self.clock or WorkflowClock()

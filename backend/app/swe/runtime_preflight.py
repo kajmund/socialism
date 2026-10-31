@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Collection, Mapping
 from typing import Any
 
 from app.swe.runtime_errors import SwePreflightError, SweUnsupportedError
@@ -31,7 +31,15 @@ def assert_providers_registered(
     providers: Mapping[str, Callable[..., Any]],
     prompts: Mapping[str, str] | None,
     cache: Any | None,
+    prompt_keys: Collection[str] | None = None,
 ) -> None:
+    """Fail-closed runtime counterpart of the compile-time prompt allowlist.
+
+    Compilation already rejects a provider decision without an allowlist. The
+    driver must hold the same line: a compiled definition can be constructed
+    through another path, so execution validates membership here too. A prompt
+    that is declared but not permitted is never rendered.
+    """
     nodes = document["nodes"]
     for node_id, node in nodes.items():
         if node["type"] != "decision" or node.get("evaluator") != "provider":
@@ -43,6 +51,16 @@ def assert_providers_registered(
                 path=f"nodes.{node_id}.provider",
             )
         prompt_key = node["prompt_key"]
+        if prompt_keys is None:
+            raise SwePreflightError(
+                f"provider decision {node_id!r} requires a prompt_keys allowlist",
+                path=f"nodes.{node_id}.prompt_key",
+            )
+        if prompt_key not in prompt_keys:
+            raise SwePreflightError(
+                f"prompt {prompt_key!r} is not in the active prompt catalog",
+                path=f"nodes.{node_id}.prompt_key",
+            )
         if prompts is None or not str(prompts.get(prompt_key) or "").strip():
             raise SwePreflightError(
                 f"active prompt {prompt_key!r} is missing",
