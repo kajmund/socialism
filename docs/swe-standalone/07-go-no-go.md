@@ -121,7 +121,7 @@ Bevisar **inte**:
 
 ## 4. Blockerare
 
-### B1 — Domänimporter i Python-hostlagret (blockerande; plan i `10`)
+### B1 — Domänimporter i Python-hostlagret (**åtgärdad**; plan `10`, resultat `08` §7.3)
 
 Fem importrader i tre filer gör att det "generiska" paketet inte kan flyttas:
 
@@ -228,8 +228,10 @@ B3 ~1–2 dagar; B4 ~1–2 dagar; PR 4–5 (repo + konsumtion) ~1–2 dagar. Gym
 1. **Kontraktsbeslut** (`09-contract-decision.md`) — definierar Rust som
    normativ semantik, serialiseringsversioner, journalens tre tillstånd och
    ramverksgränsen. Ingen produktionskod ändras. **Detta sker före PR 1.**
-2. **PR 1 — B1:** bryt Python-hostens fem domänimporter mot de redan
-   definierade gränssnitten (`10-pr1-b1-python-boundary.md`).
+2. **PR 1 — B1:** ✅ **genomförd.** `app/swe` har noll domänimporter,
+   prompt-allowlisten är fail-closed både vid kompilering och exekvering,
+   import-gaten ligger i testsviten (`10-pr1-b1-python-boundary.md`, resultat i
+   `08` §7.3).
 3. **PR 2 — B2:** flytta de generiska kontrakten till `swe-core` som
    normativ Rust-implementation, med Python som adapter
    (`11-pr2-b2-core-contracts.md`).

@@ -208,6 +208,94 @@ supplier_states = Alpha/Beta/Gamma: compliant=false, "requirement B is not met"
 evidence_status_counts = { VERIFIED: 12, AMBIGUOUS: 0, REJECTED: 0 }
 ```
 
+## 7.3 B1 genomfört (2026-10-31) — kontraktsgodkänt, fyra commits
+
+Projektägaren godkände `09` och gav klartecken för B1, med två uttryckliga
+krav: prompt-whitelisten ska prövas **både vid kompilering och vid faktisk
+exekvering**, och referensexemplet ska förbli regressionstest.
+
+| B1-steg | Vad som gjordes | Commit |
+| --- | --- | --- |
+| 1. Allowlist-injektion | `compile_definition(..., prompt_keys=...)` fail-closed; `WorkflowResources.prompt_keys`; `assert_providers_registered` validerar vid körning | `2053ea2c` |
+| 2. Prompt-renderaren | `app/services/prompt_render.py` → `app/swe/prompt_render.py`; alla anropare uppdaterade; ingen kvarvarande kopia | `3fe6d0a0` |
+| 3. JEV-providern | `app/swe/providers.py` → `app/services/research/swe_providers.py` | `3fe6d0a0` |
+| 4. Host-kontexten | `WorkflowHostContext`, `workflow_catalog_dir`, `FEATURE_IDS` → `app/services/swe_host/`; `schema.py`/`__init__.py` bara motor-API | `ff944524` |
+| 5. Import-gate | `tests/test_swe_import_boundary.py` | `ff944524` |
+| — | `prompt_keys` keyword-only (ruff) | `b3a34463` |
+
+### B1-kriteriet: både kompilering och exekvering
+
+Ägarens invändning var att en whitelist som bara gäller i
+`compile_definition` inte räcker om en alternativ exekveringsväg kan rendera en
+odeklarerad prompt. Därför prövas samma regel två gånger, med samma fail-closed-
+semantik:
+
+```console
+$ pytest tests/test_swe_definition.py -k prompt -v
+test_provider_node_without_prompt_keys_is_rejected           PASSED
+test_provider_node_with_injected_prompt_keys_compiles        PASSED
+test_unknown_prompt_key_is_rejected_against_injected_set     PASSED
+test_definition_without_provider_nodes_needs_no_prompt_keys  PASSED
+test_example_uses_catalog_prompt_key                         PASSED
+test_unknown_prompt_key_is_rejected                          PASSED
+
+$ pytest tests/test_swe_runtime_preflight.py -k "catalog or permitted" -v
+test_execution_rejects_provider_node_without_prompt_catalog        PASSED
+test_execution_rejects_prompt_outside_active_catalog               PASSED
+test_execution_renders_when_prompt_is_declared_and_permitted       PASSED
+```
+
+Den tredje är happy-path-kontrollen: när katalogen är deklarerad **och**
+tillåten körs workflowet normalt, så testet bevisar avvisning utan att bevisa
+att funktionen är bortkopplad.
+
+### Resultat (faktiska testkörningar, offline)
+
+```console
+$ cd backend
+$ uv sync --frozen                      # venv skapad, Python 3.13.6
+$ uv run maturin develop --manifest-path ../crates/swe-native/Cargo.toml
+    Installed swe-native-0.1.0
+
+$ pytest tests/test_swe_*.py tests/test_swe_host_context.py \
+         tests/test_swe_import_boundary.py -m "not smoke" -q
+125 passed in 13.79s
+
+$ pytest tests/test_swe_*.py tests/test_research_swe -m "not smoke" -q
+129 passed in 15.20s      (fyra på varandra följande rena körningar)
+
+$ pytest tests/test_research_swe tests/test_sufficiency_experiment_reuse.py
+18 passed
+
+$ cd crates/swe-reference && cargo test --offline
+12 passed                 # referensexemplet är kvar som regressionstest
+$ cd crates/swe-native && cargo test --offline
+30 passed
+
+$ grep -rnE "^\s*(from|import)\s+app\.(config|jev|services)" backend/app/swe/
+                          # inga träffar
+```
+
+Testantalet i SWE-sviten gick från 118 till 125: fyra fail-closed-tester för
+kompilering, tre för exekvering, minus två som flyttades eller slogs samman.
+
+### Befintlig flake — inte orsakad av B1
+
+`tests/test_research_swe/test_wiring.py::test_cancelled_swe_run_is_persisted_as_cancelled`
+fallerar **intermittent** när filen körs tillsammans med `test_swe_*`. Den är
+tidsberoende (en lease-signal och en store-close kapplöper). Verifierat att
+felet finns före B1:
+
+```console
+# med B1-ändringarna, 4 rena körningar:      129 passed (×4)
+# med oförändrad origin/main-kod, 6 körningar: 1 failed, 114 passed
+#                                              115 passed (×5)
+```
+
+Flaken ligger alltså i testet, inte i B1, och den enda ändringen jag gjorde i
+filen är importvägen för `WorkflowHostContext`. Den bör åtgärdas separat (göra
+testet deterministiskt) och **inte** blandas in i B1.
+
 ## 8. Vad denna PR innehåller (scope)
 
 ```console

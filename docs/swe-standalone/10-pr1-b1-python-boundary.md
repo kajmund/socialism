@@ -5,6 +5,8 @@
 godkänt. Presentationen har ett eget steg — PR 1 rör **inte** researchbeteende.
 **Bas:** `origin/main` `666eccb0` (denna utredning är PR 0).
 **Storlek:** ~0,5–1 dag. Ren omdirigering + två nya små moduler + tester.
+**Status:** **Genomförd** (commits `2053ea2c`, `3fe6d0a0`, `ff944524`,
+`b3a34463`). Resultat och testkörningar: `08` §7.3.
 
 ## 1. Mål
 
@@ -135,7 +137,22 @@ Gaten körs i `swe-runtime`-jobbet och kan inte kringgås med lokal pin.
 | Re-exporten av `render_prompt` skapar två sökvägar | Re-export tills PR 5, sedan bort; aldrig två implementationer (den gamla filen importerar SWE-modulen) |
 | Host-kontextflytten bryter benchmark-skript | `benchmark_research_swe*.py` importerar den nya sökvägen; greps i PR:en |
 
-## 9. Vad som INTE görs här
+## 9. Ägarens tilläggskrav: kompilering **och** exekvering
+
+En whitelist som bara prövas i `compile_definition` räcker inte om en
+alternativ exekveringsväg kan rendera en odeklarerad prompt. Därför prövas
+samma regel på båda ställena, med samma fail-closed-semantik:
+
+| Väg | Kod | Test |
+| --- | --- | --- |
+| Kompilering | `definition._check_prompt_key` | `provider_node_without_prompt_keys_is_rejected` |
+| Exekvering | `runtime_preflight.assert_providers_registered` + `WorkflowResources.prompt_keys` | `test_execution_rejects_provider_node_without_prompt_catalog`, `test_execution_rejects_prompt_outside_active_catalog` |
+| Bevis att det inte är bortkopplat | happy path | `test_execution_renders_when_prompt_is_declared_and_permitted` |
+
+Den tredje raden är obligatorisk: utan den vore de två första förenliga med en
+implementation som avvisar allt.
+
+## 10. Vad som INTE görs här
 
 - Inga generiska behovs-, evidens- eller operationstyper (PR 2).
 - Ingen journaländring (PR 3).
