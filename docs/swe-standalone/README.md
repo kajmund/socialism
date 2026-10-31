@@ -18,6 +18,16 @@ behovs-/evidens-/operations-/budgetförmågorna till SWE, och ge
 paus/återupptagning ett Rust-kontrakt. Det är små, mekaniska åtgärder — inte en
 ny arkitektur.
 
+**Projektägaren har godkänt riktningen (2026-10-31)** med en ändrad ordning:
+kontraktsbeslutet ligger före B1, B1–B3 genomförs som tre separata PR:er, och
+den fysiska flytten sker först därefter. Se `07` §0 och
+[`09-contract-decision.md`](09-contract-decision.md).
+
+**SWE Core är inte hela SWE.** Målbilden är SWE = Workflowmotor · Behov ·
+Evidens · Operationer · Budget · Providers · Exekveringsjournal; Socialism =
+Research · JEV · OverGraph · GLiNER2 · Juridiska operationer · Dokument och
+rättskällor; separat experimentinfrastruktur = `swe-budget` / `swe-bench`.
+
 ## Leveranser
 
 | # | Leverans | Svarar på | Läs den om du vill veta |
@@ -29,11 +39,16 @@ ny arkitektur.
 | — | [`05-gym-split.md`](05-gym-split.md) | Fas E | Modul-för-modul-uppdelning av `swe-gym`: generisk kärna vs juridiskt domänexperiment, och vad som inte får följa med |
 | — | [`06-extraction-plan.md`](06-extraction-plan.md) | Fas F | Målstruktur för nya repot, filer som flyttas, historik, workspace, versionering, konsumtion, CI, risker och PR-ordning |
 | — | [`07-go-no-go.md`](07-go-no-go.md) | Beslutspunkt | Bevisat redo / inte redo, blockerare B1–B4, GO-grind och rekommendation |
-| — | [`08-verification-log.md`](08-verification-log.md) | Verifiering | Kommandon och resultat: 30/30 kärntester, 106/106 gymtester, 11/11 demotest, demo-run, importgates, CI-validering och korsgranskningens åtgärder |
+| 08 | [`08-verification-log.md`](08-verification-log.md) | Verifiering | Kommandon och resultat: 30/30 kärntester, 106/106 gymtester, 11/11 demotest, demo-run, importgates, CI-validering och korsgranskningens åtgärder |
+| 09 | [`09-contract-decision.md`](09-contract-decision.md) | Beslut (B1–B3) | Rust som enda sanningskälla, versionssatta serialiseringskontrakt, journalens försök/bekräftelse/debitering, ramverksgränsen, och att B1 inte får göra Python-adaptern självständig för tidigt |
+| 10 | [`10-pr1-b1-python-boundary.md`](10-pr1-b1-python-boundary.md) | PR 1 (B1) | De fem domänimporterna, exakt vart de flyttar, ny gränsyta, CI-gate och acceptanskriterier |
+| 11 | [`11-pr2-b2-core-contracts.md`](11-pr2-b2-core-contracts.md) | PR 2 (B2) | Generiska needs/evidence/operations i `swe-core` som normativ Rust, `swe-budget`, Python-projektion och differentialtestet |
+| 12 | [`12-pr3-b3-journal-resume.md`](12-pr3-b3-journal-resume.md) | PR 3 (B3) | Journal-/resume-kontraktet: run-snapshot, försök, bekräftade resultat, debitering, återhämtningsstrategier och de garantier som får/ inte får påstås |
 | — | [`../../crates/swe-reference/`](../../crates/swe-reference/README.md) | Fas D | Körbart, testat, helt offline domänneutralt referensexperiment (leverantörsval) |
 
-Leveranserna är isolerade i en PR: nya dokument, en ny crate och en CI-rad.
-Ingen befintlig produktionskod ändras.
+Leveranserna är isolerade i en PR: nya dokument (`README` + `01`–`12`), en ny
+crate och en CI-rad. **Ingen befintlig produktionskod ändras.** Dokument `09`–`12`
+är besluts- och PR-underlag för B1–B3; de implementerar ingenting.
 
 ## Referensexperimentet (Fas D)
 

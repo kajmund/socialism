@@ -125,6 +125,26 @@ Run input: question + candidate identities only. No prices, no answers.
 Conclusion: Beta (950 SEK) — Beta has the lowest price (950 SEK) among 1 compliant supplier(s)
 ```
 
+## What the pause/resume guarantee is — and is not
+
+The tests assert two different things, and they must not be conflated:
+
+* **Exactly-once charging (guaranteed here).** The ledger is rebuilt from its
+  own event log with `Ledger::replay`, and every completed invocation carries an
+  idempotency key, so a resumed run spends exactly what the uninterrupted run
+  spends: 46 000 milli in both cases, identical ledger event logs.
+* **Exactly-once *execution* of the demo's own actions (guaranteed here).** All
+  actions in this experiment are deterministic pure functions (handlers and a
+  mock provider), so replaying a confirmed result is provably identical to
+  re-running it: 33 unique invocations in both runs, nothing ran twice.
+* **Exactly-once execution of *external* tools (NOT claimed).** If a real
+  provider performs a side effect and the process crashes before the result is
+  journaled, the engine cannot know whether the side effect happened. That
+  needs an idempotency key honoured by the tool itself, or an explicit
+  recovery policy — see `docs/swe-standalone/09-contract-decision.md` §4 and
+  `12-pr3-b3-journal-resume.md` for the attempt / confirmed-result / charge
+  model that PR 3 adds.
+
 ## Pause/resume design
 
 A "run" is a sequence of segments. Each segment allocates its own ledger and

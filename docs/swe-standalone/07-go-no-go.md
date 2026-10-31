@@ -8,6 +8,47 @@ inventeringarna [`01-inventory-rust.md`](01-inventory-rust.md) /
 planen [`06-extraction-plan.md`](06-extraction-plan.md).
 **Ingen fysisk flytt har gjorts eller godkänts av detta dokument.**
 
+## 0. Beslut och ändrad ordning (2026-10-31)
+
+Projektägaren har **godkänt riktningen** och fattat följande beslut, som
+uppdaterar ordningen i §7:
+
+- **Godkänd:** separationen av SWE som självständigt projekt, förutsatt att
+  kodgranskningen bekräftar inventeringen och att referensexemplet verkligen är
+  domänneutralt (det är verifierat i `08-verification-log.md` §3).
+- **B1–B3 genomförs som tre separata PR:er**, men **kontraktsdesignen för B2
+  ligger före B1:s implementation**. Så undviker vi att abstrahera
+  Python-importerna mot ett gränssnitt som sedan ändras när behovs- och
+  operationsmodellen flyttas till Rust. Det betyder att kontrakten ska vara
+  *definierade* först — inte att B2 måste vara *färdigimplementerat* först.
+- **Varje PR ska kunna mergas utan att Research eller SWE:s befintliga
+  workflows ändrar beteende.**
+- **Gym-splitten (`05`) och licensfrågan får inte fördröja B1–B3.**
+- **Fysisk repo-flytt sker först efter att B1–B3 är stängda och verifierade mot
+  GO-grinden i §6.**
+
+Det gemensamma kontraktsbeslutet för B1–B3 finns i
+[`09-contract-decision.md`](09-contract-decision.md); de tre PR-planerna i
+[`10-pr1-b1-python-boundary.md`](10-pr1-b1-python-boundary.md),
+[`11-pr2-b2-core-contracts.md`](11-pr2-b2-core-contracts.md) och
+[`12-pr3-b3-journal-resume.md`](12-pr3-b3-journal-resume.md).
+
+Två principiella ställningstaganden från ägaren ingår i kontraktsbeslutet:
+
+1. **En sanningskälla:** Rust är normativ implementation; Python är adapter med
+   versionssatta serialiseringskontrakt. Samma behov får inte bli `RESOLVED` i
+   Python och `INSUFFICIENT_EVIDENCE` i Rust.
+2. **Journalen är en motorgaranti** — men exakt-engångs*debitering* är inte
+   samma sak som exakt-engångs*exekvering* av externa verktyg. Journalen ska
+   skilja på **exekveringsförsök**, **bekräftade resultat** och **ekonomisk
+   debitering**; externa sidoeffekter behöver idempotensnycklar eller annan
+   återhämtningsstrategi.
+
+**Ramverksbegränsning för B2:** SWE äger *mekanismen* för behov, evidens och
+operationer — inte domänens faktatyper, verifieringsregler eller
+undersökningsstrategier. Den gränsen definieras i `09` §5 och är en del av
+B2:s acceptanskriterier.
+
 ## 1. Beslut
 
 > **NO-GO för omedelbar fysisk flytt.**
@@ -67,7 +108,7 @@ Bevisar **inte**:
 
 ## 4. Blockerare
 
-### B1 — Domänimporter i Python-hostlagret (blockerande)
+### B1 — Domänimporter i Python-hostlagret (blockerande; plan i `10`)
 
 Fem importrader i tre filer gör att det "generiska" paketet inte kan flyttas:
 
@@ -85,7 +126,7 @@ omöjligt.
 **Minsta åtgärd:** en PR (PR 1 i `06` §8) med beroendeinversionerna +
 ett import-riktningsgate i CI. Ingen beteendeändring i research.
 
-### B2 — Generiska förmågor bor i experimentcraten (blockerande för målbilden)
+### B2 — Generiska förmågor bor i experimentcraten (blockerande för målbilden; plan i `11`)
 
 Behov, evidens, operationer och budget är generiska enligt specen men finns i
 `crates/swe-gym` (delvis med juridiska fixtures) eller saknas som generisk typ:
@@ -108,7 +149,7 @@ att förmågorna fungerar — men som applikationskod, inte som SWE-kontrakt.
 kontrakten; inga parallella implementationer).
 
 ### B3 — Paus/återupptagning saknar Rust-kontrakt (blockerande för
-självständigt bibliotek)
+självständigt bibliotek; plan i `12`)
 
 Python har `RunStore`/`InvocationRecord` + replay-semantik
 (`backend/app/swe/run_store.py`, `docs/specs/swe-overgraph.md`), men det finns
@@ -169,15 +210,27 @@ Uppskattad omfattning (grov, för planering): B1 ~0,5–1 dag; B2 ~2–4 dagar;
 B3 ~1–2 dagar; B4 ~1–2 dagar; PR 4–5 (repo + konsumtion) ~1–2 dagar. Gym-split
 är ett separat spår (~2–4 dagar) och blockerar inte SWE-extraktionen.
 
-## 7. Rekommendation
+## 7. Rekommendation (uppdaterad ordning, beslutad)
 
-1. **Godkänn denna utredning och `06`-planen** som underlag.
-2. **Kör PR 1–3** (B1–B3) i Socialism innan någon fysisk flytt. De är små,
-   testbara och ändrar inget researchbeteende.
-3. **Utvärdera GO igen** mot §6 när PR 1–3 är mergade; då är den kvarvarande
-   risken i huvudsak paketering/CI och gym-splittring.
-4. **Flytta inte `crates/swe-gym` som helhet** och skapa ingen parallell
-   implementation — följ `05-gym-split.md` och `06` §8.
+1. **Kontraktsbeslut** (`09-contract-decision.md`) — definierar Rust som
+   normativ semantik, serialiseringsversioner, journalens tre tillstånd och
+   ramverksgränsen. Ingen produktionskod ändras. **Detta sker före PR 1.**
+2. **PR 1 — B1:** bryt Python-hostens fem domänimporter mot de redan
+   definierade gränssnitten (`10-pr1-b1-python-boundary.md`).
+3. **PR 2 — B2:** flytta de generiska kontrakten till `swe-core` som
+   normativ Rust-implementation, med Python som adapter
+   (`11-pr2-b2-core-contracts.md`).
+4. **PR 3 — B3:** journal- och resume-kontraktet i `swe-core`, inklusive
+   försök/bekräftelse/debitering och idempotensnycklar
+   (`12-pr3-b3-journal-resume.md`).
+5. **B4** (egen CI och konsumenttester) följer därefter; gym-split och licens
+   löper parallellt utan att blockera 1–4.
+6. **Utvärdera GO igen** mot §6 när B1–B3 är mergade; först därefter flyttas
+   SWE till ett eget repo.
+
+Varje PR ska kunna mergas utan att Research eller SWE:s befintliga workflows
+ändrar beteende. Flytta inte `crates/swe-gym` som helhet och skapa ingen
+parallell implementation — följ `05-gym-split.md` och `06` §8.
 
 Kort uttryckt: **motorn är redo, hostlagret är nästan redo, målbilden är inte
 redo — men vägen dit är kort och mekanisk.**

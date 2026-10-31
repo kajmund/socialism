@@ -151,6 +151,23 @@ Python-inventeringen korsgranskade `03`/`04`/`06` mot koden och
 - **Full `swe-gym`-svit** kördes av inventeringsworkstreamen (106/106, `01` §17
   E3); Lead körde den igen som oberoende kontroll (exit 0, ~5 min).
 
+## 7.1 Ägarbeslut och PR-underlag (2026-10-31, efter granskning)
+
+Projektägaren godkände riktningen med ändrad ordning. Detta lade till fyra
+dokument utan att ändra någon produktionskod:
+
+| Dokument | Innehåll |
+| --- | --- |
+| [`09-contract-decision.md`](09-contract-decision.md) | D1–D5: Rust normativ semantik, versionssatta serialiseringskontrakt, journalens tre tillstånd (försök/bekräftelse/debitering), ramverksgräns, B1 utan för tidig Python-friställning |
+| [`10-pr1-b1-python-boundary.md`](10-pr1-b1-python-boundary.md) | PR 1-plan: de fem domänimporterna och exakt vart de flyttar |
+| [`11-pr2-b2-core-contracts.md`](11-pr2-b2-core-contracts.md) | PR 2-plan: `swe-core`-typerna, `swe-budget`, Python-projektion, differentialtest |
+| [`12-pr3-b3-journal-resume.md`](12-pr3-b3-journal-resume.md) | PR 3-plan: journalkontrakt och vilka garantier som får respektive inte får påstås |
+
+Referensexperimentets README fick ett nytt avsnitt ("What the pause/resume
+guarantee is — and is not") som skiljer exakt-engångs**debitering** från
+exakt-engångs**exekvering av externa verktyg**. Inga kodändringar; testerna är
+oförändrade (11/11).
+
 ## 8. Vad denna PR innehåller (scope)
 
 ```console
@@ -160,7 +177,7 @@ $ git status --short
 ?? docs/swe-standalone/
 ```
 
-- Nya dokument `docs/swe-standalone/README.md` + `01`–`08` (denna fil är 08).
+- Nya dokument `docs/swe-standalone/README.md` + `01`–`12` (denna fil är 08; `09`–`12` är besluts- och PR-underlag).
 - Ny crate `crates/swe-reference` (eget `Cargo.lock`, `.gitignore` med `/target`).
 - En CI-rad i `swe-runtime`-jobbet.
 - **Inga ändringar** i `backend/`, `crates/swe-native`, `crates/swe-gym`,

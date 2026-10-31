@@ -284,6 +284,20 @@ swe = { git = "https://github.com/kajmund/swe", tag = "v0.1.0", subdirectory = "
 | **5** | Socialism | Replace local SWE with the pinned dependency; delete `crates/swe-native` + `backend/app/swe`; keep adapters; delete the old CI jobs | Full backend + research regression green; no local SWE code remains; dependency contract test green |
 | **6** | Socialism + `swe` | Gym split per `05-gym-split.md` (G1–G5: ledger → `swe-budget` first, then runner/replay/arm/ops; RL env stays) | Generic gym tests in SWE; legal fixtures absent from SWE; experiment still runs in Socialism; reference demo re-pointed from `swe_gym::ledger` to `swe-budget` |
 
+**Project-owner decision (2026-10-31): the contract decision comes first.**
+
+| Step | Before the repo move | Document |
+| --- | --- | --- |
+| P0.5 | Contract decision: Rust is normative semantics, versioned serialization contracts, journal = attempt / confirmed result / charge, framework boundary | [`09-contract-decision.md`](09-contract-decision.md) |
+| P1 (B1) | Break the five Python domain imports | [`10-pr1-b1-python-boundary.md`](10-pr1-b1-python-boundary.md) |
+| P2 (B2) | Promote needs/evidence/operations to `swe-core` (Rust normative) + `swe-budget`; Python projects | [`11-pr2-b2-core-contracts.md`](11-pr2-b2-core-contracts.md) |
+| P3 (B3) | Journal/resume contract in `swe-core` incl. recovery strategies | [`12-pr3-b3-journal-resume.md`](12-pr3-b3-journal-resume.md) |
+| P4 (B4) | Own CI harness and consumer tests | this document §6 |
+
+Each of P1–P3 must be mergeable without changing Research or existing SWE
+workflow behaviour. The gym split (`05-gym-split.md`) and the licence decision
+run in parallel and must not delay P1–P3.
+
 Note on PR 2/3: they can be done directly in the new repo only if PR 4 happens
 first. The recommended order keeps the monorepo green at every step and avoids a
 long-lived duplicate: break dependencies in Socialism, then move. If the project
