@@ -1,0 +1,876 @@
+{
+  "version": 1,
+  "name": "blindtest-v3-chain",
+  "redacted": true,
+  "redaction_note": "Blindtest v3 result: no contract text; case ids, types, cardinalities, states, D10 classes, counts and hashes only.",
+  "frozen_material": "crates/swe-gym/benchmarks/blindtest_v3_material.json",
+  "frozen_chain": "crates/swe-gym/benchmarks/gliner2_chain_frozen_v2.json",
+  "arms": {
+    "m0": "frozen original chain (no M1-M6)",
+    "m1m6": "frozen M1-M6 chain (manifest gliner2-chain-m1m6-v1)"
+  },
+  "metrics": {
+    "m0": {
+      "cases": 13,
+      "resolved": 4,
+      "correct_answers": 4,
+      "correct_abstentions": 3,
+      "incorrect_abstentions": 6,
+      "false_resolved": 0,
+      "overclaims_non_answerable": 0,
+      "evidence_contamination_cases": 0,
+      "answer_contamination_cases": 0,
+      "correct_answer_despite_wrong_evidence": 0
+    },
+    "m1m6": {
+      "cases": 13,
+      "resolved": 6,
+      "correct_answers": 6,
+      "correct_abstentions": 3,
+      "incorrect_abstentions": 4,
+      "false_resolved": 0,
+      "overclaims_non_answerable": 0,
+      "evidence_contamination_cases": 0,
+      "answer_contamination_cases": 0,
+      "correct_answer_despite_wrong_evidence": 0
+    }
+  },
+  "d10": {
+    "definition": "Evidence contamination: a verified value outside the expected set. Answer contamination: a resolved answer containing such a value. Non-answerable needs: correct abstention vs overclaim (resolved anyway).",
+    "correct_answer_despite_wrong_evidence": "reported per arm and case"
+  },
+  "costs": {
+    "m0": {
+      "execution_jev_calls": 18,
+      "experiment_new_calls": 18,
+      "gliner_inferences_shared": 13
+    },
+    "m1m6": {
+      "execution_jev_calls": 20,
+      "experiment_new_calls": 3,
+      "gliner_inferences_shared": 13
+    }
+  },
+  "gains_m1m6": [
+    {
+      "case_id": "v3-lst-03",
+      "m0": "unsolved",
+      "m1m6": "resolved"
+    },
+    {
+      "case_id": "v3-nac-02",
+      "m0": "unsolved",
+      "m1m6": "resolved"
+    }
+  ],
+  "regressions_m1m6": [],
+  "per_case": [
+    {
+      "case_id": "v3-gbg-01",
+      "document": "goteborg-samarbetsavtal",
+      "need_type": "PARTY",
+      "cardinality": "MULTIPLE_UNKNOWN",
+      "answerable": false,
+      "states": {
+        "m0": "unsolved",
+        "m1m6": "incomplete_unknown_cardinality"
+      },
+      "d10": {
+        "m0": {
+          "resolved": false,
+          "correct_answer": false,
+          "false_resolved": false,
+          "overclaim": false,
+          "correct_abstention": true,
+          "incorrect_abstention": false,
+          "evidence_contamination": false,
+          "answer_contamination": false,
+          "correct_answer_despite_wrong_evidence": false
+        },
+        "m1m6": {
+          "resolved": false,
+          "correct_answer": false,
+          "false_resolved": false,
+          "overclaim": false,
+          "correct_abstention": true,
+          "incorrect_abstention": false,
+          "evidence_contamination": false,
+          "answer_contamination": false,
+          "correct_answer_despite_wrong_evidence": false
+        }
+      }
+    },
+    {
+      "case_id": "v3-gbg-02",
+      "document": "goteborg-samarbetsavtal",
+      "need_type": "TERMINATION_CONDITION",
+      "cardinality": "SINGLE",
+      "answerable": true,
+      "states": {
+        "m0": "unsolved",
+        "m1m6": "unsolved"
+      },
+      "d10": {
+        "m0": {
+          "resolved": false,
+          "correct_answer": false,
+          "false_resolved": false,
+          "overclaim": false,
+          "correct_abstention": false,
+          "incorrect_abstention": true,
+          "evidence_contamination": false,
+          "answer_contamination": false,
+          "correct_answer_despite_wrong_evidence": false
+        },
+        "m1m6": {
+          "resolved": false,
+          "correct_answer": false,
+          "false_resolved": false,
+          "overclaim": false,
+          "correct_abstention": false,
+          "incorrect_abstention": true,
+          "evidence_contamination": false,
+          "answer_contamination": false,
+          "correct_answer_despite_wrong_evidence": false
+        }
+      }
+    },
+    {
+      "case_id": "v3-gbg-03",
+      "document": "goteborg-samarbetsavtal",
+      "need_type": "PERIOD",
+      "cardinality": "SINGLE",
+      "answerable": false,
+      "states": {
+        "m0": "unsolved",
+        "m1m6": "unsolved"
+      },
+      "d10": {
+        "m0": {
+          "resolved": false,
+          "correct_answer": false,
+          "false_resolved": false,
+          "overclaim": false,
+          "correct_abstention": true,
+          "incorrect_abstention": false,
+          "evidence_contamination": false,
+          "answer_contamination": false,
+          "correct_answer_despite_wrong_evidence": false
+        },
+        "m1m6": {
+          "resolved": false,
+          "correct_answer": false,
+          "false_resolved": false,
+          "overclaim": false,
+          "correct_abstention": true,
+          "incorrect_abstention": false,
+          "evidence_contamination": false,
+          "answer_contamination": false,
+          "correct_answer_despite_wrong_evidence": false
+        }
+      }
+    },
+    {
+      "case_id": "v3-lst-01",
+      "document": "lansstyrelsen-upphandling-lieslatter",
+      "need_type": "PARTY",
+      "cardinality": "MULTIPLE_UNKNOWN",
+      "answerable": false,
+      "states": {
+        "m0": "unsolved",
+        "m1m6": "incomplete_unknown_cardinality"
+      },
+      "d10": {
+        "m0": {
+          "resolved": false,
+          "correct_answer": false,
+          "false_resolved": false,
+          "overclaim": false,
+          "correct_abstention": true,
+          "incorrect_abstention": false,
+          "evidence_contamination": false,
+          "answer_contamination": false,
+          "correct_answer_despite_wrong_evidence": false
+        },
+        "m1m6": {
+          "resolved": false,
+          "correct_answer": false,
+          "false_resolved": false,
+          "overclaim": false,
+          "correct_abstention": true,
+          "incorrect_abstention": false,
+          "evidence_contamination": false,
+          "answer_contamination": false,
+          "correct_answer_despite_wrong_evidence": false
+        }
+      }
+    },
+    {
+      "case_id": "v3-lst-02",
+      "document": "lansstyrelsen-upphandling-lieslatter",
+      "need_type": "PERIOD",
+      "cardinality": "SINGLE",
+      "answerable": true,
+      "states": {
+        "m0": "unsolved",
+        "m1m6": "unsolved"
+      },
+      "d10": {
+        "m0": {
+          "resolved": false,
+          "correct_answer": false,
+          "false_resolved": false,
+          "overclaim": false,
+          "correct_abstention": false,
+          "incorrect_abstention": true,
+          "evidence_contamination": false,
+          "answer_contamination": false,
+          "correct_answer_despite_wrong_evidence": false
+        },
+        "m1m6": {
+          "resolved": false,
+          "correct_answer": false,
+          "false_resolved": false,
+          "overclaim": false,
+          "correct_abstention": false,
+          "incorrect_abstention": true,
+          "evidence_contamination": false,
+          "answer_contamination": false,
+          "correct_answer_despite_wrong_evidence": false
+        }
+      }
+    },
+    {
+      "case_id": "v3-lst-03",
+      "document": "lansstyrelsen-upphandling-lieslatter",
+      "need_type": "PERIOD",
+      "cardinality": "SINGLE",
+      "answerable": true,
+      "states": {
+        "m0": "unsolved",
+        "m1m6": "resolved"
+      },
+      "d10": {
+        "m0": {
+          "resolved": false,
+          "correct_answer": false,
+          "false_resolved": false,
+          "overclaim": false,
+          "correct_abstention": false,
+          "incorrect_abstention": true,
+          "evidence_contamination": false,
+          "answer_contamination": false,
+          "correct_answer_despite_wrong_evidence": false
+        },
+        "m1m6": {
+          "resolved": true,
+          "correct_answer": true,
+          "false_resolved": false,
+          "overclaim": false,
+          "correct_abstention": false,
+          "incorrect_abstention": false,
+          "evidence_contamination": false,
+          "answer_contamination": false,
+          "correct_answer_despite_wrong_evidence": false
+        }
+      }
+    },
+    {
+      "case_id": "v3-lst-04",
+      "document": "lansstyrelsen-upphandling-lieslatter",
+      "need_type": "NOTICE_PERIOD",
+      "cardinality": "SINGLE",
+      "answerable": true,
+      "states": {
+        "m0": "resolved",
+        "m1m6": "resolved"
+      },
+      "d10": {
+        "m0": {
+          "resolved": true,
+          "correct_answer": true,
+          "false_resolved": false,
+          "overclaim": false,
+          "correct_abstention": false,
+          "incorrect_abstention": false,
+          "evidence_contamination": false,
+          "answer_contamination": false,
+          "correct_answer_despite_wrong_evidence": false
+        },
+        "m1m6": {
+          "resolved": true,
+          "correct_answer": true,
+          "false_resolved": false,
+          "overclaim": false,
+          "correct_abstention": false,
+          "incorrect_abstention": false,
+          "evidence_contamination": false,
+          "answer_contamination": false,
+          "correct_answer_despite_wrong_evidence": false
+        }
+      }
+    },
+    {
+      "case_id": "v3-lst-05",
+      "document": "lansstyrelsen-upphandling-lieslatter",
+      "need_type": "PERIOD",
+      "cardinality": "SINGLE",
+      "answerable": true,
+      "states": {
+        "m0": "resolved",
+        "m1m6": "resolved"
+      },
+      "d10": {
+        "m0": {
+          "resolved": true,
+          "correct_answer": true,
+          "false_resolved": false,
+          "overclaim": false,
+          "correct_abstention": false,
+          "incorrect_abstention": false,
+          "evidence_contamination": false,
+          "answer_contamination": false,
+          "correct_answer_despite_wrong_evidence": false
+        },
+        "m1m6": {
+          "resolved": true,
+          "correct_answer": true,
+          "false_resolved": false,
+          "overclaim": false,
+          "correct_abstention": false,
+          "incorrect_abstention": false,
+          "evidence_contamination": false,
+          "answer_contamination": false,
+          "correct_answer_despite_wrong_evidence": false
+        }
+      }
+    },
+    {
+      "case_id": "v3-lst-06",
+      "document": "lansstyrelsen-upphandling-lieslatter",
+      "need_type": "TERMINATION_CONDITION",
+      "cardinality": "SINGLE",
+      "answerable": true,
+      "states": {
+        "m0": "unsolved",
+        "m1m6": "unsolved"
+      },
+      "d10": {
+        "m0": {
+          "resolved": false,
+          "correct_answer": false,
+          "false_resolved": false,
+          "overclaim": false,
+          "correct_abstention": false,
+          "incorrect_abstention": true,
+          "evidence_contamination": false,
+          "answer_contamination": false,
+          "correct_answer_despite_wrong_evidence": false
+        },
+        "m1m6": {
+          "resolved": false,
+          "correct_answer": false,
+          "false_resolved": false,
+          "overclaim": false,
+          "correct_abstention": false,
+          "incorrect_abstention": true,
+          "evidence_contamination": false,
+          "answer_contamination": false,
+          "correct_answer_despite_wrong_evidence": false
+        }
+      }
+    },
+    {
+      "case_id": "v3-nac-01",
+      "document": "nacka-avtalad-tjanst",
+      "need_type": "LIABILITY_CAP",
+      "cardinality": "SINGLE",
+      "answerable": true,
+      "states": {
+        "m0": "unsolved",
+        "m1m6": "unsolved"
+      },
+      "d10": {
+        "m0": {
+          "resolved": false,
+          "correct_answer": false,
+          "false_resolved": false,
+          "overclaim": false,
+          "correct_abstention": false,
+          "incorrect_abstention": true,
+          "evidence_contamination": false,
+          "answer_contamination": false,
+          "correct_answer_despite_wrong_evidence": false
+        },
+        "m1m6": {
+          "resolved": false,
+          "correct_answer": false,
+          "false_resolved": false,
+          "overclaim": false,
+          "correct_abstention": false,
+          "incorrect_abstention": true,
+          "evidence_contamination": false,
+          "answer_contamination": false,
+          "correct_answer_despite_wrong_evidence": false
+        }
+      }
+    },
+    {
+      "case_id": "v3-nac-02",
+      "document": "nacka-avtalad-tjanst",
+      "need_type": "PERIOD",
+      "cardinality": "SINGLE",
+      "answerable": true,
+      "states": {
+        "m0": "unsolved",
+        "m1m6": "resolved"
+      },
+      "d10": {
+        "m0": {
+          "resolved": false,
+          "correct_answer": false,
+          "false_resolved": false,
+          "overclaim": false,
+          "correct_abstention": false,
+          "incorrect_abstention": true,
+          "evidence_contamination": false,
+          "answer_contamination": false,
+          "correct_answer_despite_wrong_evidence": false
+        },
+        "m1m6": {
+          "resolved": true,
+          "correct_answer": true,
+          "false_resolved": false,
+          "overclaim": false,
+          "correct_abstention": false,
+          "incorrect_abstention": false,
+          "evidence_contamination": false,
+          "answer_contamination": false,
+          "correct_answer_despite_wrong_evidence": false
+        }
+      }
+    },
+    {
+      "case_id": "v3-nac-03",
+      "document": "nacka-avtalad-tjanst",
+      "need_type": "NOTICE_PERIOD",
+      "cardinality": "SINGLE",
+      "answerable": true,
+      "states": {
+        "m0": "resolved",
+        "m1m6": "resolved"
+      },
+      "d10": {
+        "m0": {
+          "resolved": true,
+          "correct_answer": true,
+          "false_resolved": false,
+          "overclaim": false,
+          "correct_abstention": false,
+          "incorrect_abstention": false,
+          "evidence_contamination": false,
+          "answer_contamination": false,
+          "correct_answer_despite_wrong_evidence": false
+        },
+        "m1m6": {
+          "resolved": true,
+          "correct_answer": true,
+          "false_resolved": false,
+          "overclaim": false,
+          "correct_abstention": false,
+          "incorrect_abstention": false,
+          "evidence_contamination": false,
+          "answer_contamination": false,
+          "correct_answer_despite_wrong_evidence": false
+        }
+      }
+    },
+    {
+      "case_id": "v3-nac-04",
+      "document": "nacka-avtalad-tjanst",
+      "need_type": "NOTICE_PERIOD",
+      "cardinality": "SINGLE",
+      "answerable": true,
+      "states": {
+        "m0": "resolved",
+        "m1m6": "resolved"
+      },
+      "d10": {
+        "m0": {
+          "resolved": true,
+          "correct_answer": true,
+          "false_resolved": false,
+          "overclaim": false,
+          "correct_abstention": false,
+          "incorrect_abstention": false,
+          "evidence_contamination": false,
+          "answer_contamination": false,
+          "correct_answer_despite_wrong_evidence": false
+        },
+        "m1m6": {
+          "resolved": true,
+          "correct_answer": true,
+          "false_resolved": false,
+          "overclaim": false,
+          "correct_abstention": false,
+          "incorrect_abstention": false,
+          "evidence_contamination": false,
+          "answer_contamination": false,
+          "correct_answer_despite_wrong_evidence": false
+        }
+      }
+    }
+  ],
+  "details": {
+    "m0": {
+      "v3-gbg-01": {
+        "state": "unsolved",
+        "contract_state": "unsolved",
+        "approved_value_sha256": [],
+        "gold_value_sha256": [
+          "0c2bab3aad950acf9947c3a8dd26d060b0635af69448e1f3d903d274b89dc7f7"
+        ],
+        "recovery_events": [],
+        "m4_window": null
+      },
+      "v3-gbg-02": {
+        "state": "unsolved",
+        "contract_state": "unsolved",
+        "approved_value_sha256": [],
+        "gold_value_sha256": [
+          "2fd8d4bb050f81c42e3347c3d32b23acc4c51adf89e4170440308c266c1099ab"
+        ],
+        "recovery_events": [],
+        "m4_window": null
+      },
+      "v3-gbg-03": {
+        "state": "unsolved",
+        "contract_state": "unsolved",
+        "approved_value_sha256": [],
+        "gold_value_sha256": [],
+        "recovery_events": [],
+        "m4_window": null
+      },
+      "v3-lst-01": {
+        "state": "unsolved",
+        "contract_state": "unsolved",
+        "approved_value_sha256": [],
+        "gold_value_sha256": [
+          "0e5e70d53c21e8cbfdb433c5ffbc53e3ad578d7cccd814077ac027f57cd778e9"
+        ],
+        "recovery_events": [],
+        "m4_window": null
+      },
+      "v3-lst-02": {
+        "state": "unsolved",
+        "contract_state": "unsolved",
+        "approved_value_sha256": [],
+        "gold_value_sha256": [
+          "d8ce4fa21722e73d8c153d5e222b7d0e80627e3daec938ec625249976bc797de"
+        ],
+        "recovery_events": [],
+        "m4_window": null
+      },
+      "v3-lst-03": {
+        "state": "unsolved",
+        "contract_state": "unsolved",
+        "approved_value_sha256": [],
+        "gold_value_sha256": [
+          "5114ca3102100b4294c8794198f33b0af0f51b9b009d62a81c5644cc8fa80e8a"
+        ],
+        "recovery_events": [],
+        "m4_window": null
+      },
+      "v3-lst-04": {
+        "state": "resolved",
+        "contract_state": "resolved",
+        "approved_value_sha256": [
+          "5114ca3102100b4294c8794198f33b0af0f51b9b009d62a81c5644cc8fa80e8a"
+        ],
+        "gold_value_sha256": [
+          "5114ca3102100b4294c8794198f33b0af0f51b9b009d62a81c5644cc8fa80e8a"
+        ],
+        "recovery_events": [],
+        "m4_window": null
+      },
+      "v3-lst-05": {
+        "state": "resolved",
+        "contract_state": "resolved",
+        "approved_value_sha256": [
+          "8e5df289c376f5417ba5a54e416a6a647c50fc58e763c4b373f1d87f2e9a291c"
+        ],
+        "gold_value_sha256": [
+          "8e5df289c376f5417ba5a54e416a6a647c50fc58e763c4b373f1d87f2e9a291c"
+        ],
+        "recovery_events": [],
+        "m4_window": null
+      },
+      "v3-lst-06": {
+        "state": "unsolved",
+        "contract_state": "unsolved",
+        "approved_value_sha256": [],
+        "gold_value_sha256": [
+          "367f6706eb44a435b45f8a2c1396a78d58b0c516e2c6a450c2c5cf750056e81e"
+        ],
+        "recovery_events": [],
+        "m4_window": null
+      },
+      "v3-nac-01": {
+        "state": "unsolved",
+        "contract_state": "unsolved",
+        "approved_value_sha256": [],
+        "gold_value_sha256": [
+          "917d3e0a6568412dc4a5c497a6d62966581ef132826a2798db955deb94f71eeb"
+        ],
+        "recovery_events": [],
+        "m4_window": null
+      },
+      "v3-nac-02": {
+        "state": "unsolved",
+        "contract_state": "unsolved",
+        "approved_value_sha256": [],
+        "gold_value_sha256": [
+          "facfcb18dd1f0e19713f72a45ac139cd0e6558fc8617e7908ca65b7dd2e54070"
+        ],
+        "recovery_events": [],
+        "m4_window": null
+      },
+      "v3-nac-03": {
+        "state": "resolved",
+        "contract_state": "resolved",
+        "approved_value_sha256": [
+          "152afa567b9af1cab5f1a821deef50f4880f1109c4b623af59076ee40a9cf35d"
+        ],
+        "gold_value_sha256": [
+          "152afa567b9af1cab5f1a821deef50f4880f1109c4b623af59076ee40a9cf35d"
+        ],
+        "recovery_events": [],
+        "m4_window": null
+      },
+      "v3-nac-04": {
+        "state": "resolved",
+        "contract_state": "resolved",
+        "approved_value_sha256": [
+          "138cee11a0e207f8a64fb826bdbcc028fb7e98868f4d760555cafd52a5216683"
+        ],
+        "gold_value_sha256": [
+          "138cee11a0e207f8a64fb826bdbcc028fb7e98868f4d760555cafd52a5216683"
+        ],
+        "recovery_events": [],
+        "m4_window": null
+      }
+    },
+    "m1m6": {
+      "v3-gbg-01": {
+        "state": "incomplete_unknown_cardinality",
+        "contract_state": "unsolved",
+        "approved_value_sha256": [],
+        "gold_value_sha256": [
+          "0c2bab3aad950acf9947c3a8dd26d060b0635af69448e1f3d903d274b89dc7f7"
+        ],
+        "recovery_events": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "no structural window contained the clause"
+        }
+      },
+      "v3-gbg-02": {
+        "state": "unsolved",
+        "contract_state": "unsolved",
+        "approved_value_sha256": [],
+        "gold_value_sha256": [
+          "2fd8d4bb050f81c42e3347c3d32b23acc4c51adf89e4170440308c266c1099ab"
+        ],
+        "recovery_events": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "M4 not in arm"
+        }
+      },
+      "v3-gbg-03": {
+        "state": "unsolved",
+        "contract_state": "unsolved",
+        "approved_value_sha256": [],
+        "gold_value_sha256": [],
+        "recovery_events": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "M4 not in arm"
+        }
+      },
+      "v3-lst-01": {
+        "state": "incomplete_unknown_cardinality",
+        "contract_state": "unsolved",
+        "approved_value_sha256": [],
+        "gold_value_sha256": [
+          "0e5e70d53c21e8cbfdb433c5ffbc53e3ad578d7cccd814077ac027f57cd778e9"
+        ],
+        "recovery_events": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "no structural window contained the clause"
+        }
+      },
+      "v3-lst-02": {
+        "state": "unsolved",
+        "contract_state": "unsolved",
+        "approved_value_sha256": [],
+        "gold_value_sha256": [
+          "d8ce4fa21722e73d8c153d5e222b7d0e80627e3daec938ec625249976bc797de"
+        ],
+        "recovery_events": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "M4 not in arm"
+        }
+      },
+      "v3-lst-03": {
+        "state": "resolved",
+        "contract_state": "resolved",
+        "approved_value_sha256": [
+          "5114ca3102100b4294c8794198f33b0af0f51b9b009d62a81c5644cc8fa80e8a"
+        ],
+        "gold_value_sha256": [
+          "5114ca3102100b4294c8794198f33b0af0f51b9b009d62a81c5644cc8fa80e8a"
+        ],
+        "recovery_events": [
+          {
+            "span_sha256": "5114ca3102100b4294c8794198f33b0af0f51b9b009d62a81c5644cc8fa80e8a",
+            "detector": true,
+            "role_match": true,
+            "first_choice": "NO",
+            "supplementary_choice": "YES",
+            "recovered": true,
+            "recovered_value_in_gold": true
+          }
+        ],
+        "m4_window": {
+          "expanded": false,
+          "reason": "M4 not in arm"
+        }
+      },
+      "v3-lst-04": {
+        "state": "resolved",
+        "contract_state": "resolved",
+        "approved_value_sha256": [
+          "5114ca3102100b4294c8794198f33b0af0f51b9b009d62a81c5644cc8fa80e8a"
+        ],
+        "gold_value_sha256": [
+          "5114ca3102100b4294c8794198f33b0af0f51b9b009d62a81c5644cc8fa80e8a"
+        ],
+        "recovery_events": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "M4 not in arm"
+        }
+      },
+      "v3-lst-05": {
+        "state": "resolved",
+        "contract_state": "resolved",
+        "approved_value_sha256": [
+          "8e5df289c376f5417ba5a54e416a6a647c50fc58e763c4b373f1d87f2e9a291c"
+        ],
+        "gold_value_sha256": [
+          "8e5df289c376f5417ba5a54e416a6a647c50fc58e763c4b373f1d87f2e9a291c"
+        ],
+        "recovery_events": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "M4 not in arm"
+        }
+      },
+      "v3-lst-06": {
+        "state": "unsolved",
+        "contract_state": "unsolved",
+        "approved_value_sha256": [],
+        "gold_value_sha256": [
+          "367f6706eb44a435b45f8a2c1396a78d58b0c516e2c6a450c2c5cf750056e81e"
+        ],
+        "recovery_events": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "M4 not in arm"
+        }
+      },
+      "v3-nac-01": {
+        "state": "unsolved",
+        "contract_state": "unsolved",
+        "approved_value_sha256": [],
+        "gold_value_sha256": [
+          "917d3e0a6568412dc4a5c497a6d62966581ef132826a2798db955deb94f71eeb"
+        ],
+        "recovery_events": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "M4 not in arm"
+        }
+      },
+      "v3-nac-02": {
+        "state": "resolved",
+        "contract_state": "resolved",
+        "approved_value_sha256": [
+          "facfcb18dd1f0e19713f72a45ac139cd0e6558fc8617e7908ca65b7dd2e54070"
+        ],
+        "gold_value_sha256": [
+          "facfcb18dd1f0e19713f72a45ac139cd0e6558fc8617e7908ca65b7dd2e54070"
+        ],
+        "recovery_events": [
+          {
+            "span_sha256": "42d77ee66bbf97b39da1831f1fa144904a0ac9e424b0aa28c1f2c6a2f58f6534",
+            "detector": true,
+            "role_match": true,
+            "first_choice": "NO",
+            "supplementary_choice": "YES",
+            "recovered": true,
+            "recovered_value_in_gold": true
+          }
+        ],
+        "m4_window": {
+          "expanded": false,
+          "reason": "M4 not in arm"
+        }
+      },
+      "v3-nac-03": {
+        "state": "resolved",
+        "contract_state": "resolved",
+        "approved_value_sha256": [
+          "152afa567b9af1cab5f1a821deef50f4880f1109c4b623af59076ee40a9cf35d"
+        ],
+        "gold_value_sha256": [
+          "152afa567b9af1cab5f1a821deef50f4880f1109c4b623af59076ee40a9cf35d"
+        ],
+        "recovery_events": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "M4 not in arm"
+        }
+      },
+      "v3-nac-04": {
+        "state": "resolved",
+        "contract_state": "resolved",
+        "approved_value_sha256": [
+          "138cee11a0e207f8a64fb826bdbcc028fb7e98868f4d760555cafd52a5216683"
+        ],
+        "gold_value_sha256": [
+          "138cee11a0e207f8a64fb826bdbcc028fb7e98868f4d760555cafd52a5216683"
+        ],
+        "recovery_events": [
+          {
+            "span_sha256": "03e08a91a1f6aee42283fed6c5e60b12dfbdcabd132e08e9261a5446584c8730",
+            "detector": true,
+            "role_match": true,
+            "first_choice": "NO",
+            "supplementary_choice": "NO",
+            "recovered": false,
+            "recovered_value_in_gold": false
+          }
+        ],
+        "m4_window": {
+          "expanded": false,
+          "reason": "M4 not in arm"
+        }
+      }
+    }
+  },
+  "reservation": "One frozen run, no adjustments. Both arms are scored against exactly the same facit. This is the generalization test for the frozen M1-M6 chain; single-run results on 13 needs are evidence, not a production guarantee."
+}

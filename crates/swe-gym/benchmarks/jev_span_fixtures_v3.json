@@ -1,0 +1,196 @@
+{
+  "version": 1,
+  "redacted": true,
+  "redaction_note": "v3 answers keyed by case + span digest + prompt version + context digest; no contract text.",
+  "entries": [
+    {
+      "key": "0d7457dd8702959d",
+      "case_id": "v3-lst-03",
+      "span_canon_sha256": "5114ca3102100b4294c8794198f33b0af0f51b9b009d62a81c5644cc8fa80e8a",
+      "prompt_version": "span-need-recovery-v1",
+      "context_sha256": "099577ff899db8e6c4706b013d9d6bbbc07d14fec8250439b180789f2b446dbf",
+      "model": "jev-1.13.0",
+      "choice": "YES"
+    },
+    {
+      "key": "20e0c2d4284ef1dd",
+      "case_id": "v3-nac-02",
+      "span_canon_sha256": "42d77ee66bbf97b39da1831f1fa144904a0ac9e424b0aa28c1f2c6a2f58f6534",
+      "prompt_version": "span-need-contrast-v1",
+      "context_sha256": "aecc4806f51da8928c7bf942e50c8e0b67f08468e4c215a14d690132f139b378",
+      "model": "jev-1.13.0",
+      "choice": "NO"
+    },
+    {
+      "key": "2a836878ad536e27",
+      "case_id": "v3-lst-04",
+      "span_canon_sha256": "5114ca3102100b4294c8794198f33b0af0f51b9b009d62a81c5644cc8fa80e8a",
+      "prompt_version": "span-need-contrast-v1",
+      "context_sha256": "c051b67f2ff50619298df422901d4dbb52c20b9b194a7a29541f23945ac0ec5e",
+      "model": "jev-1.13.0",
+      "choice": "YES"
+    },
+    {
+      "key": "3463f43fca8e408a",
+      "case_id": "v3-nac-04",
+      "span_canon_sha256": "03e08a91a1f6aee42283fed6c5e60b12dfbdcabd132e08e9261a5446584c8730",
+      "prompt_version": "span-need-recovery-v1",
+      "context_sha256": "8d46866e13e27d6543af5fdf02e347e3b45cfcdc2159abc67f99c0d43f5d3895",
+      "model": "jev-1.13.0",
+      "choice": "NO"
+    },
+    {
+      "key": "375d3f268c7ed20a",
+      "case_id": "v3-lst-01",
+      "span_canon_sha256": "aad3bd985f48377571c119fc8b59100370591b5a1e9866bbedb7dd59121e3de4",
+      "prompt_version": "span-need-contrast-v1",
+      "context_sha256": "d9ee9e539c978874ed8a9dadc7d1c9e8e9b5cd1e0ed50b927f144705cf2e1583",
+      "model": "jev-1.13.0",
+      "choice": "NO"
+    },
+    {
+      "key": "3981a260a6ce5280",
+      "case_id": "v3-nac-04",
+      "span_canon_sha256": "03e08a91a1f6aee42283fed6c5e60b12dfbdcabd132e08e9261a5446584c8730",
+      "prompt_version": "span-need-contrast-v1",
+      "context_sha256": "8d46866e13e27d6543af5fdf02e347e3b45cfcdc2159abc67f99c0d43f5d3895",
+      "model": "jev-1.13.0",
+      "choice": "NO"
+    },
+    {
+      "key": "3b558a8ab89ea3d7",
+      "case_id": "v3-gbg-03",
+      "span_canon_sha256": "27227a6d826e3cdb39e6ccc35a3bfc23db0799ea4002ace6ad4fb91ef940b655",
+      "prompt_version": "span-need-contrast-v1",
+      "context_sha256": "572ff528c54109fb23ec42e83da6f45286711ce5ba62b2488d3628245a921819",
+      "model": "jev-1.13.0",
+      "choice": "NO"
+    },
+    {
+      "key": "4ba5898564754467",
+      "case_id": "v3-gbg-01",
+      "span_canon_sha256": "d58b14a6456c7dd6e63a9ca064292aceaf15ea9b876df2f448e56b7e2c38345a",
+      "prompt_version": "span-need-contrast-v1",
+      "context_sha256": "cd316716d38ef49e13f9e69ebc1d2429fc27dd3ce3bb1a735adef6fb92d5bc02",
+      "model": "jev-1.13.0",
+      "choice": "NO"
+    },
+    {
+      "key": "5897e8ec39c6bcd8",
+      "case_id": "v3-gbg-03",
+      "span_canon_sha256": "20f2968de6bca75875c5d8eff215d53cdb465a2015e945bfc753b81e443fb7ec",
+      "prompt_version": "span-need-contrast-v1",
+      "context_sha256": "572ff528c54109fb23ec42e83da6f45286711ce5ba62b2488d3628245a921819",
+      "model": "jev-1.13.0",
+      "choice": "NO"
+    },
+    {
+      "key": "5ebf08516b2a8fc3",
+      "case_id": "v3-lst-02",
+      "span_canon_sha256": "d8ce4fa21722e73d8c153d5e222b7d0e80627e3daec938ec625249976bc797de",
+      "prompt_version": "span-need-contrast-v1",
+      "context_sha256": "ce3ef01a312f6bde2f7b706c74078e2518b849deffe00829eff22d32672cc84b",
+      "model": "jev-1.13.0",
+      "choice": "YES"
+    },
+    {
+      "key": "64a7d3f37a723468",
+      "case_id": "v3-lst-06",
+      "span_canon_sha256": "c575e5b877baa0717ee8efc3dd5b126680a428449acc74b2af7df24bae2fc21d",
+      "prompt_version": "span-need-contrast-v1",
+      "context_sha256": "83d40efb4351a751009ddb4e185bf11dfc1829921d9e63b2fe72a9a0d9aa74d6",
+      "model": "jev-1.13.0",
+      "choice": "NO"
+    },
+    {
+      "key": "6f370e6f32006b1a",
+      "case_id": "v3-lst-06",
+      "span_canon_sha256": "f4bde7971af7fb9592d11feb5c75be8b7814fc2eca7ff064b7ccfee99ad20afd",
+      "prompt_version": "span-need-contrast-v1",
+      "context_sha256": "83d40efb4351a751009ddb4e185bf11dfc1829921d9e63b2fe72a9a0d9aa74d6",
+      "model": "jev-1.13.0",
+      "choice": "NO"
+    },
+    {
+      "key": "779d5c5ec8034735",
+      "case_id": "v3-lst-05",
+      "span_canon_sha256": "e78d25f7a074fd4e0387ea42b69a6a61a0c19675de612a61780f704cc1c3eb84",
+      "prompt_version": "span-need-contrast-v1",
+      "context_sha256": "2b6c0998cd77ab2c8a21b0dcbf21723aa645212df34aa052a04501eeba46ff88",
+      "model": "jev-1.13.0",
+      "choice": "YES"
+    },
+    {
+      "key": "83a2dfdb86e0a38d",
+      "case_id": "v3-lst-03",
+      "span_canon_sha256": "5114ca3102100b4294c8794198f33b0af0f51b9b009d62a81c5644cc8fa80e8a",
+      "prompt_version": "span-need-contrast-v1",
+      "context_sha256": "099577ff899db8e6c4706b013d9d6bbbc07d14fec8250439b180789f2b446dbf",
+      "model": "jev-1.13.0",
+      "choice": "NO"
+    },
+    {
+      "key": "86753d234fa1113c",
+      "case_id": "v3-nac-03",
+      "span_canon_sha256": "64c727f3f40f5ab9205be9d6ac8cfcedac471a1b297435bcbf73ea73938233cb",
+      "prompt_version": "span-need-contrast-v1",
+      "context_sha256": "a6b70b9c850564e31bf5ba6ca0692b4215545cca5682e4a2e601c73ee4d94095",
+      "model": "jev-1.13.0",
+      "choice": "YES"
+    },
+    {
+      "key": "95ebb4d04b0cf91f",
+      "case_id": "v3-gbg-03",
+      "span_canon_sha256": "512d0f29088c76daad57b9c3569733021775483b2ca319fa56c99a07dd996d4e",
+      "prompt_version": "span-need-contrast-v1",
+      "context_sha256": "572ff528c54109fb23ec42e83da6f45286711ce5ba62b2488d3628245a921819",
+      "model": "jev-1.13.0",
+      "choice": "NO"
+    },
+    {
+      "key": "a8df320da9c60545",
+      "case_id": "v3-nac-02",
+      "span_canon_sha256": "42d77ee66bbf97b39da1831f1fa144904a0ac9e424b0aa28c1f2c6a2f58f6534",
+      "prompt_version": "span-need-recovery-v1",
+      "context_sha256": "aecc4806f51da8928c7bf942e50c8e0b67f08468e4c215a14d690132f139b378",
+      "model": "jev-1.13.0",
+      "choice": "YES"
+    },
+    {
+      "key": "c46d5e86d74466b8",
+      "case_id": "v3-lst-01",
+      "span_canon_sha256": "4ccec3fd47ee5162962804420d4b53c8ee5ecfc827f79ffd21e679b305742003",
+      "prompt_version": "span-need-contrast-v1",
+      "context_sha256": "d9ee9e539c978874ed8a9dadc7d1c9e8e9b5cd1e0ed50b927f144705cf2e1583",
+      "model": "jev-1.13.0",
+      "choice": "NO"
+    },
+    {
+      "key": "e6b79816b7ceeeae",
+      "case_id": "v3-nac-04",
+      "span_canon_sha256": "55b5de58dff4c6df3c3d9bcb6c14e524037527edb477dbdb2fc4adea3411b343",
+      "prompt_version": "span-need-contrast-v1",
+      "context_sha256": "8d46866e13e27d6543af5fdf02e347e3b45cfcdc2159abc67f99c0d43f5d3895",
+      "model": "jev-1.13.0",
+      "choice": "YES"
+    },
+    {
+      "key": "f583f8e71a9fe0b6",
+      "case_id": "v3-lst-06",
+      "span_canon_sha256": "a24e600e719afd943791c68ece063c1384ac78fd7d14ce5b2b1b1b9f4260e488",
+      "prompt_version": "span-need-contrast-v1",
+      "context_sha256": "83d40efb4351a751009ddb4e185bf11dfc1829921d9e63b2fe72a9a0d9aa74d6",
+      "model": "jev-1.13.0",
+      "choice": "NO"
+    },
+    {
+      "key": "fa420667d59a89b9",
+      "case_id": "v3-lst-01",
+      "span_canon_sha256": "f38d4146966092706657afc6e04871bd2b255196e7d68f77cd4ef93daf0f8592",
+      "prompt_version": "span-need-contrast-v1",
+      "context_sha256": "d9ee9e539c978874ed8a9dadc7d1c9e8e9b5cd1e0ed50b927f144705cf2e1583",
+      "model": "jev-1.13.0",
+      "choice": "NO"
+    }
+  ]
+}
