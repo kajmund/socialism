@@ -8,6 +8,7 @@ mod error;
 mod events;
 mod evidence;
 mod expression;
+mod journal;
 mod json;
 mod machine;
 mod needs;
@@ -26,6 +27,11 @@ pub use evidence::{
     EvidenceStatus, Provenance,
 };
 pub use expression::evaluate_expression;
+pub use journal::{
+    attempt_id, delivery_key, plan_recovery, unresolved_charges, ChargeState, CompletionOutcome,
+    Delivery, Journal, JournalError, JournalEvent, JournalHeader, OpenAttempt, Recovery,
+    JOURNAL_SCHEMA_VERSION,
+};
 pub use json::Json;
 pub use machine::{start_run, WorkflowMachine};
 pub use needs::{
