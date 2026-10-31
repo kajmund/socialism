@@ -31,6 +31,7 @@ def assert_providers_registered(
     providers: Mapping[str, Callable[..., Any]],
     prompts: Mapping[str, str] | None,
     cache: Any | None,
+    *,
     prompt_keys: Collection[str] | None = None,
 ) -> None:
     """Fail-closed runtime counterpart of the compile-time prompt allowlist.

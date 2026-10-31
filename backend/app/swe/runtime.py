@@ -163,7 +163,7 @@ class WorkflowRunner:
             self.resources.providers,
             self.resources.prompts,
             self.resources.cache,
-            self.resources.prompt_keys,
+            prompt_keys=self.resources.prompt_keys,
         )
         machine = native.Machine()
         run_id = run_id or f"run-{uuid.uuid4().hex[:12]}"
@@ -219,7 +219,7 @@ class WorkflowRunner:
             self.resources.providers,
             self.resources.prompts,
             self.resources.cache,
-            self.resources.prompt_keys,
+            prompt_keys=self.resources.prompt_keys,
         )
         machine = native.Machine()
         clock = self.clock or WorkflowClock()
