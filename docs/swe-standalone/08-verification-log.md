@@ -682,32 +682,52 @@ behovshärledning och grind. Adaptern (`read_operation_gate`,
 `read_derived_needs`) rapporterar motorns utfall och omtolkar det aldrig.
 Differentialtesterna täcker härledda behov och fyra grindsituationer.
 
-### Mutationstabell — 5 av 5 efter rättelse
+### Mutationstabell — rättad efter granskning
+
+Min första tabell sade "5 av 5". **Det var fel:** den oberoende granskningen
+körde **40 mutationer och fann 12 missade**. Tabellen täckte de fall jag valt
+att pröva, inte den yta som fanns — samma övertro som i B3.
 
 | Garanti | Mutation | Fångas av |
 | --- | --- | --- |
 | Obligatorisk `contract_version` | återinför default | `a_journal_without_a_contract_version_is_refused` |
-| Obligatorisk `journal_events` | återinför tom logg | samma |
-| Förlustfri utfallskodning | kollapsa till bool | `confirmed_outcomes_survive_the_round_trip` |
-| Tariff-hash prövas vid inläsning | hoppa över kontrollen | `a_tampered_tariff_hash_is_refused` |
-| Beroenden jämförs inspelat mot aktuellt (H1) | jämför mot sig själv | `a_journal_recording_another_dependency_version_is_refused` + `a_journal_missing_a_recorded_dependency_is_refused` |
-| Grinden avvisar ofullständig indata | `if true` i stället för `status.is_resolved()` | `test_the_gate_can_never_report_ready_with_a_missing_input` |
+| Obligatorisk `journal_events` | återinför tom logg | samma (helpern panikar nu om fältet saknas) |
+| Förlustfri utfallskodning | koda `Err` som `Cancelled` | `an_error_outcome_does_not_become_a_cancellation` |
+| Ok-payload bevaras | nolla payloaden | `ok_payload_survives_the_round_trip` |
+| Okänd utfallstyp | acceptera den | `an_unknown_outcome_kind_is_refused` |
+| Alla händelsetyper | tappa en typ | `every_event_kind_round_trips` |
+| Tariff-hash prövas vid inläsning | hoppa över | `a_tampered_tariff_hash_is_refused` |
+| Resume prövar **hostens** tariffer | ignorera config | `a_journal_replayed_under_other_tariffs_is_refused` |
+| Skrivvägen pinnar faktiska tariffer | skriv default | `a_run_priced_with_custom_tariffs_round_trips_and_resumes` |
+| Beroenden jämförs inspelat mot aktuellt (H1) | jämför mot sig själv | `a_journal_recording_another_dependency_version_is_refused` |
+| Grinden avvisar ofullständig indata | `if true` | `test_the_gate_can_never_report_ready_with_a_missing_input` |
+| Grinden rapporterar **varför** | status → `UNRESOLVED` | `test_the_gate_reports_the_status_that_blocked` |
 
-**Två av dessa fångades inte första gången**, precis som i tidigare rundor:
+**Fem mutationer som granskningen fann och som nu är stängda:**
 
-1. **`delivery_key`-stabiliteten** (B3) — testet jämförde nyckeln med sig själv.
-2. **H1:s beroendejämförelse** — jämförde en konstant mot sig själv; mitt första
-   test slog inte igenom eftersom `verify()` körde på en karta som byggdes från
-   samma konstant. Testet som fångar det kräver nu att *filen* bär en annan
-   version och att resume avvisar den.
+1. `drop_top_level_field` var en tyst no-op när fältet saknades → tre av fyra
+   fältkontroller bevisade ingenting.
+2. `CompletionOutcome`-kodningen hade inget direkt test, och demo-resumen
+   använder `completed[].output`, inte `journal_events` → `Err → Cancelled` och
+   Ok-payloaden var opinnade.
+3. Tariff-fästet jämförde filen mot sig själv; `ResumeConfig` saknade hostens
+   tariffer och `RunConfig::with_tariffs` hade noll anropare.
+4. De två nya differentialtesterna för Python-bindningarna var tautologier
+   (`read == f(engine)`).
+5. `derive_needs`-testet pinnade bara id:n och defaultvärdena.
+
+**Kvar som dokumenterad svaghet:** `OperationSpec::gate` använder
+`states.iter().find(..)`, så om samma behov förekommer två gånger i statuslistan
+avgör ordningen. Bindningen matchar Rust exakt (ingen divergens), men det bör
+antingen avvisas eller dokumenteras innan grinden blir ett offentligt kontrakt.
 
 ### Resultat
 
 ```console
 crates/swe-native     80 tester   (66 lib + 2 boundary + 12 machine)
 crates/swe-budget      9 tester
-crates/swe-reference  26 tester; walkthrough exit 0
-backend SWE+research 162 tester; ruff och maintainability rena
+crates/swe-reference  32 tester   (5 codec + 27 integration); walkthrough exit 0
+backend SWE+research 163 tester; ruff och maintainability rena
 CI                    alla 13 checks gröna
 ```
 

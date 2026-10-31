@@ -231,7 +231,8 @@ uttryckligen **inte** färdiga och hör till GO-grinden:
 | Skuld | Varför den inte är stängd | Blockerar |
 | --- | --- | --- |
 | Referensdemon har kvar en lokal `OpOutcome` | Kärnans `NeedMore(NeedRef)` bär ett behov per utfall; demon bär en lista. Byten är en beteendeförändring och ska vara eget granskat steg (C2.4b) | **PR 4** |
-| Operationsgrinden saknar Python-bindningar | Kriterium 1 gäller inom Rust; över gränsen är det otestat. Krävs bara om Python ska vara stödd konsument av grinden | **GO-grinden**, inte B3 |
+| ~~Operationsgrinden saknar Python-bindningar~~ **åtgärdat** | `swe_native.derive_needs` och `swe_native.operation_gate` finns, med differentialtester mot kärnan | — |
+| Demon har en **andra grind**: `all_required` i `swe-reference` är en egen kopia, medan `swe_native::OperationSpec::gate` bara nås via Python-bindningen | Två sanningskällor för samma regel — samma klass som `OpOutcome` innan B2 | **Före PR 4**: låt demon gå genom kärnans grind |
 
 Det som är stängt och mutationstestat: Rust normativ semantik, Python utan egen
 statuslogik, differentialtest som faktiskt kan faila, domänneutral kärna,

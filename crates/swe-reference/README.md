@@ -157,6 +157,19 @@ The tests assert three different things, and they must not be conflated:
   also means an unconfirmed external charge may be unknown rather than zero:
   the journal reserves `pending_reconciliation` for that case.
 
+**The demo now uses the engine journal.** The journal file carries, and requires,
+these fields (a missing one is a typed error, never a default):
+
+| Field | Meaning |
+| --- | --- |
+| `journal_version` | the demo journal format |
+| `contract_version` | version of the engine need/evidence/operation contracts |
+| `definition_sha256` | hash of the workflow document |
+| `tariff_sha256` | hash of the tariffs the run was billed at |
+| `dependency_versions` | the provider/operation versions this run actually used |
+| `journal_events` | the engine's append-only event log |
+| `document`, `input`, `completed`, `charges`, `ledger_events` | the run state |
+
 **The demo now uses the engine journal.** Every metered action is recorded in
 `swe_native::journal` as four events — `AttemptStarted`, `ChargeReserved`,
 `ResultConfirmed`, `ChargeSettled` — and those events are persisted with the run
@@ -211,37 +224,36 @@ walkthrough):
 
 ## Tests
 
-`cargo test --offline` runs twenty-six integration tests:
+`cargo test --offline` runs these tests (plus five journal codec
+unit tests in `src/journal.rs`):
 
-1. `conclusion_is_beta` — completed run, conclusion Beta, 950 SEK, 13 verified
-   evidence entries with provenance.
-2. `needs_are_derived_from_operation_contracts_not_data` — pauses right after
-   planning; 12 needs from contracts, no conditional fact yet, and the identical
-   need list for the damaged provider scenario.
-3. `missing_and_ambiguous_evidence_abstains` — incomplete run whose terminal
-   conclusion is `INSUFFICIENT_EVIDENCE`, with one rejected and one ambiguous
-   evidence entry and no price operation.
-4. `need_more_is_resolved_and_operation_reruns` — screening returns `need_more`
-   for `alpha.c_exception`, which is then resolved and the operation re-runs.
-5. `all_required_gate_lists_every_missing_input` — absent, ambiguous and
-   rejected inputs all fail the gate with reasons.
-6. `deterministic_comparison_prefers_cheapest_compliant` — comparison and
-   tie-breaking are deterministic.
-7. `pause_and_resume_charge_and_execute_exactly_once` — journal file round-trip,
-   then the same spend, unique executions, charges and ledger event log as an
-   uninterrupted run.
-8. `a_tampered_journal_is_rejected` — a journal whose definition hash no longer
-   matches its document cannot be resumed.
-9. `repeated_runs_are_deterministic` — same run id and input produce identical
-   outputs, evidence, charges and ledger events.
-10. `metering_is_per_action_and_sums_to_the_ledger` — per-action totals equal
-    ledger spend and stay inside the allocation.
-11. `need_more_is_a_typed_operation_outcome` — `OpOutcome::NeedMore` serialises
-    to the handler protocol (`status: "need_more"` plus the new needs).
-12. `no_compliant_supplier_is_a_terminal_report_not_a_crash` — when screening
-    verifies every fact but nobody is compliant, the comparison runs on an empty
-    candidate set and the report is a terminal `NO_COMPLIANT_SUPPLIER` with null
-    supplier and price, rather than crashing on a null answer.
+- `a_journal_from_another_contract_version_is_refused`
+- `a_journal_missing_a_recorded_dependency_is_refused`
+- `a_journal_recording_another_dependency_version_is_refused`
+- `a_journal_replayed_under_other_tariffs_is_refused`
+- `a_journal_whose_definition_changed_is_refused`
+- `a_journal_with_an_unreadable_event_log_is_refused`
+- `a_journal_without_a_contract_version_is_refused`
+- `a_run_priced_with_custom_tariffs_round_trips_and_resumes`
+- `a_tampered_journal_is_rejected`
+- `a_tampered_tariff_hash_is_refused`
+- `all_required_gate_lists_every_missing_input`
+- `conclusion_is_beta`
+- `confirmed_outcomes_survive_the_round_trip`
+- `deterministic_comparison_prefers_cheapest_compliant`
+- `every_action_is_journaled_as_attempt_result_and_charge`
+- `every_critical_transition_survives_a_pause_and_resume`
+- `metering_is_per_action_and_sums_to_the_ledger`
+- `missing_and_ambiguous_evidence_abstains`
+- `need_more_is_resolved_and_operation_reruns`
+- `need_more_is_the_engines_singular_protocol`
+- `needs_are_derived_from_operation_contracts_not_data`
+- `no_action_settles_twice_across_a_resume`
+- `no_compliant_supplier_is_a_terminal_report_not_a_crash`
+- `pause_and_resume_charge_and_execute_exactly_once`
+- `repeated_runs_are_deterministic`
+- `several_discovered_needs_are_resolved_over_several_rounds`
+- `the_journal_round_trip_is_lossless`
 
 ## Gaps found in SWE core
 
