@@ -25,6 +25,7 @@ jobs:
       word_addin: ${{ steps.filter.outputs.word_addin }}
       knowledge: ${{ steps.filter.outputs.knowledge }}
       swe_gym: ${{ steps.filter.outputs.swe_gym }}
+      swe_core: ${{ steps.filter.outputs.swe_core }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -41,9 +42,11 @@ jobs:
           word_addin=false
           knowledge=false
           swe_gym=false
+          swe_core=false
 
           if [ "${{ github.event_name }}" != "pull_request" ]; then
             backend=true
+            swe_core=true
             frontend=true
             word_addin=true
             knowledge=true
@@ -52,6 +55,10 @@ jobs:
               case "$path" in
                 crates/swe-gym/*)
                   swe_gym=true
+                  ;;
+                crates/swe-native/*|crates/swe-budget/*|crates/swe-reference/*|contracts/*|mutations/*|scripts/check_mutations.py|Cargo.toml|Cargo.lock)
+                  swe_core=true
+                  backend=true
                   ;;
                 backend/*|integrations/*|data/*|crates/*)
                   backend=true
@@ -220,6 +227,29 @@ jobs:
       - name: SWD and runtime tests
         run: uv run pytest tests/test_swe_*.py -m "not smoke"
 
+  swe-mutation:
+    name: SWE mutation gate
+    needs: changes
+    if: needs.changes.outputs.swe_core == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.83.0
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: .
+      # Blocking, but against a verified baseline: every mutation is classified
+      # as detected / equivalent / excepted with a justification, and any
+      # mutation whose outcome disagrees with its classification fails. The
+      # baseline and the script arrive with the packaging branch, so the step
+      # only runs where they exist.
+      - name: Classified mutation gate
+        if: hashFiles('scripts/check_mutations.py') != ''
+        run: python3 scripts/check_mutations.py
+
   postgres-schema:
     name: PostgreSQL schema
     needs: changes
@@ -354,7 +384,7 @@ jobs:
   ci:
     name: CI
     if: always()
-    needs: [changes, backend, research-reuse, swe-runtime, postgres-schema, frontend, word-addin, knowledge, swe-gym]
+    needs: [changes, backend, research-reuse, swe-runtime, swe-mutation, postgres-schema, frontend, word-addin, knowledge, swe-gym]
     runs-on: ubuntu-latest
     steps:
       - name: Require all jobs
@@ -363,6 +393,7 @@ jobs:
           backend="${{ needs.backend.result }}"
           research_reuse="${{ needs.research-reuse.result }}"
           swe_runtime="${{ needs.swe-runtime.result }}"
+          swe_mutation="${{ needs.swe-mutation.result }}"
           postgres_schema="${{ needs.postgres-schema.result }}"
           frontend="${{ needs.frontend.result }}"
           word_addin="${{ needs.word-addin.result }}"
@@ -374,7 +405,7 @@ jobs:
             exit 1
           fi
 
-          for result in "$backend" "$research_reuse" "$swe_runtime" "$postgres_schema" "$frontend" "$word_addin" "$knowledge" "$swe_gym"; do
+          for result in "$backend" "$research_reuse" "$swe_runtime" "$swe_mutation" "$postgres_schema" "$frontend" "$word_addin" "$knowledge" "$swe_gym"; do
             if [ "$result" != "success" ] && [ "$result" != "skipped" ]; then
               echo "Required jobs: backend=$backend research-reuse=$research_reuse swe-runtime=$swe_runtime postgres-schema=$postgres_schema frontend=$frontend word-addin=$word_addin knowledge=$knowledge swe-gym=$swe_gym"
               exit 1
