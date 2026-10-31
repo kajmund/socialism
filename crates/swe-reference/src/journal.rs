@@ -11,7 +11,7 @@
 
 use std::path::Path;
 
-use swe_gym::ledger::{Amount, Event, EventKind};
+use swe_budget::{Amount, Event, EventKind};
 use swe_native::{canonical_json_bytes, parse_json_str, sha256_hex, Json};
 
 use crate::domain::Scenario;

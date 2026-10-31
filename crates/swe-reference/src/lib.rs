@@ -1,7 +1,7 @@
 //! Domain-neutral reference experiment for the SWE workflow core.
 //!
 //! The demo drives one supplier-selection question through the `swe-native`
-//! SWD 1.0 kernel and meters every action with the `swe-gym` Sweycoin ledger.
+//! SWD 1.0 kernel and meters every action with the `swe-budget` Sweycoin ledger.
 //! It contains no product configuration, no network access and no model calls:
 //! the only data source is a deterministic in-memory provider, and the
 //! expected conclusion (Beta) is never given to the workflow.
@@ -11,7 +11,7 @@
 //! - `swe_native`: SWD document loading, the host-paced [`WorkflowMachine`],
 //!   the [`swe_native::Effect`] commands and the canonical JSON / SHA-256
 //!   definition hash.
-//! - `swe_gym::ledger`: the append-only Sweycoin ledger (`allocate` /
+//! - `swe_budget`: the append-only Sweycoin ledger (`allocate` /
 //!   `reserve` / `settle` / `replay`) used for the budget and its journal.
 //!
 //! Evidence, information needs, operation contracts, the ALL_REQUIRED gate,
@@ -81,8 +81,8 @@ impl From<swe_native::RuntimeError> for DemoError {
     }
 }
 
-impl From<swe_gym::ledger::LedgerError> for DemoError {
-    fn from(error: swe_gym::ledger::LedgerError) -> Self {
+impl From<swe_budget::LedgerError> for DemoError {
+    fn from(error: swe_budget::LedgerError) -> Self {
         Self::new(format!("ledger: {error}"))
     }
 }

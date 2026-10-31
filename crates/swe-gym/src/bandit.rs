@@ -8,7 +8,7 @@
 use std::collections::HashMap;
 
 use crate::benchmark::{run_arm, ArmReport};
-use crate::ledger::Amount;
+use swe_budget::Amount;
 use crate::strategy::{
     rank_unresolved_by_score, BranchPlan, Continuation, Observations, ProviderKind, Question,
     QuestionView, ScanDecision, ScanState, Strategy, Tariffs,

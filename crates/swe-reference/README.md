@@ -2,7 +2,7 @@
 
 A small, fully offline Rust experiment that answers one supplier-selection
 question by executing a real SWD 1.0 workflow on the `swe-native` kernel and
-metering every action with the reused `swe-gym` Sweycoin ledger.
+metering every action with the reused `swe-budget` Sweycoin ledger.
 
 The point is to show that the SWE core works on its own: the crate has no
 product configuration, no network access, no model calls, no document or legal
@@ -38,7 +38,7 @@ The mock provider serves three deterministic scenarios, all offline:
 | ------- | -------------- | ------------------ |
 | SWD 1.0 document loading, SHA-256 definition hash, canonical JSON | `swe-native` | Embedded definition is hashed and executed as-is |
 | Host-paced machine, effects, routing, fork/join, map, expression + provider decisions, `end` statuses | `swe-native` | The workflow graph; the host only answers effects |
-| Append-only Sweycoin ledger (`allocate` / `reserve` / `settle` / `balance` / `events` / `replay`) | `swe-gym::ledger` | Budget, per-action metering and deduplicated (at-most-once) settlement |
+| Append-only Sweycoin ledger (`allocate` / `reserve` / `settle` / `balance` / `events` / `replay`) | `swe-budget` | Budget, per-action metering and deduplicated (at-most-once) settlement |
 | Evidence, information needs, operation contracts (typed `OpOutcome`: `Answer` / `NeedMore` / `Insufficient`), ALL_REQUIRED gate, supplier register, mock provider, run journal | **This crate (application layer)** | Demo-level objects. `swe-native` has no such primitives today |
 
 No engine logic is copied: the only "driver" code here is effect dispatch,
@@ -71,7 +71,7 @@ cargo clippy --offline --all-targets -- -D warnings
 ```
 
 Everything is offline. The only dependencies are the path crates
-`../swe-native` and `../swe-gym`; `Cargo.lock` is committed.
+`../swe-native` and `../swe-budget`; `Cargo.lock` is committed.
 
 ## Walkthrough: the ten required demonstrations
 
@@ -114,7 +114,7 @@ Run input: question + candidate identities only. No prices, no answers.
     terminal status: Incomplete
     conclusion: INSUFFICIENT_EVIDENCE
     reason: INSUFFICIENT_EVIDENCE: operation screen_compliance ALL_REQUIRED gate is missing 1 required input(s): beta.req_c
-[8] Sweycoin consumption from the reused swe_gym ledger (per action + total)
+[8] Sweycoin consumption from the reused swe_budget ledger (per action + total)
     mock.supplier_facts                 13       2000          26000
     reference.accept_evidence           13       1000          13000
     ...
@@ -254,10 +254,11 @@ copying engine logic.
    string; any facts must either be carried as extra keys in the same output
    object (as this demo does informally) or routed through handlers. There is no
    typed provider result.
-5. **Budget is not in the kernel.** The generic Sweycoin ledger lives in the
-   `swe-gym` experiment crate. Reusing it for a non-gym host means taking a path
-   dependency on an experiment; a budget/metering primitive at engine level (or
-   in a small shared crate) does not exist.
+5. **Budget is not in the kernel — resolved in B2.** The generic Sweycoin ledger
+   used to live in the `swe-gym` experiment crate, so a non-gym host had to take
+   a path dependency on an experiment. B2 moved it to its own `swe-budget` crate
+   and this demo now depends on that. The ledger is still not wired into the
+   engine's effect loop; metering remains a host responsibility.
 6. **`join` mode is declared but not parsed.** `docs/specs/swe-swd-1.0.md`
    documents `mode: all` / `on_failure: fail`, but the Rust definition parser
    only reads join `outputs` and `next`; the field is silently ignored.
@@ -271,7 +272,7 @@ copying engine logic.
 
 ## Constraints this experiment respects
 
-* Only path dependencies `../swe-native` and `../swe-gym`; own `Cargo.toml` and
+* Only path dependencies `../swe-native` and `../swe-budget`; own `Cargo.toml` and
   committed `Cargo.lock`; no workspace membership changes.
 * No network, no model calls, no Python, no product configuration, no document
   or legal domain types.

@@ -17,4 +17,4 @@ path = "src/lib.rs"
 
 [dependencies]
 swe-native = { path = "../swe-native" }
-swe-gym = { path = "../swe-gym" }
+swe-budget = { path = "../swe-budget" }

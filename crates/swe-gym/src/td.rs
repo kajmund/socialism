@@ -11,7 +11,7 @@
 
 use crate::bandit::{reward_for, scan_context, scan_state_key};
 use crate::benchmark::run_arm;
-use crate::ledger::Amount;
+use swe_budget::Amount;
 use crate::strategy::ScanDecision;
 use crate::strategy::{
     rank_unresolved_by_score, BranchPlan, Continuation, Observations, ProviderKind, Question,

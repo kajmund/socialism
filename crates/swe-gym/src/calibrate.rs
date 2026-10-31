@@ -8,7 +8,7 @@
 //! Anchors are explicit inputs, never hidden defaults. The report states the
 //! implied resource cost of the current prices alongside the proposal.
 
-use crate::ledger::Amount;
+use swe_budget::Amount;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct CallSample {

@@ -182,7 +182,7 @@ fn main() -> DemoResult<()> {
     );
 
     println!();
-    println!("[8] Sweycoin consumption from the reused swe_gym ledger (per action + total)");
+    println!("[8] Sweycoin consumption from the reused swe_budget ledger (per action + total)");
     println!(
         "    {:<32} {:>5} {:>10} {:>14}",
         "action", "calls", "unit milli", "total milli"

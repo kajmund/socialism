@@ -11,7 +11,7 @@
 
 use crate::agent::Policy;
 use crate::env::{action_from_index, action_index, Action, Observation, Status};
-use crate::ledger::Amount;
+use swe_budget::Amount;
 use crate::provider::json_escape;
 use crate::real::{RealEnv, RealQuestion};
 use swe_native::{parse_json_str, Json};

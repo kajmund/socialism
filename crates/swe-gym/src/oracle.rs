@@ -12,7 +12,7 @@
 //! results.
 
 use crate::env::{gain_tiers, terminal_reward, EnvConfig, STRATEGY_COUNT};
-use crate::ledger::Amount;
+use swe_budget::Amount;
 use std::collections::HashMap;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]

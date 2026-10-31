@@ -27,7 +27,7 @@ use crate::env::{
     budget_bracket, Action, Observation, Status, StepInfo, INVEST_AMOUNTS_MILLI, MIN_INVEST_MILLI,
     STRATEGY_COUNT, TIER_MAX,
 };
-use crate::ledger::{Amount, Ledger};
+use swe_budget::{Amount, Ledger};
 use crate::provider::{ReplayProvider, ResearchProvider};
 use crate::train::EpisodeReport;
 

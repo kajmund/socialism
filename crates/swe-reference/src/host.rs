@@ -8,14 +8,14 @@
 //! 1. both `InvokeHandler` and `InvokeProvider` effects are dispatched
 //!    (handlers are local pure functions, the provider is the deterministic mock);
 //! 2. every dispatch is reserved and settled in the reused
-//!    [`swe_gym::ledger::Ledger`], so per-action and total Sweycoin cost are real;
+//!    [`swe_budget::Ledger`], so per-action and total Sweycoin cost are real;
 //! 3. when a spend checkpoint is configured, the host pauses instead of failing:
 //!    it returns a [`Journal`] that can be written to disk and resumed in a
 //!    fresh run, replaying persisted invocation results and the ledger.
 
 use std::collections::{BTreeMap, HashMap, VecDeque};
 
-use swe_gym::ledger::{Amount, Ledger};
+use swe_budget::{Amount, Ledger};
 use swe_native::{sha256_hex, start_run, Effect, Json, RunStatus, StepOutcome, WorkflowMachine};
 
 use crate::domain::Scenario;

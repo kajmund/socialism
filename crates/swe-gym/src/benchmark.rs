@@ -14,7 +14,7 @@ use swe_native::{
 };
 
 use crate::driver::{build_chain_document_for, build_chunk_input_with_texts, CallRecord};
-use crate::ledger::{Amount, Ledger, LedgerError};
+use swe_budget::{Amount, Ledger, LedgerError};
 use crate::provider::ResearchProvider;
 use crate::strategy::{
     BranchPlan, Continuation, Observations, Question, ScanDecision, ScanState, Strategy, Tariffs,
