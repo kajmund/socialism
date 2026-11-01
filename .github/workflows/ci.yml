@@ -242,18 +242,19 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: .
-      # A clean runner has no registry cache, so resolve the locked dependency
-      # set online first. The gate itself then runs offline and deterministically.
-      - name: Fetch locked dependencies
-        run: cargo fetch --locked
       # Blocking, but against a verified baseline: every mutation is classified
       # as detected / equivalent / excepted with a justification, and any
-      # mutation whose outcome disagrees with its classification fails. The
-      # baseline and the script arrive with the packaging branch, so the step
-      # only runs where they exist.
+      # mutation whose outcome disagrees with its classification fails. Both the
+      # workspace and the baseline arrive with the packaging branch, so every
+      # step here is guarded together - an unguarded fetch would fail on a branch
+      # that has no root Cargo.toml yet.
       - name: Classified mutation gate
         if: hashFiles('scripts/check_mutations.py') != ''
-        run: python3 scripts/check_mutations.py
+        run: |
+          # A clean runner has no registry cache, so resolve the locked set
+          # online first; the gate itself then runs offline and deterministically.
+          cargo fetch --locked
+          python3 scripts/check_mutations.py
 
   postgres-schema:
     name: PostgreSQL schema
