@@ -45,7 +45,7 @@ rättskällor; separat experimentinfrastruktur = `swe-budget` / `swe-bench`.
 | # | Leverans | Svarar på | Läs den om du vill veta |
 | --- | --- | --- | --- |
 | — | [`01-inventory-rust.md`](01-inventory-rust.md) | Fas A | Varje Rust-moduls placering, ansvar, beroenden, domänkoppling, ägare och åtgärd; externberoenden; test-/fixture-/benchmarkinventering; riktiga testresultat |
-| — | [`02-inventory-python.md`](02-inventory-python.md) | Fas A | Alla 23 filer i `backend/app/swe`; research-bryggan; OverGraph-/JEV-adaptrarna; test- och CI-inventering; faktisk importriktning med grep-bevis |
+| — | [`02-inventory-python.md`](02-inventory-python.md) | Fas A | Alla 23 filer i det dåvarande `backend/app/swe` (nu `python/swe`); research-bryggan; OverGraph-/JEV-adaptrarna; test- och CI-inventering; faktisk importriktning med grep-bevis |
 | — | [`03-ownership-matrix.md`](03-ownership-matrix.md) | Fas B | Vad som tillhör SWE respektive Socialism, med regel, gränsfall och beslutspunkter |
 | — | [`04-public-contracts.md`](04-public-contracts.md) | Fas C | Vilka API:er som måste vara stabila: workflow, needs, evidence, operations, budget, providers, policy, historik, benchmark |
 | — | [`05-gym-split.md`](05-gym-split.md) | Fas E | Modul-för-modul-uppdelning av `swe-gym`: generisk kärna vs juridiskt domänexperiment, och vad som inte får följa med |
@@ -106,8 +106,8 @@ cargo test --offline --manifest-path crates/swe-gym/Cargo.toml
 cargo test --offline --manifest-path crates/swe-reference/Cargo.toml
 cargo run --offline --manifest-path crates/swe-reference/Cargo.toml
 
-# Importriktning: inga domänimporter i app/swe (endast kända läckage före PR 1)
-grep -rnE "from app\.(config|jev|services)" backend/app/swe/
+# Importriktning: inga domänimporter i python/swe (importnamn `swe`)
+grep -rnE "from (app|config|jev|services)\." python/swe/
 
 # Offline-bevis för demon: inga nätverksberoenden i crates/swe-reference utöver
 # de två path-beroendena; mock-providern är deterministisk.

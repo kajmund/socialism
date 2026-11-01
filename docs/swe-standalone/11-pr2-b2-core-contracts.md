@@ -7,6 +7,8 @@ implementeras efter B1.**
 **Storlek:** ~2–4 dagar, uppdelad i fem små commits.
 **Ramverksgränsen** i `09` §5 gäller: SWE äger mekanismen, inte domänens
 innehåll.
+**Historik:** dokumentet beskriver läget före B4; sökvägarna `backend/app/swe`
+avser dåvarande placering (efter B4: `python/swe`).
 
 ## 1. Mål
 

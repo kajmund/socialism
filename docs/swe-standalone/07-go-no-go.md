@@ -123,6 +123,9 @@ Bevisar **inte**:
 
 ### B1 — Domänimporter i Python-hostlagret (**åtgärdad**; plan `10`, resultat `08` §7.3)
 
+**Historik:** tabellen nedan visar läget före B1; sökvägarna `backend/app/swe`
+gäller dåvarande placering (efter B4: `python/swe`).
+
 Fem importrader i tre filer gör att det "generiska" paketet inte kan flyttas:
 
 | Fil:rad | Import | Åtgärd |
@@ -165,7 +168,7 @@ kontrakten; inga parallella implementationer).
 självständigt bibliotek; plan i `12`)
 
 Python har `RunStore`/`InvocationRecord` + replay-semantik
-(`backend/app/swe/run_store.py`, `docs/specs/swe-overgraph.md`), men det finns
+(`python/swe/run_store.py`, `docs/specs/swe-overgraph.md`), men det finns
 ingen Rust-motsvarighet och ingen produktionskoppling. Demon implementerar
 journalen i applikationslagret.
 
@@ -247,7 +250,7 @@ B3 stängdes i runda 9 efter fyra oberoende granskningsrundor; sista svaret var
 
 | # | Kriterium | Status | Evidens |
 | --- | --- | --- | --- |
-| 1 | Importriktning: noll `app.*`-importer + automatiskt gate | **Uppfyllt** | `grep` i `backend/app/swe/` ger noll icke-`app.swe`-importer; `tests/test_swe_import_boundary.py` (7 tester, `ast`-baserad) failar vid återfall |
+| 1 | Importriktning: noll `app.*`-importer + automatiskt gate | **Uppfyllt** | `grep` i `python/swe/` ger noll `app.*`-importer; `python/tests/test_swe_import_boundary.py` (8 tester, `ast`-baserad) failar vid återfall |
 | 2 | Domänneutral demo mot de nya kontrakten, ingen applikationskopia av grind eller ledger | **Uppfyllt** | `crates/swe-reference/Cargo.toml` beror bara på `swe-native` + `swe-budget`; `all_required`/`GateResult` borta; ledger via `swe_budget::Ledger` |
 | 3 | Rust-journal: paus/återuppta går genom kärnans kontrakt | **Uppfyllt** | `host.rs` skriver `AttemptStarted`/`ChargeReserved`/`ResultConfirmed`/`ChargeSettled`; 132 händelser över en pausad+återupptagen körning; `JournalHeader::verify` prövar schema, definition, kontrakt och beroenden |
 | 4 | Fristående harness: `cargo test --workspace` + `pytest` utan Socialism-checkout | **Uppfyllt i B4** | Root-`Cargo.toml` med `swe-native`/`swe-budget`/`swe-reference`; `python/` är ett installerbar paket med egen `python/tests` (136 tester) som passerar i en venv utanför repot utan backend på `sys.path`. Se `08 §7.14` |
@@ -276,7 +279,7 @@ göra dess gränser flyttbara.
 1. **Kontraktsbeslut** (`09-contract-decision.md`) — definierar Rust som
    normativ semantik, serialiseringsversioner, journalens tre tillstånd och
    ramverksgränsen. Ingen produktionskod ändras. **Detta sker före PR 1.**
-2. **PR 1 — B1:** ✅ **genomförd.** `app/swe` har noll domänimporter,
+2. **PR 1 — B1:** ✅ **genomförd.** `app/swe` (nu `python/swe`) har noll domänimporter,
    prompt-allowlisten är fail-closed både vid kompilering och exekvering,
    import-gaten ligger i testsviten (`10-pr1-b1-python-boundary.md`, resultat i
    `08` §7.3).

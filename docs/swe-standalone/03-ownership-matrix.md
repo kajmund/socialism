@@ -4,6 +4,8 @@
 inventeringarna [`01-inventory-rust.md`](01-inventory-rust.md),
 [`02-inventory-python.md`](02-inventory-python.md) samt
 [`05-gym-split.md`](05-gym-split.md). Ingen kod ändras av detta dokument.
+**B4-uppdatering:** Python-paketet ligger nu i `python/swe` (importnamn `swe`);
+sökvägar som säger `backend/app/swe` avser läget före B4 och är historik.
 **Frågan:** vilken förmåga ska ägas av SWE respektive Socialism?
 **Regel (spec §4):** en förmåga hör hemma i SWE när den kan beskrivas, testas
 och användas **utan Socialisms domänbegrepp**. Att flera domäner använder en

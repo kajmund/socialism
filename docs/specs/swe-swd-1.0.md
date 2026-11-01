@@ -3,7 +3,8 @@
 **Status:** Schema/parser (PR #398), in-memory Rust/PyO3 runtime (phase 2),
 OverGraph run store + crash-durable resume (phase 3), provider decisions +
 exact Jev cache (phase 4)  
-**Runtime:** `crates/swe-native` + `app.swe.runtime`. Durable runs in
+**Runtime:** `crates/swe-native` + `swe.runtime` (Python-paketet i
+`python/swe/`, importnamn `swe`). Durable runs in
 `app.services.overgraph.workflows`, Jev cache in
 `app.services.overgraph.jev_cache`. No research cutover yet (phase 5).
 

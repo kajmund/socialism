@@ -167,4 +167,4 @@ Not claimed:
   rendering, unknown provider/prompt, out-of-contract choice, provider exception,
   deadline, exact cache hit/miss, cache preflight, key stability, single-flight,
   L2 across instances, Jev adapter mapping) and
-  `backend/tests/test_swe_runtime_preflight.py`.
+  `python/tests/test_swe_runtime_preflight.py`.

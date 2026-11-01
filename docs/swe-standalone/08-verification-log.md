@@ -6,6 +6,8 @@ så att de kan reproduceras. Inventeringarnas egna Evidence-avsnitt
 **Miljö:** worktree `/Users/erikfremred/swe-standalone`, branch
 `feat/swe-standalone-investigation`, bas `origin/main` `666eccb0`,
 Rust 1.83.0 (cargo 1.83.0), macOS aarch64. Datum: 2026-10-31.
+**Historik:** loggen är kronologisk. Poster före B4 avser `backend/app/swe`
+och `backend/tests`; poster efter B4 avser `python/swe` och `python/tests`.
 **Ingen nätverksåtkomst:** alla Rust-körningar med `--offline`; inga
 modell-, databas- eller HTTP-anrop.
 
@@ -907,10 +909,10 @@ ordning ägaren angav:
 | Steg | Resultat |
 | --- | --- |
 | 1. Root Cargo-workspace | `swe-native`, `swe-budget`, `swe-reference` är medlemmar; `swe-gym` är explicit exkluderad (eget governance, egna fixtures, egen CI-jobb). En root-lock ersätter tre. Release-profilen flyttade till root — annars hade den tyst ignorerats. CI kör nu exakt `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`. |
-| 2. Python-paket | `backend/app/swe/**` → `python/swe/**` med `python/pyproject.toml`. 130 importomskrivningar i 44 filer; noll `app.swe` kvar utanför dokumentation. Backend konsumerar paketet som riktig path-dependency via uv. **Fristående bevis:** venv utanför repot, maturin-wheel + `pip install python/`, `pytest python/tests` → **136 passed**, backend inte på `sys.path`. Konsumenttesterna (research-wiring, host-kontext) kör mot samma installerade paket: **11 passed**. |
+| 2. Python-paket | `backend/app/swe/**` → `python/swe/**` med `python/pyproject.toml`. **129 `app.swe`-bärande rader i 44 filer** (mätt med `git diff --no-renames e0a6f000..HEAD -- '*.py'`: 129 rader på `-`-sidan, fördelade på 44 filer); noll `app.swe` kvar utanför dokumentation. Backend konsumerar paketet som riktig path-dependency via uv. **Fristående bevis:** venv utanför repot, maturin-wheel + `pip install python/`, `pytest python/tests` → **136 passed**, backend inte på `sys.path`. Konsumenttesterna (research-wiring, host-kontext) kör mot samma installerade paket: **11 passed**. |
 | 3. `execute()` borttagen | Ingen produktionskonsument; loop-skyddet duplicerade `NeedDiscovery`. `Investigation`/`StopReason` försvann med den. Kärnan 74 → 66 tester; loopen ägs av värden, skyddet av `NeedDiscovery`. |
-| 4. Frysta kontrakt | `contracts/` med kanoniska fixtures, `MANIFEST.sha256` och **två** grindar: strukturell (hashar, inga olistade filer) och semantisk (fixtures *exekveras*: SWD-dokumentet kompilerar till headerns definition-hash, varje journalhändelse kodas förlustfritt, `NeedMore`-repeat, dubbletter, `AMBIGUOUS`, recovery per delivery-klass, okänd kostnad aldrig noll, fel versioner namnges). 11 kontraktstester. Mutationsbevisat: byte-tampering fäller det strukturella; ändring + regenererad manifest fäller det semantiska. |
-| 5. Mutationsgrind | `scripts/check_mutations.py` + `mutations/baseline.json`, blockerande CI-jobb. Varje mutation klassificeras `detected`/`equivalent`/`excepted` med motivering; en mutation som inte kan appliceras fäller grinden; en `equivalent` som börjar fälla sviten fäller den. 8 mutationer, alla som klassificerade. |
+| 4. Frysta kontrakt | `contracts/` med kanoniska fixtures, `MANIFEST.sha256` och **två** grindar: strukturell (hashar, inga olistade filer) och semantisk (fixtures *exekveras*: SWD-dokumentet kompilerar till headerns definition-hash, varje journalhändelse kodas förlustfritt, `NeedMore`-repeat, dubbletter, `AMBIGUOUS`, recovery per delivery-klass, okänd kostnad aldrig noll, fel versioner namnges). 12 kontraktstester (`cargo test -p swe-reference --test contracts --offline`: `running 12 tests`). Mutationsbevisat: byte-tampering fäller det strukturella; ändring + regenererad manifest fäller det semantiska. |
+| 5. Mutationsgrind | `scripts/check_mutations.py` + `mutations/baseline.json`, blockerande CI-jobb. Varje mutation klassificeras `detected`/`equivalent`/`excepted` med motivering; en mutation som inte kan appliceras fäller grinden; en `equivalent` som börjar fälla sviten fäller den. 10 mutationer, alla som klassificerade (verifierat med `python3 -c "import json;print(len(json.load(open('mutations/baseline.json'))['mutations']))"`). |
 
 ### Vad grinden hittade om sig själv
 

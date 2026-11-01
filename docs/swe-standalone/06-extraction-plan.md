@@ -7,6 +7,10 @@ Base: `origin/main` `666eccb0`. Companion documents: `01-inventory-rust.md`,
 **Constraint:** Socialism has no customers; prefer a clean separation over
 temporary dual implementations. No fallback layers and no parallel engine.
 
+**B4-uppdatering:** paketet ligger nu i `python/swe` med tester i `python/tests`.
+Sökvägar i §1–§2 som säger `backend/app/swe` avser läget före B4 (se `08` §7.14);
+receptet i §3 och borttagningskraven i §8/§10 är uppdaterade till B4-läget.
+
 ## 0. Target end state
 
 One new repository (working name **`swe`**) that contains the generic engine,
@@ -33,7 +37,7 @@ swe/                                   # new repo, independent versioning
 │   └── swe-reference/                 # this PR's domain-neutral example
 ├── python/
 │   └── swe/                           # Python host package (the generic part
-│                                      # of backend/app/swe today)
+│                                      # of python/swe today)
 ├── docs/                              # SWD 1.0, runtime, provider, persistence,
 │                                      # event schema, versioning
 └── examples/                          # (optional) non-Rust samples
@@ -46,7 +50,7 @@ separately in `05-gym-split.md`.
 ### Why a Rust library *and* a Python host package in the same repo
 
 A Rust library alone cannot drive `task` handlers in Python, and Socialism's
-production integration is Python. The Python host adapter (`backend/app/swe/`)
+production integration is Python. The Python host adapter (`python/swe/`)
 is generic code today — it must not stay in Socialism, or Socialism would keep
 owning SWE's public host contract. One repo, one version, two artifacts:
 
@@ -61,14 +65,14 @@ silently.
 
 ### 1.1 Moves to the SWE repository
 
-| Source (Socialism today) | Destination | Notes |
+| Source (monorepo today) | Destination | Notes |
 | --- | --- | --- |
 | `crates/swe-native/**` (src, tests, Cargo.toml, pyproject, README) | `crates/swe-core/` + `crates/swe-bindings/` | Kernel becomes `swe-core`; the PyO3 `#[pymodule] fn swe_native` and `pyproject.toml`/maturin config move to the bindings crate, keeping the module name `swe_native` (no import churn) |
-| `backend/app/swe/*.py` + `swd_v1.schema.json` | `python/swe/` | 16 `.py` + the JSON schema move unchanged; 4 need a small dependency inversion (`definition`, `runtime_dispatch`, `schema`, `__init__`); `features.py` (host/feature/catalog model) and `providers.py` (JEV) move to the Socialism app (`02-inventory-python.md` §3, §14) |
-| `backend/tests/test_swe_*.py` — 13 files, 111 test functions — + `backend/tests/swe/` helpers + fixtures | `python/tests/` + `crates/swe-core/tests/` | Test-move matrix in §2 item 9: `test_swe_canonicalize` and `test_swe_expression` can move immediately; 8 files move after PR 1's dependency inversions; `test_swe_features` becomes a Socialism host test; `test_swe_persistence` and `test_swe_provider` are split (generic replay/dispatch with a fake adapter vs OverGraph/JEV adapter tests that stay). The research-flavoured `research_parallel.*` fixture is replaced by a neutral provider fixture |
+| `python/swe/*.py` + `swd_v1.schema.json` | `python/swe/` (already moved in B4) | 16 `.py` + the JSON schema move unchanged; 4 need a small dependency inversion (`definition`, `runtime_dispatch`, `schema`, `__init__`); `features.py` (host/feature/catalog model) and `providers.py` (JEV) move to the Socialism app (`02-inventory-python.md` §3, §14) |
+| `python/tests/test_swe_*.py` — 13 files, 111 test functions — + `python/tests/` helpers (`swe_helpers.py`) + fixtures | `python/tests/` + `crates/swe-core/tests/` | Test-move matrix in §2 item 9: `test_swe_canonicalize` and `test_swe_expression` can move immediately; 8 files move after PR 1's dependency inversions; `test_swe_features` becomes a Socialism host test; `test_swe_persistence` and `test_swe_provider` are split (generic replay/dispatch with a fake adapter vs OverGraph/JEV adapter tests that stay). The research-flavoured `research_parallel.*` fixture is replaced by a neutral provider fixture |
 | `backend/scripts/benchmark_swe_runtime.py` | `python/scripts/` or `swe-bench` | Generic runtime benchmark (the two `benchmark_research_swe*.py` stay) |
 | `docs/specs/swe-swd-1.0.md`, `swe-runtime.md`, `swe-provider.md` | `docs/` (sanitised) | Move the generic contract sections and split out the product sections: the research wave loop / cutover notes and JEV provider description stay in Socialism, as does the product feature enum in `swe-swd-1.0.md`. Do not move product-specific text verbatim (`06` §10.6) |
-| Persistence contract parts of `docs/specs/swe-overgraph.md` + `app/swe/run_store.py` | `docs/persistence.md` + `swe-core::journal` | The OverGraph implementation and its layout stay in Socialism |
+| Persistence contract parts of `docs/specs/swe-overgraph.md` + `python/swe/run_store.py` | `docs/persistence.md` + `swe-core::journal` | The OverGraph implementation and its layout stay in Socialism |
 | `crates/swe-gym/src/ledger.rs` + `tests/ledger_tests.rs` | `crates/swe-budget/` | Pure generic ledger; tests move unchanged |
 | Generic types in `crates/swe-gym/src/ops.rs` | `crates/swe-core/src/operations.rs` | `NeedRef`, `OperationSpec`, gate, `OpOutcome`; legal executors stay |
 | `crates/swe-reference/` (this PR) | `crates/swe-reference/` | Proves a domain-neutral application layer can run on the kernel end-to-end. It defines its own local need/evidence/operation types; the promoted `swe-core` contracts are still PR 2 work and the demo must be re-pointed at them then |
@@ -80,7 +84,7 @@ silently.
 | Area | Today | Why it stays |
 | --- | --- | --- |
 | Research orchestration and handlers | `backend/app/services/research/**` (incl. `swe_bridge.py`, `execution.py`, `loop_control.py`, assessment, completeness, follow-up, claims, worker) | Domain application layer |
-| JEV provider and JEV system | `backend/app/jev/**`, `backend/app/swe/providers.py` (moved out of `app/swe/`) | Model/vendor integration owned by the application |
+| JEV provider and JEV system | `backend/app/jev/**` (den separata JEV-providern togs bort i B4; JEV-beslut går via `research/fast_controller.py`) | Model/vendor integration owned by the application |
 | Prompt catalog, prompt rendering and DB prompts | `backend/app/services/prompt_catalog.py`, `prompt_render.py`, configuration tables | Product configuration; injected into SWE |
 | OverGraph run store and JEV cache adapters | `backend/app/services/overgraph/workflows.py`, `jev_cache.py`, `catalogs.py` | Storage backend and owner protocol |
 | OverGraph knowledge model, document ingest, PDF/Word, TextUnits | `backend/app/services/overgraph/**`, knowledge/document modules | Socialism knowledge model |
@@ -100,13 +104,14 @@ record for the split.
 ## 2. Dependencies to break first
 
 These are preconditions, not optional cleanups. Each item is verified in
-`01-inventory-rust.md` / `02-inventory-python.md`.
+`01-inventory-rust.md` / `02-inventory-python.md`. **Historik:** kodreferenserna i
+tabellen avser läget före B1 (då `backend/app/swe`); åtgärderna är genomförda.
 
 | # | Wrong-direction dependency | Evidence | Fix (in Socialism, before moving) | Test that proves the fix |
 | --- | --- | --- | --- | --- |
-| 1 | SWE compile → Socialism prompt catalog | `backend/app/swe/definition.py:13,159` (`PROMPT_KEY_SET`) | `compile_definition(..., prompt_keys=...)`; host passes the catalog's key set. Same pattern as the existing `providers` whitelist | `test_swe_definition`: compiling with a host-supplied key set; unknown key rejected; no import of `prompt_catalog` inside `app/swe` |
+| 1 | SWE compile → Socialism prompt catalog | `backend/app/swe/definition.py:13,159` (`PROMPT_KEY_SET`) | `compile_definition(..., prompt_keys=...)`; host passes the catalog's key set. Same pattern as the existing `providers` whitelist | `test_swe_definition`: compiling with a host-supplied key set; unknown key rejected; no import of `prompt_catalog` inside `python/swe` |
 | 2 | SWE dispatch → Socialism prompt renderer | `backend/app/swe/runtime_dispatch.py:17` (`render_prompt`) | Move the generic 16-line default renderer into the SWE Python host package; dispatch accepts an injected renderer for hosts that need another policy. No prompt store import | `test_swe_provider`: rendering from the inherited prompt map; missing prompt fails preflight |
-| 3 | SWE package contains a JEV provider | `backend/app/swe/providers.py:15-22` imports `settings`, `app.jev.system`, `research.fast_controller` | Move `make_jev_provider` to the application layer (e.g. `app/services/research/jev_provider.py`); SWE keeps only the provider registry/interface. The provider is not wired into production research today (only `test_swe_provider.py` uses it) | `test_swe_provider` moved/renamed for the JEV adapter; an import-direction test asserts `backend/app/swe` has no `app.jev`/`app.services` imports |
+| 3 | SWE package contains a JEV provider | `backend/app/swe/providers.py:15-22` imports `settings`, `app.jev.system`, `research.fast_controller` | Move `make_jev_provider` to the application layer (e.g. `app/services/research/jev_provider.py`); SWE keeps only the provider registry/interface. The provider is not wired into production research today (only `test_swe_provider.py` uses it) | `test_swe_provider` moved/renamed for the JEV adapter; an import-direction test asserts `python/swe` has no `app.jev`/`app.services` imports |
 | 4 | Socialism product enum inside SWE | `backend/app/swe/schema.py:16` (`FEATURE_IDS`) + `features.py:28,35` (`workflow_catalog_dir` is at `:35`) | Host supplies a feature registry; `WorkflowHostContext`/`workflow_catalog_dir`/`FEATURE_IDS` move to the Socialism host; the engine accepts an opaque scope/catalog key or a store factory | `test_swe_features` becomes a host test; the core has no hardcoded product ids |
 | 5 | Needs/evidence/operations only exist in the experiment | `crates/swe-gym/src/ops.rs`, `tools/eval_uncertainty_states.py` | Promote generic types + gate + outcome; keep domain executors. See `04-public-contracts.md` §2–§4 | New unit tests in core (ported from `ops.rs`) + the reference demo |
 | 6 | Budget ledger lives in the experiment crate | `crates/swe-gym/src/ledger.rs` (re-exported only by `swe-gym`) | Move ledger + tests to `swe-budget`; `swe-gym` depends on it | `ledger_tests.rs` move unchanged; the reference demo uses it for real cost reporting |
@@ -115,7 +120,7 @@ These are preconditions, not optional cleanups. Each item is verified in
 | 9 | Generic executable tests are mixed with research tests | `backend/tests/test_swe_*.py` vs `test_research_swe/`, `research_reuse/` | 13 files / 111 `test_swe_*` functions (129 counted the 4+14 research-marked consumer tests, which stay). Move matrix: immediately = `test_swe_canonicalize` (9) and `test_swe_expression` (13); after PR 1 (prompt_keys, renderer, JEV out, neutral fixture) = `test_swe_definition`, `test_swe_joins` and the six `test_swe_runtime_*` files (8 files, ~60 tests); split = `test_swe_persistence` (generic replay with a fake RunStore moves, OverGraph-specific tests stay) and `test_swe_provider` (generic dispatch/cache vs JEV adapter); `test_swe_features` becomes a Socialism host test | CI job boundaries (§5) |
 
 **Import-direction gate (new, cheap):** a test/CI step that fails if
-`backend/app/swe/**` contains `from app.jev`, `from app.services.research`,
+`python/swe/**` contains `from app.jev`, `from app.services.research`,
 `from app.services.prompt_catalog`, `from app.services.prompt_render`,
 `from app.config`, or imports `swe_gym`. This is the executable version of the
 spec's "SWE Core ska aldrig vara beroende av ..." rule. The reference demo adds
@@ -127,7 +132,7 @@ legal types, product config).
 **Recommendation: preserve history for the genuinely generic paths; do not
 carry the experiment history into SWE.**
 
-Facts: `crates/swe-native` has 4 commits, `backend/app/swe` 7, `crates/swe-gym`
+Facts: `crates/swe-native` has 4 commits, `backend/app/swe` 7 (före B4), `crates/swe-gym`
 55 (2026-10-26 PoC onward), most authored by one person. The monorepo has no
 customers. Whether it is public could not be verified offline (a tool docstring
 states it is); treat that as an assumption to confirm before publishing crates
@@ -135,9 +140,10 @@ or wheels.
 
 Procedure (dry-run first, verify file lists and commit counts before pushing):
 
-1. `git filter-repo --path crates/swe-native --path backend/app/swe --path backend/tests/swe --path-glob 'backend/tests/test_swe_*.py' --path backend/scripts/benchmark_swe_runtime.py --path docs/specs/swe-swd-1.0.md --path docs/specs/swe-runtime.md --path docs/specs/swe-provider.md --path crates/swe-reference` on a clone,
-   with `--path-rename` to the target layout (`crates/swe-native:crates/swe-core`,
-   `backend/app/swe:python/swe`).
+1. `git filter-repo --path crates/swe-native --path python/swe --path python/tests --path python/pyproject.toml --path python/uv.lock --path backend/scripts/benchmark_swe_runtime.py --path docs/specs/swe-swd-1.0.md --path docs/specs/swe-runtime.md --path docs/specs/swe-provider.md --path crates/swe-reference` on a clone,
+   with `--path-rename crates/swe-native:crates/swe-core`. `python/swe` behåller
+   sin sökväg (B4-flytten gjordes med `git mv`, så historiken följde med);
+   `python/tests` följer paketet.
 2. Add `swe-budget`/`swe-bench`/generic-contract code as new commits whose
    messages cite the source commit SHAs from Socialism (`git show <sha>`) and
    the original files — provenance without importing domain fixture history.
@@ -206,7 +212,7 @@ swe = { git = "https://github.com/kajmund/swe", tag = "v0.1.0", subdirectory = "
     and publishes it as a release artefact or to a private index; Socialism
     installs the pinned wheel and needs no Rust toolchain.
   Do **not** claim "no Rust toolchain" until a wheel is actually published.
-- No submodule and no vendored copy. The `backend/app/swe` and
+- No submodule and no vendored copy. The `python/swe` and
   `crates/swe-native` directories are **deleted** in the consuming PR, so a
   local copy cannot silently shadow the dependency.
 
@@ -247,7 +253,7 @@ swe = { git = "https://github.com/kajmund/swe", tag = "v0.1.0", subdirectory = "
 - **Fix an existing coverage gap while moving:** today
   `backend/tests/test_research_swe/test_wiring.py` and
   `backend/tests/test_sufficiency_experiment_reuse.py` are marked `swe_runtime`
-  but are matched by neither `swe-runtime` (`tests/test_swe_*.py`) nor
+  but are matched by neither `swe-runtime` (`python/tests`) nor
   `backend` (`-m "not swe_runtime"`) — see `02-inventory-python.md` §10.4 and
   E11. After the split they must run in a dedicated Socialism job against the
   pinned SWE package, or coverage silently drops.
@@ -256,8 +262,8 @@ swe = { git = "https://github.com/kajmund/swe", tag = "v0.1.0", subdirectory = "
 - A small dependency contract test: compile and run one workflow through the
   pinned package (catches a broken tag immediately).
 - A gate that fails if generic engine code is reintroduced under `backend/app/`
-  (for example `backend/app/swe` reappearing, or `swe_native` being built from a
-  local path).
+  or `python/swe/` (for example a new local engine copy, or `swe_native` being
+  built from a local path).
 
 ## 7. Providers, prompts and configuration
 
@@ -298,7 +304,7 @@ den ser `git log`. Rättighetsinnehavaren för extraktionsmålet är
 | **2** | Socialism (or new repo, see note) | Promote needs/evidence/operations/ledger contracts into `swe-core`/`swe-budget` inside the monorepo; reference demo re-pointed at them | Core unit tests + demo green; no duplicated gate/ledger code |
 | **3** | Socialism | Add Rust `RunStore`/journal trait; port the Python resume semantics; demo pause/resume uses the trait | Resume test green; event/journal schema documented |
 | **4** | new `swe` | Extract via `filter-repo`, add workspace/bindings/python package/docs/CI, tag `v0.1.0` | New repo CI green; tag consumable |
-| **5** | Socialism | Replace local SWE with the pinned dependency; delete `crates/swe-native` + `backend/app/swe`; keep adapters; delete the old CI jobs | Full backend + research regression green; no local SWE code remains; dependency contract test green |
+| **5** | Socialism | Replace local SWE with the pinned dependency; delete `crates/swe-native` + `python/swe`; keep adapters; delete the old CI jobs | Full backend + research regression green; no local SWE code remains; dependency contract test green |
 | **6** | Socialism + `swe` | Gym split per `05-gym-split.md` (G1–G5: ledger → `swe-budget` first, then runner/replay/arm/ops; RL env stays) | Generic gym tests in SWE; legal fixtures absent from SWE; experiment still runs in Socialism; reference demo re-pointed from `swe_gym::ledger` to `swe-budget` |
 
 **Project-owner decision (2026-10-31): the contract decision comes first.**
@@ -344,7 +350,7 @@ vendored copy of `swe-native`, or a second gym implementation.
 
 1. New `swe` repo builds and tests offline-clean (`cargo test --workspace`,
    `pytest`, reference example) with no Socialism checkout.
-2. `backend/app/swe`, `crates/swe-native` and their generic tests are deleted
+2. `python/swe`, `crates/swe-native` and their generic tests are deleted
    from Socialism; only adapters and application code remain.
 3. The import-direction gate passes in both repos.
 4. The reference example compiles against the published contracts and is part of

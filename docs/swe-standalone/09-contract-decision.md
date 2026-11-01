@@ -6,6 +6,8 @@ godkännas **före** PR 1 (B1). Det ändrar ingen produktionskod.
 `07-go-no-go.md` §0: **kontraktsdesign först, implementation sedan.**
 **Principer från specen:** deterministiska kontrakt har företräde; inga
 parallella implementationslager; ingen onödig bakåtkompatibilitet.
+**Historik:** beslutet fattades före B1; sökvägarna `backend/app/swe` avser dåvarande
+placering (efter B4: `python/swe`).
 
 ## 1. Syfte
 

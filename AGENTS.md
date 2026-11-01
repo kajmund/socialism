@@ -106,9 +106,10 @@ socialism/
 ├── integrations/       # MCP servers + shared OKF helpers
 ├── knowledge/          # OKF bundles (end-user manuals)
 │   └── manual/         # Swedish operator guides
-├── backend/            # FastAPI service (see backend/AGENTS.md); SWD 1.0 parser + runtime adapter in app/swe/
+├── backend/            # FastAPI service (see backend/AGENTS.md)
 ├── crates/swe-native/  # SWE in-memory Rust/PyO3 kernel (`swe_native`)
 ├── crates/swe-gym/     # standalone experiment, governed by its own AGENTS.md
+├── python/             # installable SWE Python host package (`swe`; `python/pyproject.toml`)
 ├── frontend/           # React SPA (see frontend/AGENTS.md)
 └── word-addin/         # Word desktop task pane (expertgranskning)
 ```

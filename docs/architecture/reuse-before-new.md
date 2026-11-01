@@ -24,8 +24,8 @@ Linked from [AGENTS.md](../../AGENTS.md) and [backend/AGENTS.md](../../backend/A
 
 | Concern | Reuse this |
 | ------- | ---------- |
-| Orchestration | `app.swe.runtime.WorkflowRunner` / `run_workflow` / `WorkflowResources` (see `research/swe_bridge.py`) |
-| Jev decisions | `app.swe.providers.make_jev_provider`, `research/fast_controller.py` (`ASSESSMENT_QUESTIONS`, `classify_research_decision`, telemetry) |
+| Orchestration | `swe.runtime.WorkflowRunner` / `run_workflow` / `WorkflowResources` (see `research/swe_bridge.py`) |
+| Jev decisions | `research/fast_controller.py` (`ASSESSMENT_QUESTIONS`, `classify_research_decision`, telemetry); den separata JEV-providern togs bort i B4 |
 | Passage screen | `research/evidence_screen.py` (`EVIDENCE_SCREEN_QUESTIONS`, `EvidenceJevScores`) |
 | Evidence quality | `research/quality.py` (`EvidenceQualityDraft`, `independence_key`) |
 | Assessment contracts | `research/assessment.py` (`AssessableEvidence`, `ResearchAssessmentDraft`, `sanitize_assessment_draft`, `group_evidence_for_review`) |
