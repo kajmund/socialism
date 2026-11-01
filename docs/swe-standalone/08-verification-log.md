@@ -908,11 +908,11 @@ ordning ägaren angav:
 
 | Steg | Resultat |
 | --- | --- |
-| 1. Root Cargo-workspace | `swe-native`, `swe-budget`, `swe-reference` är medlemmar; `swe-gym` är explicit exkluderad (eget governance, egna fixtures, egen CI-jobb). En root-lock ersätter tre. Release-profilen flyttade till root — annars hade den tyst ignorerats. CI kör nu exakt `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`. |
-| 2. Python-paket | `backend/app/swe/**` → `python/swe/**` med `python/pyproject.toml`. **129 `app.swe`-bärande rader i 44 filer** (mätt med `git diff --no-renames e0a6f000..HEAD -- '*.py'`: 129 rader på `-`-sidan, fördelade på 44 filer); noll `app.swe` kvar utanför dokumentation. Backend konsumerar paketet som riktig path-dependency via uv. **Fristående bevis:** venv utanför repot, maturin-wheel + `pip install python/`, `pytest python/tests` → **136 passed**, backend inte på `sys.path`. Konsumenttesterna (research-wiring, host-kontext) kör mot samma installerade paket: **11 passed**. |
-| 3. `execute()` borttagen | Ingen produktionskonsument; loop-skyddet duplicerade `NeedDiscovery`. `Investigation`/`StopReason` försvann med den. Kärnan 74 → 66 tester; loopen ägs av värden, skyddet av `NeedDiscovery`. |
-| 4. Frysta kontrakt | `contracts/` med kanoniska fixtures, `MANIFEST.sha256` och **två** grindar: strukturell (hashar, inga olistade filer) och semantisk (fixtures *exekveras*: SWD-dokumentet kompilerar till headerns definition-hash, varje journalhändelse kodas förlustfritt, `NeedMore`-repeat, dubbletter, `AMBIGUOUS`, recovery per delivery-klass, okänd kostnad aldrig noll, fel versioner namnges). 12 kontraktstester (`cargo test -p swe-reference --test contracts --offline`: `running 12 tests`). Mutationsbevisat: byte-tampering fäller det strukturella; ändring + regenererad manifest fäller det semantiska. |
-| 5. Mutationsgrind | `scripts/check_mutations.py` + `mutations/baseline.json`, blockerande CI-jobb. Varje mutation klassificeras `detected`/`equivalent`/`excepted` med motivering; en mutation som inte kan appliceras fäller grinden; en `equivalent` som börjar fälla sviten fäller den. 10 mutationer, alla som klassificerade (verifierat med `python3 -c "import json;print(len(json.load(open('mutations/baseline.json'))['mutations']))"`). |
+| 1. Root Cargo-workspace | `swe-native`, `swe-budget`, `swe-reference` är medlemmar; `swe-gym` är explicit exkluderad (eget governance, egna fixtures, egen CI-jobb). En root-lock ersätter tre. Release-profilen flyttade till root — annars hade den tyst ignorerats. CI kör nu exakt `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`. `swe-gym` byggs dessutom i CI när kärn-craterna ändras, eftersom den path-beroende gym-craten annars kunde brytas utan att någon grind märker det. |
+| 2. Python-paket | `backend/app/swe/**` → `python/swe/**` med `python/pyproject.toml`. **129 `app.swe`-bärande rader (130 förekomster) i 44 filer** (mätt med `git diff --no-renames 9d17b096..HEAD -- '*.py'`: 129 rader på `-`-sidan, fördelade på 44 filer); inga `app.swe`-importer kvar i exekverbar kod — en historisk kommentar i `scripts/check_contract_freeze.py` nämner den gamla sökvägen. Backend konsumerar paketet som riktig path-dependency via uv. **Fristående bevis:** venv utanför repot, maturin-wheel + `pip install python/`, `pytest python/tests` → **136 passed**, backend inte på `sys.path`. CI kör nu de 22 `swe_runtime`-märkta provider-/persistence-testerna mot samma installerade paket i `swe-runtime`-jobbet. De **11** (research-wiring, host-kontext) mättes manuellt; `test_wiring.py` + `test_sufficiency_experiment_reuse.py` (18 tester) är fortfarande en känd CI-bypass — ett wiring-test fallerar/hänger i CI-miljön (Python 3.12) och kräver egen utredning. CI bygger också wheel + sdist och installerar wheel i en ren venv utanför repot (`swe.load_schema()`), så att paketdata inte kan försvinna tyst. |
+| 3. `execute()` borttagen | Ingen produktionskonsument. `Investigation`/`StopReason` försvann med den. Den återstående skyddslogiken mot upprepade behov ligger i `NeedDiscovery`, som i dag bara exerceras av kontraktstestet (`crates/swe-reference/tests/contracts.rs`); referenshosten anropar den inte, så skyddet är inte inkopplat i någon körloop. Kärnan 74 → 67 tester. |
+| 4. Frysta kontrakt | `contracts/` med kanoniska fixtures, `MANIFEST.sha256` och **två** grindar: strukturell (hashar, inga olistade `*.json`) och semantisk (fixtures *exekveras*: SWD-dokumentet kompilerar till headerns definition-hash, varje journalhändelse kodas förlustfritt, `NeedMore`-repeat, dubbletter, `AMBIGUOUS`, recovery per delivery-klass, okänd kostnad aldrig noll, fel versioner namnges). **13 kontraktstester** (`cargo test -p swe-reference --test contracts --offline`), inklusive ett nytt fixture==emitter-test: de frysta filerna måste vara exakt vad `swe-reference`-emittern producerar, och headerns versionsfält pinnas mot emitterns värden (som byggs av `CONTRACT_VERSION` och `current_dependency_versions()`) i stället för att läsas från fixturen och matas tillbaka (den tidigare formen var en tautologi). **Matrisbevisat** av `scripts/test_check_contract_freeze.py`: 36 negativa/positiva fall med exakt förväntad fallista — byte-tampering fäller det strukturella, ändring + regenererad manifest fäller det semantiska, och en kommentar/sträng som stavar en version räknas inte som version bump (versionsdeklarationen läses ur tokenströmmen). |
+| 5. Mutationsgrind | `scripts/check_mutations.py` + `mutations/baseline.json`, blockerande CI-jobb. Varje mutation klassificeras `detected`/`equivalent`/`excepted` med motivering; en mutation som inte kan appliceras fäller grinden. `equivalent`/`excepted` kräver **exit 0** — en kraschande testprocess eller ett build-fel är ett gate-fel för varje klass, inte "grönt utan namngivet rött test". Grinden har en egen negativmatris (`scripts/test_check_mutations.py`, 30 fall) som körs i CI. **10 mutationer, alla som klassificerade**, verifierat med `python3 scripts/check_mutations.py --offline` efter `cargo fetch --locked` (isolerad worktree, ingen ändring av checkouten). |
 
 ### Vad grinden hittade om sig själv
 
@@ -938,20 +938,80 @@ uttrycklig post. Bedömningen:
   commit.
 - **Dekodern skärps, inte luckras.** Obligatoriska belopp och tidsstämplar måste
   finnas och vara heltal; saknade värden avvisas i stället för att bli noll.
-- **Kärnan får en ny invariant:** en settlement måste matcha reservationens
-  belopp. Det avvisar en korrupt journal som annars kunde underrapportera kostnad.
+- **Kärnan får en ny invariant:** en settlement får aldrig **överstiga**
+  reservationen (en högre kostnad än taket avvisas med ett typat fel som namnger
+  båda beloppen). En lägre settlement är tillåten och redovisar den faktiska
+  kostnaden — det matchar `swe-budget`-ledgerns dokumenterade semantik att
+  reglera verklig kostnad och frigöra outnyttjad reservation. Den första
+  versionen krävde exakt likhet, vilket hade gjort dokumenterad
+  delavräkning oavstämbar i journalen; rättat efter den oberoende granskningen.
 
 Därför stannar `JOURNAL_SCHEMA_VERSION` på 1. Detta är den dokumenterade
 post som `scripts/check_contract_freeze.py` kräver när en kontraktsväg ändras.
+
+### Oberoende granskning och rättelser (2026-11-01)
+
+B4 granskades av fem oberoende spår (mutationsgrinden, kontraktsgrindarna,
+Python-paketet + backend-konsumtion, Rust-workspace/`execute`-borttagningen +
+licensiering, och CI-workflowens grindintegritet) innan ägarens sign-off. Varje
+spår försökte reproducera fel med doctored commits eller syntetiska
+`cargo`-körningar i stället för att bara läsa koden. Fynden och rättelserna:
+
+- **Kontraktsgrinden:** versionsdeklarationen lästes ur rå text, så en kommentar
+  `// CONTRACT_VERSION = 2` kunde ersätta en riktig bump. Nu läses den ur
+  tokenströmmen; kommentars- och strängspoof fäller grinden. Header-fixturens
+  `contract_version`/`dependency_versions` var inte pinnade (tautologiskt test);
+  nu jämförs alla tre fixtures mot emitterns output, som byggs av konstanterna.
+  Matrisen har exakt förväntad fallista och egna självkontroller
+  (tabell-paritet, CI-glob-paritet, pointer-uppslagning), så att en tyst
+  borttagen negativ falla eller en uppluckrad undantagstabell fäller den.
+- **Mutationsgrinden:** en kraschande testprocess (SIGABRT med en grön
+  syskonbinär) räknades som "grön" för `equivalent`/`excepted`. Nu krävs exit 0
+  och en ej tolkningsbar körning är ett gate-fel för varje klass; grinden har
+  dessutom en egen 30-fallsmatris som körs i CI. `--package`-flaggan (död) togs
+  bort och städningen flyttades till `try/finally`; grinden dokumenterar nu att
+  den bara mäter committed HEAD och inte skyddar sig själv mot en PR som skriver
+  om den.
+- **Python/backend:** 22 `swe_runtime`-märkta provider-/persistence-tester hade
+  slutat köras i CI när `swe-runtime`-jobbet bytte till `python/tests`; de körs nu
+  igen. `python-swe`-jobbet byggde aldrig distributionen; nu byggs wheel+sdist
+  och wheel installeras i en ren venv utanför repot med `swe.load_schema()` som
+  rökprov. Dev-verktygsversionerna i `python/pyproject.toml`-kommentaren var
+  felaktiga och är rättade. Wiring- och sufficiency-reuse-filerna (18 tester) är
+  kvar som känd CI-bypass; ett wiring-test fallerar/hänger i CI-miljön.
+- **Rust/licens:** den nya journalinvarianten krävde exakt likhet mellan
+  reservation och settlement, vilket motsade `swe-budget`-ledgerns dokumenterade
+  delavräkning; nu avvisas bara settlement > reservation (se ovan). Stale
+  `execute`-referenser i doc-kommentarer och `13` rättade. Licensieringens
+  siffror gjordes reproducerbara (bas `9d17b096`: 1 415 commits; 9
+  `Cursor Agent`/5 Erik Fremred på de namngivna målvägarna; 41 Rust- och 14
+  externa Python-beroenden) och `kajmund/swe` är nu formulerat som ett beslut,
+  inte som en verifierad registrering.
+- **CI-workflowen:** förändringsdetektorn kunde faila öppet (ett misslyckat
+  `git diff` gav alla flaggor `false` och aggregate-jobbet grönt); nu körs den
+  med `set -euo pipefail` och ett explicit fel på tom eller felaktig diff,
+  använder merge-base, och kräver att gate-skript, matriser och
+  workflow-invocations inte kan försvinna tyst. Workflow-ändringar triggar
+  mutationsgrinden, kärnändringar bygger `swe-gym`, och aggregate-jobbet avvisar
+  ett selector-värde som varken är `true` eller `false`.
+- **Kvar som ägarbeslut eller senare PR:** kontraktsfrysningens sign-off
+  (kriterium 6) och den fysiska repo-flytten; skydd mot att en PR skriver om
+  grindarna själva (CODEOWNERS/ruleset); `repository`/`homepage`-metadata och
+  `THIRD-PARTY-NOTICES` i flytten; att `swe-native` namnger
+  `contract_version`-fel som `schema_version` i feltexten; att
+  `CONTRACT_VERSION`/`current_dependency_versions()` exporteras publikt så att
+  kontraktstesterna kan pinna dem literalt; och Krav 4:s båda ordningar i
+  kontraktstestet (kärnans enhetstester täcker ordningen i dag).
 
 ### Kvar efter B4
 
 - **Kontraktsfrysning v1** (kriterium 6): dokumenten finns och grindarna är på
   plats, men "fryst" kräver ägarens sign-off.
 - **Licens och repo** (kriterium 7): **fattat** — MIT OR Apache-2.0 för
-  extraktionsmålet, `Copyright (c) 2026 Erik Fremred`, publikt repo
-  `kajmund/swe`, PyPI-distribution `swe-engine`; `publish = false` tills namn och
-  äganderätt är verifierade (`15-licensing.md`). Licensutredningen finns som underlag — se nästa stycke.
+  extraktionsmålet, `Copyright (c) 2026 Erik Fremred`, repo `kajmund/swe`
+  (planerat, publikt i flytten), PyPI-distribution `swe-engine`;
+  `publish = false` kvarstår till flytten/PR 4 (`15-licensing.md`), nu som ett
+  publiceringssteg — namn, licens och äganderätt är verifierade/beslutade.
 - `swe-gym` behåller sin egen grind (G4); kärnan är enda implementationen i
   extraktionsmålet.
 - En ~35-rads helper-duplikat i `backend/tests/swe/runtime_helpers.py` är
@@ -959,19 +1019,23 @@ post som `scripts/check_contract_freeze.py` kräver när en kontraktsväg ändra
 
 ### Licensutredning (underlag för det beslut som nu är fattat)
 
-Fakta för repo-beslutet: ingen LICENSE-fil har någonsin funnits i 1 459
-commits; alla tre crates anger `license = "UNLICENSED"` och `publish = false`;
-inga SPDX-identifierare eller copyright-huvuden finns. **Ingen kopierad
+Fakta för repo-beslutet (mätt vid basen `9d17b096`; branch-HEAD efter B4 har
+1 422 commits): ingen LICENSE-fil har någonsin funnits i historiken; alla tre
+crates anger `license = "UNLICENSED"` och `publish = false`; inga
+SPDX-identifierare eller copyright-huvuden finns. **Ingen kopierad
 tredjepartskod** hittades — enda härledningen är intern (`swe-budget` är en
-0-rads flytt av `swe-gym`-ledgern, `af15a396`). Alla 41 Rust-beroenden och 7
-Python-beroenden är permissiva (MIT/Apache-2.0-varianter; `unicode-ident` är
-`(MIT OR Apache-2.0) AND Unicode-3.0`; inga GPL/AGPL/LGPL/MPL/NOTICE). 47 commits
-av Erik Fremred och 7 av `Cursor Agent` på målvägarna; inga CLA/DCO/sign-off och
-personlig GitHub-remote — **rättighetsinnehavaren måste bekräftas innan en
-publik licens ges**, och AI-agentförfattarskapet på kärnan och SWD-schemat bör
-dokumenteras.
+0-rads flytt av `swe-gym`-ledgern, `af15a396`). Alla 41 Rust-beroenden och 14
+externa Python-paket är permissiva (MIT/Apache-2.0-varianter; `unicode-ident` är
+`(MIT OR Apache-2.0) AND Unicode-3.0`; inga GPL/AGPL/LGPL/MPL/NOTICE). 5 commits
+av Erik Fremred och 9 av `Cursor Agent` på de namngivna målvägarna; inga
+CLA/DCO/sign-off och personlig GitHub-remote. **Rättighetsinnehavaren
+bekräftades av ägaren 2026-11-01** och AI-agentförfattarskapet dokumenterades i
+`06` — licensen är alltså given av rättighetsinnehavaren, inte antagen.
 
-## 8. Vad denna PR innehåller (scope)
+## 8. Vad utrednings-PR:en innehöll (historik, före B4)
+
+Detta avsnitt beskriver den ursprungliga utrednings-PR:en. B4:s omfattning
+beskrivs i §7.14 ovan.
 
 ```console
 $ git status --short

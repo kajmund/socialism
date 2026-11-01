@@ -69,9 +69,12 @@ fn header_contract_version() -> u32 {
     .expect("contract_version fits u32")
 }
 
-fn header_dependencies() -> BTreeMap<String, u32> {
+fn dependency_versions(header: &swe_native::Json) -> BTreeMap<String, u32> {
+    let dependencies = header
+        .get("dependency_versions")
+        .expect("journal header has dependency_versions");
     let mut versions = BTreeMap::new();
-    for (name, version) in header_field("dependency_versions")
+    for (name, version) in dependencies
         .as_object()
         .expect("dependency_versions is an object")
     {
@@ -87,6 +90,21 @@ fn header_dependencies() -> BTreeMap<String, u32> {
         );
     }
     versions
+}
+
+fn header_dependencies() -> BTreeMap<String, u32> {
+    dependency_versions(&fixture("journal-v1-header.json"))
+}
+
+fn emitted_contract_version(header: &swe_native::Json) -> u32 {
+    u32::try_from(
+        header
+            .get("contract_version")
+            .and_then(|value| value.as_number())
+            .and_then(|number| number.as_u64())
+            .expect("emitted header has an integer contract_version"),
+    )
+    .expect("contract_version fits u32")
 }
 
 // ---------------------------------------------------------------- structural
@@ -149,8 +167,38 @@ fn the_swd_fixture_compiles_to_the_definition_hash_the_journal_pins() {
     assert_eq!(read("swd-v1-workflow.json"), re_encoded);
 }
 
+/// The fixtures are the emitter's output, not a second hand-maintained copy.
+/// Whatever the constants say, the shipped files must say the same; otherwise
+/// the "frozen contract" would document a world the code does not build.
+#[test]
+fn the_frozen_fixtures_are_exactly_what_the_emitter_produces() {
+    assert_eq!(
+        fixture("swd-v1-workflow.json"),
+        swe_reference::workflow_document(),
+        "swd-v1-workflow.json is stale: regenerate the fixtures with \
+         `cargo run -p swe-reference --example emit_contracts`"
+    );
+    assert_eq!(
+        fixture("journal-v1-header.json"),
+        swe_reference::contract_journal_header(),
+        "journal-v1-header.json is stale: regenerate the fixtures with \
+         `cargo run -p swe-reference --example emit_contracts`"
+    );
+    assert_eq!(
+        fixture("journal-v1-events.json"),
+        swe_reference::contract_events(),
+        "journal-v1-events.json is stale: regenerate the fixtures with \
+         `cargo run -p swe-reference --example emit_contracts`"
+    );
+}
+
 #[test]
 fn the_journal_header_fixture_pins_every_version() {
+    // The expected side comes from the emitter, which builds the header from
+    // the real constants (CONTRACT_VERSION, current_dependency_versions() and
+    // JOURNAL_SCHEMA_VERSION). Reading a value from the fixture and feeding the
+    // same value back into verify() would compare a value with itself.
+    let emitted = swe_reference::contract_journal_header();
     assert_eq!(
         header_field("schema_version")
             .as_number()
@@ -159,13 +207,21 @@ fn the_journal_header_fixture_pins_every_version() {
         "a new schema version is a contract change, not a fixture edit"
     );
     assert_eq!(
+        header_field("contract_version")
+            .as_number()
+            .and_then(|n| n.as_u64()),
+        Some(u64::from(emitted_contract_version(&emitted))),
+        "the frozen contract version must be the code's CONTRACT_VERSION"
+    );
+    assert_eq!(
+        header_dependencies(),
+        dependency_versions(&emitted),
+        "the frozen dependency versions must be the code's current versions"
+    );
+    assert_eq!(
         header_field("run_id").as_str(),
         Some("run-contract-v1"),
         "the fixture must stay a fixed example"
-    );
-    assert!(
-        !header_dependencies().is_empty(),
-        "dependencies are recorded"
     );
 
     let header = JournalHeader {
@@ -178,10 +234,10 @@ fn the_journal_header_fixture_pins_every_version() {
     header
         .verify(
             &header_definition_sha256(),
-            header_contract_version(),
-            &header_dependencies(),
+            emitted_contract_version(&emitted),
+            &dependency_versions(&emitted),
         )
-        .expect("the pinned header verifies against the pinned world");
+        .expect("the pinned header verifies against the world the code builds");
 }
 
 #[test]
@@ -225,31 +281,50 @@ fn a_changed_definition_or_dependency_is_refused() {
         contract_version: header_contract_version(),
         dependency_versions: header_dependencies(),
     };
-    assert!(header
+    let error = header
         .verify(
             "0".repeat(64).as_str(),
             header_contract_version(),
-            &header_dependencies()
+            &header_dependencies(),
         )
-        .is_err());
-    assert!(header
+        .expect_err("a different definition cannot be resumed");
+    assert!(
+        error
+            .to_string()
+            .contains("does not match the resumed definition"),
+        "the error must name the changed definition: {error}"
+    );
+
+    let error = header
         .verify(
             &header_definition_sha256(),
             header_contract_version(),
-            &BTreeMap::new()
+            &BTreeMap::new(),
         )
-        .is_err());
+        .expect_err("a dependency recorded in the journal cannot vanish");
+    assert!(
+        error.to_string().contains("mock.supplier_facts")
+            && error.to_string().contains("no longer available"),
+        "the error must name the missing dependency and its version: {error}"
+    );
+
     let mut changed = header_dependencies();
     for version in changed.values_mut() {
         *version += 1;
     }
-    assert!(header
+    let error = header
         .verify(
             &header_definition_sha256(),
             header_contract_version(),
-            &changed
+            &changed,
         )
-        .is_err());
+        .expect_err("a changed dependency version cannot be resumed");
+    assert!(
+        error
+            .to_string()
+            .contains("dependency mock.supplier_facts changed from version"),
+        "the error must name the dependency and both versions: {error}"
+    );
 }
 
 #[test]

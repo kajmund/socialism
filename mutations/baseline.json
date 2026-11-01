@@ -95,13 +95,13 @@
       ]
     },
     {
-      "id": "settlement-need-not-match-the-reservation",
+      "id": "settlement-may-exceed-the-reservation",
       "file": "crates/swe-native/src/journal.rs",
-      "find": "                    if reserved != amount_milli {",
-      "replace": "                    if false && reserved != amount_milli {",
+      "find": "                    if amount_milli > reserved {",
+      "replace": "                    if false {",
       "classification": "detected",
       "expected_red": [
-        "journal::tests::a_settlement_must_match_the_reservation"
+        "journal::tests::a_settlement_cannot_exceed_the_reservation"
       ]
     }
   ]

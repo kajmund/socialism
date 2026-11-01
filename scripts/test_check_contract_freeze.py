@@ -5,6 +5,13 @@ A gate is only worth what its negative tests prove. Each case builds a small
 repository, commits a base, applies one change, commits a head, and runs the
 real checker against it — so the matrix exercises the shipped script, not a mock.
 
+The matrix is also a gate on itself: it asserts that the checker's exception
+tables are exactly the reviewed ones, that every ignored pointer resolves in the
+real fixtures, that every checker contract path is covered by a CI pattern that
+requires the contract guard, and that the executed cases are exactly
+``EXPECTED_CASES`` with the expected exit codes and failure reasons. Deleting a
+negative case, relaxing an ignored pointer or losing CI coverage fails here.
+
 The fixtures mirror the frozen contracts: the journal has the same 11 entries and
 the same field layout as `contracts/journal-v1-events.json`, and the header
 carries the embedded `schema_version` / `contract_version` / dependency versions.
@@ -14,6 +21,8 @@ That makes the "permitted example value" pointers exact and realistic.
 from __future__ import annotations
 
 import copy
+import fnmatch
+import importlib.util
 import json
 import shutil
 import subprocess
@@ -23,6 +32,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 CHECKER = ROOT / "scripts" / "check_contract_freeze.py"
+CI_WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
 
 
 def dump(value: object) -> str:
@@ -214,6 +224,7 @@ FILES = {
     "crates/swe-native/src/evidence.rs": "pub struct Evidence;\n",
     "crates/swe-native/src/operations.rs": OPERATION_SPEC_SOURCE,
     "crates/swe-reference/src/journal.rs": REFERENCE_JOURNAL_SOURCE,
+    "contracts/README.md": "# contracts\n",
     "contracts/swd-v1-workflow.json": dump(SWD_WORKFLOW),
     "contracts/journal-v1-events.json": dump(JOURNAL_EVENTS),
     "contracts/journal-v1-header.json": dump(JOURNAL_HEADER),
@@ -222,6 +233,8 @@ FILES = {
 DECISION = "Kontraktsändring: test\n"
 
 # Exact permitted example-value pointers, mirroring the gate's IGNORED_EXAMPLES.
+# This is a deliberate hand copy: the matrix asserts they are identical, so
+# relaxing the gate's table in the same PR fails here.
 PERMITTED_EXAMPLES = {
     "contracts/journal-v1-events.json": [
         "/0/action",
@@ -273,6 +286,17 @@ PERMITTED_EXAMPLES = {
         "/10/released_at_ms",
     ],
     "contracts/journal-v1-header.json": ["/run_id", "/definition_sha256"],
+}
+
+# Exact version locations the gate normalises, mirroring its EMBEDDED table.
+EXPECTED_EMBEDDED = {
+    ("contracts/journal-v1-header.json", "/schema_version"): "JOURNAL_SCHEMA_VERSION",
+    ("contracts/journal-v1-header.json", "/contract_version"): "CONTRACT_VERSION",
+    (
+        "contracts/journal-v1-header.json",
+        "/dependency_versions/mock.supplier_facts",
+    ): "CONTRACT_VERSION",
+    ("python/swe/swd_v1.schema.json", "/properties/version/const"): "SWD_VERSION",
 }
 
 
@@ -366,16 +390,19 @@ def commit(repo: Path, changes: dict[str, str | None], message: str = "change") 
     git(repo, "commit", "-q", "-m", message)
 
 
-def run(repo: Path) -> int:
+def run(repo: Path) -> tuple[int, str]:
     # Run the shipped checker against the throwaway repo; the root override is
     # what lets the gate be tested without copying it into the fixture.
-    return subprocess.run(
+    result = subprocess.run(
         [sys.executable, str(CHECKER), "--base", "HEAD~1", "--head", "HEAD"],
         cwd=repo,
         capture_output=True,
         text=True,
         env={**subprocess.os.environ, "CONTRACT_FREEZE_ROOT": str(repo)},
-    ).returncode
+    )
+    # The failure reason is part of the contract: a case that fails for the
+    # wrong reason is not a passing negative test.
+    return result.returncode, result.stdout + result.stderr
 
 
 CASES = []
@@ -781,6 +808,56 @@ def _(repo: Path) -> None:
     )
 
 
+@case("contracts README edit needs no contract decision", 0)
+def _(repo: Path) -> None:
+    commit(repo, {"contracts/README.md": "# contracts\n\nEdited documentation.\n"})
+
+
+@case("comment version spoof is not a bump: fails", 1)
+def _(repo: Path) -> None:
+    events = frozen_events()
+    events[3] = {
+        "amount": 500,
+        "charge_id": "ch-1",
+        "kind": "ChargeSettled",
+        "settled_at_ms": 1700000000003,
+    }
+    # Raw text says the version was bumped; the declaration below still says 1.
+    spoofed = "// JOURNAL_SCHEMA_VERSION = 2\n" + JOURNAL_SOURCE
+    commit(
+        repo,
+        {
+            "contracts/journal-v1-events.json": dump(events),
+            "crates/swe-native/src/journal.rs": spoofed,
+            "docs/swe-standalone/08-verification-log.md": DECISION,
+        },
+    )
+
+
+@case("string version spoof is not a bump: fails", 1)
+def _(repo: Path) -> None:
+    events = frozen_events()
+    events[3] = {
+        "amount": 500,
+        "charge_id": "ch-1",
+        "kind": "ChargeSettled",
+        "settled_at_ms": 1700000000003,
+    }
+    # The string literal contains a version assignment; it is not a declaration.
+    spoofed = (
+        'pub const SPOOF_NOTE: &str = "JOURNAL_SCHEMA_VERSION = 2";\n\n'
+        + JOURNAL_SOURCE
+    )
+    commit(
+        repo,
+        {
+            "contracts/journal-v1-events.json": dump(events),
+            "crates/swe-native/src/journal.rs": spoofed,
+            "docs/swe-standalone/08-verification-log.md": DECISION,
+        },
+    )
+
+
 def bootstrap_cases() -> list[tuple[str, int, callable]]:
     def bootstrap_ok(repo: Path) -> None:
         commit(
@@ -834,12 +911,183 @@ def bootstrap_cases() -> list[tuple[str, int, callable]]:
     ]
 
 
+# Every case that must run, with the exit code and a distinctive reason. A
+# deleted, renamed or reason-less negative case fails the matrix: a test that
+# only checks "some exit code" cannot distinguish a gate failure from a crash.
+EXPECTED_CASES = [
+    ("docs/frontend-only PR: no contract path touched", 0, "no contract path changed"),
+    ("guard script deleted: fails", 1, "the contract gate script was deleted"),
+    ("journal wire changed + SWD bumped: fails", 1, "journal: wire form changed but its version stayed 1"),
+    ("SWD wire changed + journal bumped: fails", 1, "swd: wire form changed but its version stayed 1.0"),
+    ("operations API changed + only journal bumped: fails", 1, "contracts: wire form changed but its version stayed 1"),
+    ("operations API + CONTRACT_VERSION bumped: passes without a journal bump", 0, "contract freeze OK"),
+    ("comment/test only in journal.rs: no bump", 0, "affected types: none"),
+    ("header example value changed, form identical: no bump", 0, "affected types: none"),
+    ("header key renamed: journal bump required", 1, "journal: wire form changed but its version stayed 1"),
+    ("header key renamed and JOURNAL_SCHEMA_VERSION bumped: passes", 0, "journal: version 1 -> 2"),
+    ("public struct field renamed: CONTRACT_VERSION bump required", 1, "contracts: wire form changed but its version stayed 1"),
+    ("public struct field type changed: CONTRACT_VERSION bump required", 1, "contracts: wire form changed but its version stayed 1"),
+    ("reference journal wire key renamed: journal bump required", 1, "journal: wire form changed but its version stayed 1"),
+    ("no documented decision: fails", 1, "without a documented decision"),
+    ("frozen fixture moved out of contracts/: fails", 1, "journal: wire form changed but its version stayed 1"),
+    ("SWD schema required/enum changed: SWD bump required", 1, "swd: wire form changed but its version stayed 1.0"),
+    ("SWD schema required/enum changed + SWD bumped: passes", 0, "swd: version 1.0 -> 1.1"),
+    ("journal kind changed: journal bump required", 1, "journal: wire form changed but its version stayed 1"),
+    ("journal kind changed + journal bumped: passes", 0, "journal: version 1 -> 2"),
+    ("multi-line parameter type changed: CONTRACT_VERSION bump required", 1, "contracts: wire form changed but its version stayed 1"),
+    ("multi-line parameter type changed + CONTRACT_VERSION bumped: passes", 0, "contract freeze OK"),
+    ("SWD_VERSION removed alone: fails", 1, "SWD_VERSION is missing at the head"),
+    ("JOURNAL_SCHEMA_VERSION removed alone: fails", 1, "JOURNAL_SCHEMA_VERSION is missing at the head"),
+    ("CONTRACT_VERSION removed alone: fails", 1, "CONTRACT_VERSION is missing at the head"),
+    ("unknown scalar in journal event changed: fails", 1, "journal: wire form changed but its version stayed 1"),
+    ("unknown scalar in SWD flow changed: fails", 1, "swd: wire form changed but its version stayed 1.0"),
+    ("all permitted example values changed: no bump", 0, "affected types: none"),
+    ("CONTRACT_VERSION updates the journal header without a journal bump: passes", 0, "affected types: none"),
+    ("embedded journal version that no longer matches its owner: fails", 1, "journal: wire form changed but its version stayed 1"),
+    ("contracts README edit needs no contract decision", 0, "no contract path changed"),
+    ("comment version spoof is not a bump: fails", 1, "journal: wire form changed but its version stayed 1"),
+    ("string version spoof is not a bump: fails", 1, "journal: wire form changed but its version stayed 1"),
+    ("bootstrap: version file absent at base AND head: fails", 1, "SWD_VERSION is missing at the head"),
+    ("bootstrap: version file moved in this PR: allowed", 0, "allowed by the bootstrap exception"),
+    ("bootstrap: contracts absent at base: version 1 allowed", 0, "allowed by the bootstrap exception"),
+    ("post-bootstrap: same change with contracts at base: fails", 1, "journal: wire form changed but its version stayed 1"),
+]
+
+
+def load_checker():
+    """Import the shipped checker so its tables can be compared literally."""
+    spec = importlib.util.spec_from_file_location("check_contract_freeze", CHECKER)
+    if spec is None or spec.loader is None:
+        raise SystemExit(f"cannot load the contract checker from {CHECKER}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def check_example_tables(checker) -> list[str]:
+    """The gate's exception tables must be exactly the reviewed ones."""
+    failures: list[str] = []
+
+    expected_ignored = {
+        path: frozenset(pointers) for path, pointers in PERMITTED_EXAMPLES.items()
+    }
+    if checker.IGNORED_EXAMPLES != expected_ignored:
+        failures.append(
+            "IGNORED_EXAMPLES in scripts/check_contract_freeze.py changed; update "
+            "the mirror in this file deliberately (an extra pointer hides a "
+            "fixture value from the gate)"
+        )
+    if checker.EMBEDDED != EXPECTED_EMBEDDED:
+        failures.append(
+            "EMBEDDED in scripts/check_contract_freeze.py changed; update the "
+            "mirror in this file deliberately"
+        )
+
+    for path, pointers in sorted(checker.IGNORED_EXAMPLES.items()):
+        value = json.loads((ROOT / path).read_text())
+        for pointer in sorted(pointers):
+            try:
+                resolved = get_pointer(value, pointer)
+            except (KeyError, IndexError, TypeError) as error:
+                failures.append(f"ignored pointer {path}#{pointer} does not resolve: {error!r}")
+                continue
+            if not isinstance(resolved, (str, int, float, bool)):
+                failures.append(f"ignored pointer {path}#{pointer} is not a scalar example")
+
+    for path, pointer in sorted(checker.EMBEDDED):
+        value = json.loads((ROOT / path).read_text())
+        try:
+            get_pointer(value, pointer)
+        except (KeyError, IndexError, TypeError) as error:
+            failures.append(f"embedded pointer {path}#{pointer} does not resolve: {error!r}")
+
+    return failures
+
+
+def ci_contract_globs() -> list[str]:
+    """Globs whose CI `case` branch makes the contract guard required.
+
+    Parsed from `.github/workflows/ci.yml` so a checker contract path that CI
+    would never flag fails here instead of silently skipping the guard.
+    """
+    if not CI_WORKFLOW.is_file():
+        raise SystemExit(
+            f"cannot find {CI_WORKFLOW}; the contract matrix needs it for the "
+            "contract-surface parity check"
+        )
+    lines = CI_WORKFLOW.read_text().splitlines()
+    groups: dict[str, list[str] | None] = {"contract_surface": None, "guard_script": None}
+    for index, line in enumerate(lines):
+        marker = line.strip()
+        if not marker.endswith("=true"):
+            continue
+        name = marker.split("=", 1)[0]
+        if name not in groups:
+            continue
+        pattern_line = ""
+        for previous in range(index - 1, -1, -1):
+            if lines[previous].strip():
+                pattern_line = lines[previous].strip()
+                break
+        if not pattern_line.endswith(")"):
+            raise SystemExit(
+                f"cannot parse the CI case pattern before {marker!r}: {pattern_line!r}"
+            )
+        groups[name] = pattern_line[:-1].split("|")
+    if groups["contract_surface"] is None:
+        raise SystemExit(
+            "cannot find the `contract_surface=true` case in .github/workflows/ci.yml; "
+            "the contract-surface parity check would otherwise pass silently"
+        )
+    return [pattern for patterns in groups.values() if patterns for pattern in patterns]
+
+
+def check_ci_coverage(checker) -> list[str]:
+    """Every checker contract path must trigger the CI contract guard."""
+    globs = ci_contract_globs()
+    missing: list[str] = []
+    for entry in checker.CONTRACT_PATHS:
+        sample = entry + "example.txt" if entry.endswith("/") else entry
+        if not any(fnmatch.fnmatchcase(sample, pattern) for pattern in globs):
+            missing.append(f"{entry} (sample {sample!r})")
+    if not missing:
+        return []
+    return [
+        "these checker contract paths are not covered by a CI pattern that "
+        "requires the contract guard: " + ", ".join(missing)
+    ]
+
+
 def main() -> int:
     failures = 0
-    for name, expect, mutate in [*CASES, *bootstrap_cases()]:
+    checker = load_checker()
+
+    print("self-checks:")
+    self_check_failures = [*check_example_tables(checker), *check_ci_coverage(checker)]
+    cases = [*CASES, *bootstrap_cases()]
+    actual_names = [name for name, _expect, _mutate in cases]
+    expected_names = [name for name, _code, _reason in EXPECTED_CASES]
+    if actual_names != expected_names:
+        self_check_failures.append(
+            "the executed case list differs from EXPECTED_CASES: deleting or "
+            f"renaming a case must be deliberate. Got {actual_names!r}"
+        )
+    if [expect for _name, expect, _mutate in cases] != [
+        code for _name, code, _reason in EXPECTED_CASES
+    ]:
+        self_check_failures.append(
+            "a registered case changed its expected exit code without updating EXPECTED_CASES"
+        )
+    for failure in self_check_failures:
+        print(f"FAIL  self-check: {failure}")
+    failures += len(self_check_failures)
+    if not self_check_failures:
+        print("PASS  gate tables, fixture pointers and CI contract-surface parity match")
+
+    for (name, expect, mutate), (expected_name, expected_code, reason) in zip(
+        cases, EXPECTED_CASES
+    ):
         with tempfile.TemporaryDirectory() as tmp:
-            # The bootstrap cases need contracts absent at the base commit; the
-            # others need them present so they are not exempted by bootstrap.
             omit = (
                 {"python/swe/schema.py"}
                 if "version file moved" in name or "absent at base AND head" in name
@@ -851,11 +1099,18 @@ def main() -> int:
                 omit=omit,
             )
             mutate(repo)
-            code = run(repo)
-            ok = code == expect
-            failures += 0 if ok else 1
-            print(f"{'PASS' if ok else 'FAIL'}  expected {expect} got {code}  {name}")
-    total = len(CASES) + len(bootstrap_cases())
+            code, output = run(repo)
+        reason_ok = reason in output
+        ok = code == expected_code and reason_ok
+        failures += 0 if ok else 1
+        detail = "" if reason_ok else f"  (missing reason {reason!r})"
+        print(
+            f"{'PASS' if ok else 'FAIL'}  expected {expected_code} got {code}  "
+            f"{expected_name}{detail}"
+        )
+        if not ok:
+            print(output)
+    total = len(EXPECTED_CASES)
     print(f"\n{total} cases, {failures} failed")
     return 1 if failures else 0
 

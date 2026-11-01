@@ -39,12 +39,19 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         shell: bash
         run: |
+          # Fail closed: a swallowed diff error would otherwise report every
+          # area false and let the aggregate job pass with nothing tested.
+          set -euo pipefail
           backend=false
           frontend=false
           word_addin=false
           knowledge=false
           swe_gym=false
           swe_core=false
+          contract_surface=false
+          guard_script=false
+          contract_guard_required=false
+          base_rev="${BASE_SHA:-}"
 
           if [ "${{ github.event_name }}" != "pull_request" ]; then
             backend=true
@@ -52,7 +59,24 @@ jobs:
             frontend=true
             word_addin=true
             knowledge=true
+            swe_gym=true
           else
+            if [ -z "$BASE_SHA" ] || [ -z "$HEAD_SHA" ]; then
+              echo "A pull_request event must provide base and head SHAs" >&2
+              exit 1
+            fi
+            # Judge the PR against its merge base, not a base-branch tip that may
+            # have moved since it branched. `--no-renames` keeps a move visible as
+            # a deletion plus an addition.
+            base_rev=$(git merge-base "$BASE_SHA" "$HEAD_SHA")
+            if ! changed=$(git diff --name-only --no-renames "$base_rev" "$HEAD_SHA"); then
+              echo "git diff failed for $base_rev..$HEAD_SHA; refusing to judge an unknown diff" >&2
+              exit 1
+            fi
+            if [ -z "$changed" ]; then
+              echo "The pull request changes no files; refusing to judge an empty diff" >&2
+              exit 1
+            fi
             while IFS= read -r path; do
               case "$path" in
                 crates/swe-gym/*)
@@ -67,15 +91,28 @@ jobs:
                   guard_script=true
                   backend=true
                   ;;
-                crates/swe-native/*|crates/swe-budget/*|crates/swe-reference/*|contracts/*|mutations/*|scripts/check_mutations.py|Cargo.toml|Cargo.lock)
+                .github/workflows/*)
+                  # The gate invocations live here, so a workflow change must
+                  # execute the gates instead of trusting files on disk.
                   swe_core=true
                   backend=true
+                  frontend=true
+                  word_addin=true
+                  knowledge=true
+                  ;;
+                crates/swe-native/*|crates/swe-budget/*|crates/swe-reference/*|contracts/*|mutations/*|scripts/check_mutations.py|Cargo.toml|Cargo.lock)
+                  # swe-gym path-depends on swe-native and swe-budget, so a core
+                  # change must build it too.
+                  swe_core=true
+                  backend=true
+                  swe_gym=true
                   ;;
                 backend/*|integrations/*|data/*|crates/*)
                   backend=true
                   ;;
                 python/*)
-                  # The SWE Python host package is exercised by the SWE job.
+                  # The SWE Python host package is exercised by the SWE runtime
+                  # job (its tests) and the Python SWE package job (its wheel).
                   backend=true
                   ;;
                 frontend/*)
@@ -98,7 +135,43 @@ jobs:
                   knowledge=true
                   ;;
               esac
-            done < <(git diff --name-only --no-renames "$BASE_SHA" "$HEAD_SHA")
+            done <<< "$changed"
+          fi
+
+          # A gate script may not disappear: the base revision had it and the
+          # head does not. A gate's own matrix is a gate too. These checks run
+          # before any output is written, so a deletion fails the changes job and
+          # therefore the aggregate CI check.
+          base_has=false
+          head_has=false
+          if [ -n "$base_rev" ] && git cat-file -e "$base_rev:scripts/check_contract_freeze.py" 2>/dev/null; then base_has=true; fi
+          if [ -n "$HEAD_SHA" ] && git cat-file -e "$HEAD_SHA:scripts/check_contract_freeze.py" 2>/dev/null; then head_has=true; fi
+          if [ "$base_has" = "true" ] && [ "$head_has" != "true" ]; then
+            echo "The contract gate script existed at the base commit and is gone at the head" >&2
+            exit 1
+          fi
+          # The mutation gate may not disappear either.
+          mut_base=false
+          mut_head=false
+          if [ -n "$base_rev" ] && git cat-file -e "$base_rev:scripts/check_mutations.py" 2>/dev/null; then mut_base=true; fi
+          if [ -n "$HEAD_SHA" ] && git cat-file -e "$HEAD_SHA:scripts/check_mutations.py" 2>/dev/null; then mut_head=true; fi
+          if [ "$mut_base" = "true" ] && [ "$mut_head" != "true" ]; then
+            echo "The mutation gate script existed at the base commit and is gone at the head" >&2
+            exit 1
+          fi
+          # The gates' own matrices are gates too.
+          for matrix_script in scripts/test_check_contract_freeze.py scripts/test_check_mutations.py; do
+            matrix_base=false
+            matrix_head=false
+            if [ -n "$base_rev" ] && git cat-file -e "$base_rev:$matrix_script" 2>/dev/null; then matrix_base=true; fi
+            if [ -n "$HEAD_SHA" ] && git cat-file -e "$HEAD_SHA:$matrix_script" 2>/dev/null; then matrix_head=true; fi
+            if [ "$matrix_base" = "true" ] && [ "$matrix_head" != "true" ]; then
+              echo "The gate matrix $matrix_script existed at the base commit and is gone at the head" >&2
+              exit 1
+            fi
+          done
+          if [ "$contract_surface" = "true" ] || [ "$guard_script" = "true" ]; then
+            contract_guard_required=true
           fi
 
           {
@@ -108,41 +181,6 @@ jobs:
             echo "knowledge=$knowledge"
             echo "swe_gym=$swe_gym"
             echo "swe_core=$swe_core"
-            # Presence and requirement are different questions. Presence answers
-            # "may the script be deleted?"; requirement answers "must the gate
-            # run for this PR?". Conflating them made every docs PR demand a
-            # SWE runtime run.
-            base_has=false
-            head_has=false
-            if [ -n "$BASE_SHA" ] && git cat-file -e "$BASE_SHA:scripts/check_contract_freeze.py" 2>/dev/null; then base_has=true; fi
-            if [ -n "$HEAD_SHA" ] && git cat-file -e "$HEAD_SHA:scripts/check_contract_freeze.py" 2>/dev/null; then head_has=true; fi
-            if [ "$base_has" = "true" ] || [ "$head_has" = "true" ]; then contract_guard_present=true; fi
-            if [ "$base_has" = "true" ] && [ "$head_has" != "true" ]; then
-              echo "The contract gate script existed at the base commit and is gone at the head" >&2
-              exit 1
-            fi
-            # The mutation gate may not disappear either.
-            mut_base=false
-            mut_head=false
-            if [ -n "$BASE_SHA" ] && git cat-file -e "$BASE_SHA:scripts/check_mutations.py" 2>/dev/null; then mut_base=true; fi
-            if [ -n "$HEAD_SHA" ] && git cat-file -e "$HEAD_SHA:scripts/check_mutations.py" 2>/dev/null; then mut_head=true; fi
-            if [ "$mut_base" = "true" ] && [ "$mut_head" != "true" ]; then
-              echo "The mutation gate script existed at the base commit and is gone at the head" >&2
-              exit 1
-            fi
-            # The gate's own matrix is a gate too.
-            matrix_base=false
-            matrix_head=false
-            if [ -n "$BASE_SHA" ] && git cat-file -e "$BASE_SHA:scripts/test_check_contract_freeze.py" 2>/dev/null; then matrix_base=true; fi
-            if [ -n "$HEAD_SHA" ] && git cat-file -e "$HEAD_SHA:scripts/test_check_contract_freeze.py" 2>/dev/null; then matrix_head=true; fi
-            if [ "$matrix_base" = "true" ] && [ "$matrix_head" != "true" ]; then
-              echo "The contract matrix existed at the base commit and is gone at the head" >&2
-              exit 1
-            fi
-            if [ "$contract_surface" = "true" ] || [ "$guard_script" = "true" ]; then
-              contract_guard_required=true
-            fi
-            echo "contract_guard_present=$contract_guard_present"
             echo "contract_guard_required=$contract_guard_required"
           } >> "$GITHUB_OUTPUT"
 
@@ -277,8 +315,8 @@ jobs:
         working-directory: .
         run: cargo run -p swe-reference
       # A contract change needs a declared reason: a version bump or a written
-      # decision. Guarded by the script's presence so the base branch, which
-      # does not have it yet, stays a no-op.
+      # decision. The changes job marks the guard required from the checker's own
+      # contract-path list, so a new contract file cannot be added without it.
       - name: Contract freeze guard
         if: github.event_name == 'pull_request' && needs.changes.outputs.contract_guard_required == 'true'
         working-directory: .
@@ -286,23 +324,35 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: python3 scripts/check_contract_freeze.py --base "$BASE_SHA" --head "$HEAD_SHA"
-      # The gate's own mutation matrix: a gate whose negative cases are not
-      # executed is a claim, not a mechanism.
-      # The gate's matrix is cheap (throwaway repos, ~1s) and must not depend on
-      # a selector that its own file could silence.
-      - name: Contract gate mutation matrix
+      # A gate whose negative cases are not executed is a claim, not a mechanism.
+      # Both matrices are cheap and static (throwaway repos / pure decisions), so
+      # they must not depend on a selector that their own files could silence.
+      - name: Gate self-test matrices
         working-directory: .
         run: |
-          if [ -f scripts/test_check_contract_freeze.py ]; then
-            python3 scripts/test_check_contract_freeze.py
-          else
-            echo "the contract matrix script is missing" >&2
-            exit 1
-          fi
+          for matrix in scripts/test_check_contract_freeze.py scripts/test_check_mutations.py; do
+            if [ ! -f "$matrix" ]; then
+              echo "the gate matrix $matrix is missing" >&2
+              exit 1
+            fi
+            python3 "$matrix"
+          done
       - name: Build swe_native
         run: uv run maturin develop --manifest-path ../crates/swe-native/Cargo.toml
       - name: SWD and runtime tests (package consumed by the backend)
         run: uv run pytest ../python/tests -m "not smoke"
+      # The backend keeps consumer tests that need the compiled extension. The
+      # backend job deselects the swe_runtime marker, so these run here against the
+      # same installed package and interpreter as the tests above. The wiring and
+      # sufficiency-reuse files (18 tests) are a tracked pre-existing CI bypass:
+      # one wiring test hangs/fails under the CI Python and needs its own
+      # investigation before it can be a gate. See docs/swe-standalone/06 risk row.
+      - name: Backend consumer tests (installed package)
+        run: >-
+          uv run pytest
+          tests/test_swe_provider.py
+          tests/test_swe_persistence.py
+          -m swe_runtime
 
   python-swe:
     name: Python SWE package
@@ -320,21 +370,33 @@ jobs:
           python-version: "3.12"
           enable-cache: true
       # The package proves itself in its own environment: its own lockfile, its
-      # own venv, its own test tooling. Backend's venv is not involved. Every
-      # step is guarded so the branch that does not have python/ yet is a no-op.
+      # own venv, its own test tooling. Backend's venv is not involved.
       - name: Install, build and test the standalone package
-        if: hashFiles('python/pyproject.toml') != ''
         run: |
           set -euo pipefail
           cd python
           uv sync --locked --group dev
           cd ..
-          uvx maturin build --manifest-path crates/swe-native/Cargo.toml             --interpreter python/.venv/bin/python --out /tmp/wheels
+          uvx maturin build --manifest-path crates/swe-native/Cargo.toml --interpreter python/.venv/bin/python --out /tmp/wheels
           cd python
           # swe_native is a local wheel, not a PyPI dependency, so it is installed
           # after sync; --no-sync stops uv from pruning it again.
           uv pip install /tmp/wheels/*.whl
           uv run --no-sync pytest -m "not smoke"
+      # The distribution, not just the source tree: a broken wheel (missing
+      # metadata or package data such as swd_v1.schema.json) must fail CI.
+      - name: Prove the distribution installs outside the repo
+        run: |
+          set -euo pipefail
+          cd python
+          uv build --out-dir /tmp/swe-dist
+          ls /tmp/swe-dist/*.whl /tmp/swe-dist/*.tar.gz >/dev/null
+          cd /tmp
+          uv venv /tmp/swe-pkgvenv --python 3.12
+          uv pip install --python /tmp/swe-pkgvenv/bin/python /tmp/swe-dist/*.whl
+          # cwd is /tmp, so the import cannot fall back to the source checkout;
+          # load_schema() opens the schema file from the installed package.
+          /tmp/swe-pkgvenv/bin/python -c "import swe; swe.load_schema(); print('installed', swe.__file__)"
 
   swe-mutation:
     name: SWE mutation gate
@@ -354,16 +416,13 @@ jobs:
       # as detected / equivalent / excepted with a justification, and any
       # mutation whose outcome disagrees with its classification fails. See
       # mutations/baseline.json and docs/swe-standalone/14-mutation-gate.md.
-      #
-      # The fetch and the gate are one guarded step on purpose: on a branch that
-      # has the workflow but not the packaging workspace, an unguarded fetch
-      # would fail the job instead of being a no-op.
       - name: Classified mutation gate
         run: |
           # A clean runner has no registry cache, so resolve the locked set
-          # online first; the gate itself then runs offline and deterministically.
+          # online first. The gate itself then runs offline: that is the property
+          # the docs claim and CI verifies, not one it assumes.
           cargo fetch --locked
-          python3 scripts/check_mutations.py
+          python3 scripts/check_mutations.py --offline
 
   postgres-schema:
     name: PostgreSQL schema
@@ -521,15 +580,26 @@ jobs:
             exit 1
           fi
 
+          # A selector that emits nothing is a broken selector, not "no areas".
+          contract_guard_required="${{ needs.changes.outputs.contract_guard_required }}"
+          swe_core="${{ needs.changes.outputs.swe_core }}"
+          for flag in "$swe_core" "$contract_guard_required"; do
+            case "$flag" in
+              true|false) ;;
+              *)
+                echo "The changes job emitted an invalid selector value: '$flag'" >&2
+                exit 1
+                ;;
+            esac
+          done
+
           # The mutation gate must not be able to disappear silently. If core
           # files changed it has to run and pass; if they did not, it is allowed
           # to be skipped. Anything else is a broken selector or a skipped gate.
-          contract_guard_required="${{ needs.changes.outputs.contract_guard_required }}"
           if [ "$contract_guard_required" = "true" ] && [ "$swe_runtime" != "success" ]; then
             echo "The contract gate was required but SWE runtime was $swe_runtime"
             exit 1
           fi
-          swe_core="${{ needs.changes.outputs.swe_core }}"
           if [ "$swe_core" = "true" ] && [ "$swe_mutation" != "success" ]; then
             echo "Core files changed but the mutation gate was $swe_mutation"
             exit 1
@@ -541,7 +611,7 @@ jobs:
 
           for result in "$backend" "$research_reuse" "$swe_runtime" "$python_swe" "$swe_mutation" "$postgres_schema" "$frontend" "$word_addin" "$knowledge" "$swe_gym"; do
             if [ "$result" != "success" ] && [ "$result" != "skipped" ]; then
-              echo "Required jobs: backend=$backend research-reuse=$research_reuse swe-runtime=$swe_runtime postgres-schema=$postgres_schema frontend=$frontend word-addin=$word_addin knowledge=$knowledge swe-gym=$swe_gym"
+              echo "Required jobs: backend=$backend research-reuse=$research_reuse swe-runtime=$swe_runtime python-swe=$python_swe swe-mutation=$swe_mutation postgres-schema=$postgres_schema frontend=$frontend word-addin=$word_addin knowledge=$knowledge swe-gym=$swe_gym"
               exit 1
             fi
           done

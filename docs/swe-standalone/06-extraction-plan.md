@@ -165,8 +165,8 @@ create.
 - No `path` dependency across repository boundaries; Socialism uses a git tag.
 - `swe-bindings` is the only crate with a `cdylib`; it has the `pyo3` optional
   dependency and the `extension-module` feature today.
-- `publish = false` today; if crates.io publication is wanted later, that is a
-  separate decision requiring a license (today `UNLICENSED`) and a
+- `publish = false` today; crates.io publication is a separate decision in the
+  move/PR 4 (the license is decided, see `15-licensing.md`) and requires a
   `cargo publish` dry run. Until then, consume by git tag.
 - The `swe-native` name: keep the package name `swe-core` for clarity and keep
   the PyO3 module name `swe_native` (avoids touching every Python import). A
@@ -288,8 +288,9 @@ PyPI-distribution `swe-engine` (`swe` är upptaget, importnamnet förblir `swe`)
 
 ## AI-agentförfattarskap (dokumenterat 2026-11-01)
 
-Sju commits på extraktionsmålens vägar är författade under
-`Cursor Agent <cursoragent@cursor.com>`, inklusive kärnan (`b78055ba`) och
+Nio commits på extraktionsmålens vägar är författade under
+`Cursor Agent <cursoragent@cursor.com>` (mätt på `9d17b096` med samma
+path-filter som `15-licensing.md`), inklusive kärnan (`b78055ba`) och
 SWD-schemat/parsern (`832a7f29`). Koden är skriven under ägarens ansvar med
 AI-verktyg; det dokumenteras här så att en extern läsare inte behöver gissa när
 den ser `git log`. Rättighetsinnehavaren för extraktionsmålet är
@@ -341,8 +342,8 @@ vendored copy of `swe-native`, or a second gym implementation.
 | PyO3 packaging breaks the Socialism deploy path | Medium | Build the wheel in the SWE CI from the tag; keep a documented source-build fallback in the move PR only as a build instruction, not a code path |
 | Git history filter mistakes / lost provenance | Medium | Dry-run on a clone, compare moved-file hashes against `origin/main`, record source SHAs in commit messages; never rewrite the Socialism repo |
 | CI cost and duplicate test runs during transition | Low | Remove the monorepo SWE jobs in the consuming PR, not before |
-| Regression coverage silently drops in the move | Medium | Two `swe_runtime`-marked consumer tests already bypass CI today (`02-inventory-python.md` §10.4); add them to a dedicated Socialism job in the consuming PR and assert the collected count is non-zero |
-| License (`UNLICENSED`, `publish = false`) blocks crate/wheel distribution | Medium | Decide the license for the new repo in PR 4; git-tag consumption works without crates.io publication |
+| Regression coverage silently drops in the move | Medium | Provider-/persistence-konsumenttesterna (22, `swe_runtime`) körs nu i SWE runtime-jobbet. `tests/test_research_swe/test_wiring.py` och `tests/test_sufficiency_experiment_reuse.py` (18 tester) är fortfarande en känd CI-bypass (`02-inventory-python.md` §10.4) — ett wiring-test fallerar/hänger i CI-miljön (Python 3.12) och kräver egen utredning innan det kan grindas |
+| Publishing blocked by `publish = false` until the move PR | Medium | License decided 2026-11-01 (MIT OR Apache-2.0, `15-licensing.md`); `publish = true` and a `cargo publish` dry run belong to the move/PR 4; git-tag consumption works without crates.io publication |
 | Research behaviour regresses during the cutover | High | The existing research regression suites stay in Socialism and are the gate for PR 5; no behaviour changes are allowed in the move |
 | "No parallel implementations" violated by the example crate | Medium | The reference demo only consumes public contracts; it must not reimplement engine primitives (`crates/swe-reference/README.md` states this) |
 

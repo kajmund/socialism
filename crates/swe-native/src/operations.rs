@@ -8,8 +8,8 @@
 //! comparison.
 //!
 //! The domain supplies the executors (what an operation computes and how facts
-//! are normalised). It supplies them through [`execute`], which keeps the gate
-//! structurally in front of every executor.
+//! are normalised). The gate is the executable boundary: an executor runs only
+//! after [`OperationSpec::gate`] has accepted its inputs.
 
 use std::fmt;
 
@@ -96,9 +96,9 @@ impl OperationSpec {
 
 /// Refuse a state list that names the same need twice.
 ///
-/// The single implementation of that rule: both [`OperationSpec::gate`] and
-/// [`execute`] call it, so there is one place where a duplicate is defined and
-/// one place to mutate when testing it.
+/// The single implementation of that rule: [`OperationSpec::gate`] calls it, so
+/// there is one place where a duplicate is defined and one place to mutate when
+/// testing it.
 fn ensure_unique_state(states: &[(NeedRef, NeedStatus)]) -> Result<(), GateError> {
     let mut seen = std::collections::BTreeSet::new();
     for (need, _) in states {

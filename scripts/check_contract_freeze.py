@@ -32,6 +32,11 @@ fail-closed:
   A mismatch keeps the raw value (fail-closed). This is what lets a
   ``CONTRACT_VERSION`` bump regenerate the journal header without demanding a
   ``JOURNAL_SCHEMA_VERSION`` bump.
+* A version constant's value is read from its **declaration**, using the same
+  tokenizer as the API fingerprint, never from raw text: a comment or a string
+  literal that merely spells ``JOURNAL_SCHEMA_VERSION = 2`` is not a bump. A
+  missing or non-literal declaration still reads as "no version" and fails
+  closed.
 * The SWD schema keeps every semantic value (required, enum, const, pattern,
   bounds, refs); only its exact version location is normalised.
 * Journal fixtures keep every ``kind`` value; example ids, timestamps,
@@ -57,6 +62,9 @@ package move in the same PR); it may never excuse a missing head declaration.
 Bootstrap: while `contracts/` does not exist at the base commit, the initial
 freeze may start at version 1 with a documented decision. The exception is
 self-closing — once contracts exist at the base it can never apply again.
+
+Editing `contracts/README.md` is documentation, not a contract change: the
+structural test still pins every `*.json` fixture in `MANIFEST.sha256`.
 
 Usage:
     python3 scripts/check_contract_freeze.py --base <sha> --head <sha>
@@ -117,6 +125,11 @@ VERSION_FILES = tuple(dict.fromkeys(path for path, _ in VERSIONS.values()))
 
 EXTRA_CONTRACT_PATHS = ("python/swe/swd_v1.schema.json",)
 
+# Documentation that lives next to the fixtures but is not part of the frozen
+# surface. Editing it must not demand a contract decision; every *.json fixture
+# is still pinned by the structural manifest test.
+CONTRACT_DOCS = frozenset({"contracts/README.md"})
+
 CONTRACT_PATHS = (
     "contracts/",
     GUARD_SCRIPT,
@@ -126,6 +139,11 @@ CONTRACT_PATHS = (
     *[path for paths in SOURCES.values() for path in paths],
     *WIRE_KEY_FILES,
 )
+
+
+def contract_path(path: str) -> bool:
+    """True when a changed path belongs to the frozen contract surface."""
+    return path not in CONTRACT_DOCS and path.startswith(CONTRACT_PATHS)
 
 # ---------------------------------------------------------------------------
 # Exact example values the frozen fixtures may change without a contract change.
@@ -295,16 +313,112 @@ def changed_paths(base: str, head: str) -> list[str]:
     return list(cached)
 
 
+def _strip_python_comments(source: str) -> str:
+    """Drop ``#`` comments before tokenizing a Python version file.
+
+    The tokenizer is Rust-oriented: it only strips Rust comments, so a Python
+    comment would otherwise be tokenized as code and could spell a fake
+    declaration. String literals are skipped so a ``#`` inside one survives.
+    """
+    out: list[str] = []
+    index = 0
+    while index < len(source):
+        literal = _literal_end(source, index)
+        if literal is not None:
+            out.append(source[index:literal])
+            index = literal
+            continue
+        if source[index] == "#":
+            newline = source.find("\n", index)
+            index = len(source) if newline < 0 else newline
+            continue
+        out.append(source[index])
+        index += 1
+    return "".join(out)
+
+
+def _statement_start(tokens: list[_Token], index: int) -> bool:
+    """True when the token at ``index`` starts a declaration statement.
+
+    ``const`` is normally preceded by ``pub`` (possibly ``pub(crate)``) on the
+    same line, so the keyword itself is not the first token. Tokenizing removes
+    Rust comments, but Python files use ``#`` comments that the Rust-oriented
+    tokenizer only partly strips, so a ``const`` in Python comment text must not
+    pass this check.
+    """
+    if tokens[index].line_start:
+        return True
+    if index == 0:
+        return False
+    previous = tokens[index - 1].text
+    if previous == "pub":
+        return True
+    if previous != ")":
+        return False
+    depth = 0
+    cursor = index - 1
+    while cursor >= 0:
+        text = tokens[cursor].text
+        if text == ")":
+            depth += 1
+        elif text == "(":
+            depth -= 1
+            if depth == 0:
+                return cursor > 0 and tokens[cursor - 1].text == "pub"
+        cursor -= 1
+    return False
+
+
+def _declared_literal(tokens: list[_Token], index: int) -> str | None:
+    """The literal value of the declaration whose name token is at ``index``.
+
+    A declaration without a literal value reads as None, so the caller fails
+    closed instead of guessing.
+    """
+    cursor = index + 1
+    while cursor < len(tokens) and tokens[cursor].text not in ("=", ";"):
+        if tokens[cursor].line_start and tokens[cursor].text in DECLARATION_KEYWORDS:
+            return None
+        cursor += 1
+    if cursor >= len(tokens) or tokens[cursor].text != "=":
+        return None
+    cursor += 1
+    if cursor >= len(tokens):
+        return None
+    literal = tokens[cursor].text
+    if len(literal) >= 2 and literal[0] == '"' and literal[-1] == '"':
+        return literal[1:-1]
+    if re.fullmatch(r"\d+(?:\.\d+)*", literal):
+        return literal
+    return None
+
+
 def read_version(rev: str, path: str, name: str) -> str | None:
+    """A registered version constant's value, read from its declaration.
+
+    ``SWD_VERSION = "1.0"`` (module-level Python assignment) and
+    ``pub const CONTRACT_VERSION: u32 = 1;`` (Rust constant) are declarations.
+    Text in a comment or a string literal that merely spells the same
+    assignment is not, so a comment can never stand in for a version bump.
+    Missing or malformed declarations read as None (fail closed).
+    """
     blob = read_at(rev, path)
     if blob is None:
         return None
-    match = re.search(
-        rf"{name}\s*(?::\s*[A-Za-z0-9_]+\s*)?=\s*(\"[^\"]*\"|\d+(?:\.\d+)*)", blob
-    )
-    if not match:
-        return None
-    return match.group(1).strip('"')
+    if path.endswith(".py"):
+        blob = _strip_python_comments(blob)
+    tokens = _tokenize(blob)
+    for index, token in enumerate(tokens):
+        if token.text == "const" and _statement_start(tokens, index):
+            if index + 1 < len(tokens) and tokens[index + 1].text == name:
+                value = _declared_literal(tokens, index + 1)
+                if value is not None:
+                    return value
+        elif token.text == name and token.line_start:
+            value = _declared_literal(tokens, index)
+            if value is not None:
+                return value
+    return None
 
 
 def version_of(contract: str, rev: str) -> str | None:
@@ -769,7 +883,7 @@ def main() -> int:
         return 1
 
     changed = changed_paths(args.base, args.head)
-    contract_touched = [path for path in changed if path.startswith(CONTRACT_PATHS)]
+    contract_touched = [path for path in changed if contract_path(path)]
     if not contract_touched:
         print("contract freeze: no contract path changed")
         return 0

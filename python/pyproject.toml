@@ -18,8 +18,9 @@ dependencies = [
 ]
 
 [dependency-groups]
-# Test tooling for the standalone package. Versions match the resolved
-# backend pins (backend/uv.lock: pytest 9.1.1, pytest-asyncio 1.4.0).
+# Test tooling for the standalone package. The minimums match the backend's
+# specifiers; this package's own lock resolves newer (pytest 9.2.0,
+# pytest-asyncio 1.4.1). It does not share the backend's venv.
 dev = [
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
