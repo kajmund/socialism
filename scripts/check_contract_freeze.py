@@ -32,11 +32,11 @@ fail-closed:
   A mismatch keeps the raw value (fail-closed). This is what lets a
   ``CONTRACT_VERSION`` bump regenerate the journal header without demanding a
   ``JOURNAL_SCHEMA_VERSION`` bump.
-* A version constant's value is read from its **declaration**, using the same
-  tokenizer as the API fingerprint, never from raw text: a comment or a string
-  literal that merely spells ``JOURNAL_SCHEMA_VERSION = 2`` is not a bump. A
-  missing or non-literal declaration still reads as "no version" and fails
-  closed.
+* A version constant's value is read from its **top-level declaration**, never
+  from raw text: Python uses its AST and Rust requires a crate-scope
+  ``pub const``. A nested assignment/const, comment or string literal that
+  merely spells ``JOURNAL_SCHEMA_VERSION = 2`` is not a bump. Missing,
+  duplicated or non-literal declarations read as "no version" and fail closed.
 * The SWD schema keeps every semantic value (required, enum, const, pattern,
   bounds, refs); only its exact version location is normalised.
 * Journal fixtures keep every ``kind`` value; example ids, timestamps,
@@ -73,6 +73,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import ast
 import json
 import os
 import re
@@ -313,62 +314,6 @@ def changed_paths(base: str, head: str) -> list[str]:
     return list(cached)
 
 
-def _strip_python_comments(source: str) -> str:
-    """Drop ``#`` comments before tokenizing a Python version file.
-
-    The tokenizer is Rust-oriented: it only strips Rust comments, so a Python
-    comment would otherwise be tokenized as code and could spell a fake
-    declaration. String literals are skipped so a ``#`` inside one survives.
-    """
-    out: list[str] = []
-    index = 0
-    while index < len(source):
-        literal = _literal_end(source, index)
-        if literal is not None:
-            out.append(source[index:literal])
-            index = literal
-            continue
-        if source[index] == "#":
-            newline = source.find("\n", index)
-            index = len(source) if newline < 0 else newline
-            continue
-        out.append(source[index])
-        index += 1
-    return "".join(out)
-
-
-def _statement_start(tokens: list[_Token], index: int) -> bool:
-    """True when the token at ``index`` starts a declaration statement.
-
-    ``const`` is normally preceded by ``pub`` (possibly ``pub(crate)``) on the
-    same line, so the keyword itself is not the first token. Tokenizing removes
-    Rust comments, but Python files use ``#`` comments that the Rust-oriented
-    tokenizer only partly strips, so a ``const`` in Python comment text must not
-    pass this check.
-    """
-    if tokens[index].line_start:
-        return True
-    if index == 0:
-        return False
-    previous = tokens[index - 1].text
-    if previous == "pub":
-        return True
-    if previous != ")":
-        return False
-    depth = 0
-    cursor = index - 1
-    while cursor >= 0:
-        text = tokens[cursor].text
-        if text == ")":
-            depth += 1
-        elif text == "(":
-            depth -= 1
-            if depth == 0:
-                return cursor > 0 and tokens[cursor - 1].text == "pub"
-        cursor -= 1
-    return False
-
-
 def _declared_literal(tokens: list[_Token], index: int) -> str | None:
     """The literal value of the declaration whose name token is at ``index``.
 
@@ -393,32 +338,87 @@ def _declared_literal(tokens: list[_Token], index: int) -> str | None:
     return None
 
 
+def _python_version(source: str, name: str) -> str | None:
+    """Read exactly one literal assignment at Python module scope."""
+    try:
+        module = ast.parse(source)
+    except SyntaxError:
+        return None
+    declarations = 0
+    values: list[str] = []
+    for statement in module.body:
+        value_node: ast.expr | None = None
+        if (
+            isinstance(statement, ast.Assign)
+            and len(statement.targets) == 1
+            and isinstance(statement.targets[0], ast.Name)
+            and statement.targets[0].id == name
+        ):
+            value_node = statement.value
+        elif (
+            isinstance(statement, ast.AnnAssign)
+            and isinstance(statement.target, ast.Name)
+            and statement.target.id == name
+            and statement.value is not None
+        ):
+            value_node = statement.value
+        else:
+            continue
+        declarations += 1
+        if value_node is None or not isinstance(value_node, ast.Constant):
+            continue
+        value = value_node.value
+        if isinstance(value, bool) or not isinstance(value, (str, int, float)):
+            continue
+        values.append(str(value))
+    return values[0] if declarations == 1 and len(values) == 1 else None
+
+
+def _rust_version(source: str, name: str) -> str | None:
+    """Read exactly one literal ``pub const`` declaration at crate scope."""
+    tokens = _tokenize(source)
+    declarations = 0
+    values: list[str] = []
+    brace_depth = 0
+    index = 0
+    while index < len(tokens):
+        token = tokens[index]
+        if token.text == "}":
+            brace_depth = max(0, brace_depth - 1)
+        if brace_depth == 0 and token.text == "pub":
+            cursor = index + 1
+            if cursor < len(tokens) and tokens[cursor].text == "(":
+                cursor = _matching(tokens, cursor, "(", ")") + 1
+            if (
+                cursor + 1 < len(tokens)
+                and tokens[cursor].text == "const"
+                and tokens[cursor + 1].text == name
+            ):
+                declarations += 1
+                value = _declared_literal(tokens, cursor + 1)
+                if value is not None:
+                    values.append(value)
+        if token.text == "{":
+            brace_depth += 1
+        index += 1
+    return values[0] if declarations == 1 and len(values) == 1 else None
+
+
 def read_version(rev: str, path: str, name: str) -> str | None:
     """A registered version constant's value, read from its declaration.
 
-    ``SWD_VERSION = "1.0"`` (module-level Python assignment) and
-    ``pub const CONTRACT_VERSION: u32 = 1;`` (Rust constant) are declarations.
-    Text in a comment or a string literal that merely spells the same
-    assignment is not, so a comment can never stand in for a version bump.
-    Missing or malformed declarations read as None (fail closed).
+    ``SWD_VERSION = "1.0"`` must be a top-level Python assignment and
+    ``pub const CONTRACT_VERSION: u32 = 1;`` must be a crate-scope Rust
+    declaration. A nested assignment/const, comment or string literal cannot
+    stand in for a version bump. Missing, duplicated or malformed declarations
+    read as None (fail closed).
     """
     blob = read_at(rev, path)
     if blob is None:
         return None
     if path.endswith(".py"):
-        blob = _strip_python_comments(blob)
-    tokens = _tokenize(blob)
-    for index, token in enumerate(tokens):
-        if token.text == "const" and _statement_start(tokens, index):
-            if index + 1 < len(tokens) and tokens[index + 1].text == name:
-                value = _declared_literal(tokens, index + 1)
-                if value is not None:
-                    return value
-        elif token.text == name and token.line_start:
-            value = _declared_literal(tokens, index)
-            if value is not None:
-                return value
-    return None
+        return _python_version(blob, name)
+    return _rust_version(blob, name)
 
 
 def version_of(contract: str, rev: str) -> str | None:

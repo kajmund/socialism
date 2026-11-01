@@ -10,8 +10,9 @@ run that could not have been red is the failure mode this whole programme keeps
 finding, so every "this counts as green" rule has a case that must say "red".
 
 Manifest validation is covered too: the baseline is the only way in, so an
-unknown classification, a non-detected mutation without a reason, missing keys,
-an empty baseline and an unsupported version must all be ``SystemExit``.
+unknown classification, a non-detected mutation without a reason, escaping file
+paths, missing keys, an empty baseline and an unsupported version must all be
+``SystemExit``.
 
 Run with ``python3 scripts/test_check_mutations.py``; exits non-zero on any FAIL.
 """
@@ -466,6 +467,30 @@ def cases():
                             "classification": "detected",
                             "expected_red": ["t"],
                         }
+                    ],
+                }
+            ),
+        ),
+        (
+            "manifest: absolute mutation path is SystemExit",
+            "SystemExit",
+            manifest_case(
+                {
+                    **valid_manifest(),
+                    "mutations": [
+                        {**valid_manifest()["mutations"][0], "file": "/tmp/outside.rs"}
+                    ],
+                }
+            ),
+        ),
+        (
+            "manifest: parent traversal mutation path is SystemExit",
+            "SystemExit",
+            manifest_case(
+                {
+                    **valid_manifest(),
+                    "mutations": [
+                        {**valid_manifest()["mutations"][0], "file": "../outside.rs"}
                     ],
                 }
             ),

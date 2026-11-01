@@ -121,7 +121,9 @@ async def test_cancelled_swe_run_is_persisted_as_cancelled(db, tmp_path) -> None
         captured["status"] = result.status
 
     try:
-        with mock.patch("app.services.research.execution._run_research_loop", stored_loop):
+        with mock.patch(
+            "app.services.research.execution._run_research_loop", stored_loop
+        ), pytest.raises(asyncio.CancelledError):
             await execute_attempt_research(
                 session,
                 attempt_id=attempt.id,

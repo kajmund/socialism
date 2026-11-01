@@ -858,6 +858,41 @@ def _(repo: Path) -> None:
     )
 
 
+@case("function-local Python version spoof is not a bump: fails", 1)
+def _(repo: Path) -> None:
+    schema = copy.deepcopy(SWD_SCHEMA)
+    schema["properties"]["name"]["minLength"] = 2
+    commit(
+        repo,
+        {
+            "python/swe/schema.py": (
+                "def fake_version():\n"
+                '    SWD_VERSION = "1.1"\n'
+            ),
+            "python/swe/swd_v1.schema.json": dump(schema),
+            "docs/swe-standalone/08-verification-log.md": DECISION,
+        },
+    )
+
+
+@case("function-local Rust version spoof is not a bump: fails", 1)
+def _(repo: Path) -> None:
+    events = frozen_events()
+    events[3]["amount_milli"] = 501
+    spoofed = JOURNAL_SOURCE.replace(
+        "pub const JOURNAL_SCHEMA_VERSION: u32 = 1;",
+        "pub fn fake_version() {\n    pub const JOURNAL_SCHEMA_VERSION: u32 = 2;\n}",
+    )
+    commit(
+        repo,
+        {
+            "contracts/journal-v1-events.json": dump(events),
+            "crates/swe-native/src/journal.rs": spoofed,
+            "docs/swe-standalone/08-verification-log.md": DECISION,
+        },
+    )
+
+
 def bootstrap_cases() -> list[tuple[str, int, callable]]:
     def bootstrap_ok(repo: Path) -> None:
         commit(
@@ -947,6 +982,8 @@ EXPECTED_CASES = [
     ("contracts README edit needs no contract decision", 0, "no contract path changed"),
     ("comment version spoof is not a bump: fails", 1, "journal: wire form changed but its version stayed 1"),
     ("string version spoof is not a bump: fails", 1, "journal: wire form changed but its version stayed 1"),
+    ("function-local Python version spoof is not a bump: fails", 1, "SWD_VERSION is missing at the head"),
+    ("function-local Rust version spoof is not a bump: fails", 1, "JOURNAL_SCHEMA_VERSION is missing at the head"),
     ("bootstrap: version file absent at base AND head: fails", 1, "SWD_VERSION is missing at the head"),
     ("bootstrap: version file moved in this PR: allowed", 0, "allowed by the bootstrap exception"),
     ("bootstrap: contracts absent at base: version 1 allowed", 0, "allowed by the bootstrap exception"),

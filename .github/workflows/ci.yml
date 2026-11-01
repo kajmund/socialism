@@ -343,15 +343,14 @@ jobs:
         run: uv run pytest ../python/tests -m "not smoke"
       # The backend keeps consumer tests that need the compiled extension. The
       # backend job deselects the swe_runtime marker, so these run here against the
-      # same installed package and interpreter as the tests above. The wiring and
-      # sufficiency-reuse files (18 tests) are a tracked pre-existing CI bypass:
-      # one wiring test hangs/fails under the CI Python and needs its own
-      # investigation before it can be a gate. See docs/swe-standalone/06 risk row.
+      # same installed package and interpreter as the tests above.
       - name: Backend consumer tests (installed package)
         run: >-
           uv run pytest
           tests/test_swe_provider.py
           tests/test_swe_persistence.py
+          tests/test_research_swe/test_wiring.py
+          tests/test_sufficiency_experiment_reuse.py
           -m swe_runtime
 
   python-swe:

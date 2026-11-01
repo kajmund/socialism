@@ -55,7 +55,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_MANIFEST = ROOT / "mutations" / "baseline.json"
@@ -94,6 +94,14 @@ def load_manifest(path: Path) -> list[dict]:
         if mutation["classification"] != "detected" and not mutation.get("reason"):
             raise SystemExit(
                 f"mutation {mutation['id']}: {mutation['classification']} needs a reason"
+            )
+        file_value = mutation["file"]
+        if not isinstance(file_value, str) or not file_value:
+            raise SystemExit(f"mutation {mutation['id']}: file must be a non-empty path")
+        manifest_path = PurePosixPath(file_value)
+        if manifest_path.is_absolute() or ".." in manifest_path.parts:
+            raise SystemExit(
+                f"mutation {mutation['id']}: file must stay inside the isolated worktree"
             )
     return mutations
 
@@ -273,8 +281,16 @@ def main() -> int:
             )
             return 1
 
+        worktree_root = Path(ISOLATED["worktree"]).resolve()
         for mutation in mutations:
-            path = Path(ISOLATED["worktree"]) / mutation["file"]
+            path = (worktree_root / mutation["file"]).resolve()
+            if not path.is_relative_to(worktree_root):
+                failures.append(
+                    f"{mutation['id']}: {mutation['file']} resolves outside the "
+                    "isolated worktree"
+                )
+                rows.append((mutation["id"], mutation["classification"], "INVALID PATH", ""))
+                continue
             original = path.read_text()
             digest = sha256(path)
             if mutation["find"] not in original:
