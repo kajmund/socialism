@@ -973,7 +973,6 @@ def _executable_source_types(
 
 
 
-
 async def _ensure_research_inventory(
     session: AsyncSession,
     *,
