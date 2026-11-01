@@ -999,9 +999,10 @@ spår försökte reproducera fel med doctored commits eller syntetiska
   workflow-invocations inte kan försvinna tyst. Workflow-ändringar triggar
   mutationsgrinden, kärnändringar bygger `swe-gym`, och aggregate-jobbet avvisar
   ett selector-värde som varken är `true` eller `false`.
-- **Kvar som ägarbeslut eller senare PR:** kontraktsfrysningens sign-off
-  (kriterium 6) och den fysiska repo-flytten; skydd mot att en PR skriver om
-  grindarna själva (CODEOWNERS/ruleset); `repository`/`homepage`-metadata och
+- **Kvar som senare PR:** projektägaren signerade kontraktsfrysning v1
+  2026-11-01 (kriterium 6); den fysiska repo-flytten återstår. Även skydd mot
+  att en PR skriver om grindarna själva (CODEOWNERS/ruleset);
+  `repository`/`homepage`-metadata och
   `THIRD-PARTY-NOTICES` i flytten; att `swe-native` namnger
   `contract_version`-fel som `schema_version` i feltexten; att
   `CONTRACT_VERSION`/`current_dependency_versions()` exporteras publikt så att
@@ -1010,8 +1011,9 @@ spår försökte reproducera fel med doctored commits eller syntetiska
 
 ### Kvar efter B4
 
-- **Kontraktsfrysning v1** (kriterium 6): dokumenten finns och grindarna är på
-  plats, men "fryst" kräver ägarens sign-off.
+- **Kontraktsfrysning v1** (kriterium 6): **signerad av projektägaren
+  2026-11-01.** Dokumenten och grindarna ska nu föras över oförändrade och
+  verifieras i målrepot under PR 4.
 - **Licens och repo** (kriterium 7): **fattat** — MIT OR Apache-2.0 för
   extraktionsmålet, `Copyright (c) 2026 Erik Fremred`, repo `kajmund/swe`
   (planerat, publikt i flytten), PyPI-distribution `swe-engine`;
