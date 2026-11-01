@@ -19,11 +19,11 @@ pytestmark = pytest.mark.swe_runtime
 
 async def test_pinned_swe_distribution_runs_a_workflow() -> None:
     project = tomllib.loads(Path("pyproject.toml").read_text())
-    expected_revision = project["tool"]["uv"]["sources"]["swe-engine"]["rev"]
+    expected_tag = project["tool"]["uv"]["sources"]["swe-engine"]["tag"]
     direct_url = json.loads(
         importlib.metadata.distribution("swe-engine").read_text("direct_url.json")
     )
-    assert direct_url["vcs_info"]["commit_id"] == expected_revision
+    assert direct_url["vcs_info"]["requested_revision"] == expected_tag
 
     definition = compile_definition(
         {

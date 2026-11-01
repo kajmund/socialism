@@ -40,7 +40,7 @@ dependencies = [
     # Official async transport for Supabase Storage Vector Buckets (alpha API).
     "storage3==2.31.0",
     "structlog>=26.1.0",
-    # SWE engine host adapter, pinned to the independently released source revision.
+    # SWE engine host adapter, pinned to the independently released source tag.
     "swe-engine==0.1.0",
     "uvicorn[standard]>=0.51.0",
     # Async Realtime wire protocol and close/error semantics; used by every STT session.
@@ -77,7 +77,7 @@ override-dependencies = [
 ]
 
 [tool.uv.sources]
-swe-engine = { git = "https://github.com/kajmund/swe", rev = "dbb20d4fd4c9fe00e68c4d88489e9fa3ae3f2a1e", subdirectory = "python" }
+swe-engine = { git = "https://github.com/kajmund/swe", tag = "v0.1.0", subdirectory = "python" }
 
 [dependency-groups]
 dev = [

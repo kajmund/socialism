@@ -3,7 +3,7 @@
 # Pinned OKF CLI (validate + future MCP). Not a runtime app dependency.
 OKF_MCP_PKG := @mfdaves/okf-mcp@0.3.3
 SWE_REPOSITORY := https://github.com/kajmund/swe
-SWE_REV := dbb20d4fd4c9fe00e68c4d88489e9fa3ae3f2a1e
+SWE_TAG := v0.1.0
 SWE_SOURCE ?= $(CURDIR)/.cache/swe
 
 FLYCTL ?= flyctl
@@ -167,9 +167,9 @@ swe-native:
 		git -C "$(SWE_SOURCE)" init; \
 		git -C "$(SWE_SOURCE)" remote add origin "$(SWE_REPOSITORY)"; \
 	fi
-	@git -C "$(SWE_SOURCE)" fetch --depth 1 origin "$(SWE_REV)"
-	@git -C "$(SWE_SOURCE)" checkout --detach --force FETCH_HEAD
-	@test "$$(git -C "$(SWE_SOURCE)" rev-parse HEAD)" = "$(SWE_REV)"
+	@git -C "$(SWE_SOURCE)" fetch --depth 1 origin "refs/tags/$(SWE_TAG):refs/tags/$(SWE_TAG)"
+	@git -C "$(SWE_SOURCE)" checkout --detach --force "refs/tags/$(SWE_TAG)"
+	@test "$$(git -C "$(SWE_SOURCE)" rev-parse HEAD)" = "$$(git -C "$(SWE_SOURCE)" rev-list -n 1 "$(SWE_TAG)")"
 	cd backend && uv run $(BACKEND_UV_EXTRA) maturin develop --manifest-path "$(SWE_SOURCE)/crates/swe-native/Cargo.toml"
 
 # Socialism owns only consumer contracts; SWE's package and mutation gates run

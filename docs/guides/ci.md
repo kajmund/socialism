@@ -8,7 +8,7 @@ GitHub Actions runs the test suite on every pull request, on every push to `main
 | --- | --- | --- |
 | Backend tests | `cd backend && uv sync --frozen && uv run ruff check app tests scripts/check_maintainability.py && uv run python scripts/check_maintainability.py && uv run pytest -m "not smoke and not research_reuse and not swe_runtime"` | In-memory SQLite. Smoke tests (`-m smoke`) stay opt-in. Ruff + the module-length/`# noqa` budget run before pytest. Research-reuse contracts and `swe_runtime` consumer tests run in their dedicated jobs. |
 | Research reuse contracts | `uv run pytest tests/research_reuse -m research_reuse` | Four-step Graph v2 reuse contracts with mocked external boundaries. |
-| SWE consumer contracts | Build `swe_native` from the pinned `kajmund/swe` revision, then run the backend `-m swe_runtime` contract tests | Confirms the Python git dependency and native source are the same revision, runs a workflow, exercises Socialism's adapters, and rejects a local engine copy. SWE's package, contract-freeze and mutation gates run in the standalone repository. |
+| SWE consumer contracts | Build `swe_native` from the pinned `kajmund/swe` tag, then run the backend `-m swe_runtime` contract tests | Confirms the Python git dependency and native source resolve to the same commit, runs a workflow, exercises Socialism's adapters, and rejects a local engine copy. SWE's package, contract-freeze and mutation gates run in the standalone repository. |
 | Swe-gym tests | `cargo fmt --check` + `cargo test --locked` in `crates/swe-gym` | Separate crate with its own governance, consuming `swe-native` and `swe-budget` from the same pinned git revision. |
 | PostgreSQL schema | `alembic upgrade head` + the marked PostgreSQL integration tests | |
 | Frontend tests | `pnpm install --frozen-lockfile`, then `pnpm lint`, `pnpm test` | oxlint + existing vitest files. |
@@ -16,7 +16,7 @@ GitHub Actions runs the test suite on every pull request, on every push to `main
 | Knowledge validate | `make knowledge-validate` | OKF manuals must stay valid. |
 | **CI** | Aggregates the jobs above | This is the required status check. Unselected jobs are allowed to be `skipped`. |
 
-No network LLM calls. Dummy keys are set in `backend/tests/conftest.py`. Package downloads and the pinned public SWE git revision are the only dependency network access.
+No network LLM calls. Dummy keys are set in `backend/tests/conftest.py`. Package downloads and the pinned public SWE git tag are the only dependency network access.
 
 ## Local equivalent
 
