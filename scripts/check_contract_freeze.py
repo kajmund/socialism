@@ -290,6 +290,15 @@ def main() -> int:
         before = version_of(contract, args.base)
         after = version_of(contract, args.head)
         if before is None or after is None:
+            # During the initial freeze the files may have moved in the same PR
+            # (the Python package went from backend/app/swe to python/swe), so
+            # there is no prior version to read. That is bootstrap, not drift.
+            if bootstrap and before is None:
+                print(
+                    f"  {contract}: no version at the base (new or moved in this "
+                    "PR) — allowed by the bootstrap exception"
+                )
+                continue
             path, name = VERSIONS[contract]
             failures.append(f"{contract}: could not read {name} from {path}")
             continue

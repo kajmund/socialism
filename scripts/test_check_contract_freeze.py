@@ -46,7 +46,7 @@ def git(repo: Path, *args: str) -> None:
     subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True)
 
 
-def make_repo(tmp: Path, *, contracts_at_base: bool) -> Path:
+def make_repo(tmp: Path, *, contracts_at_base: bool, omit: set[str] | None = None) -> Path:
     repo = tmp / "repo"
     repo.mkdir()
     git(repo, "init", "-q")
@@ -54,8 +54,11 @@ def make_repo(tmp: Path, *, contracts_at_base: bool) -> Path:
     git(repo, "config", "user.name", "t")
     (repo / "scripts").mkdir()
     shutil.copy(CHECKER, repo / "scripts" / "check_contract_freeze.py")
+    omitted = omit or set()
     for path, content in FILES.items():
         if not contracts_at_base and path.startswith("contracts/"):
+            continue
+        if path in omitted:
             continue
         target = repo / path
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -244,7 +247,19 @@ def bootstrap_cases() -> list[tuple[str, int, callable]]:
             },
         )
 
+    def moved_version_file(repo: Path) -> None:
+        # The version constant lives in a file that did not exist at the base
+        # (a package move in the same PR). Bootstrap must not fail on that.
+        commit(
+            repo,
+            {
+                "python/swe/schema.py": 'SWD_VERSION = "1.0"\n',
+                "docs/swe-standalone/08-verification-log.md": DECISION,
+            },
+        )
+
     return [
+        ("bootstrap: version file moved in this PR: allowed", 0, moved_version_file),
         ("bootstrap: contracts absent at base: version 1 allowed", 0, bootstrap_ok),
         ("post-bootstrap: same change with contracts at base: fails", 1, post_bootstrap_fails),
     ]
@@ -256,7 +271,12 @@ def main() -> int:
         with tempfile.TemporaryDirectory() as tmp:
             # The bootstrap cases need contracts absent at the base commit; the
             # others need them present so they are not exempted by bootstrap.
-            repo = make_repo(Path(tmp), contracts_at_base="post-bootstrap" in name or "bootstrap" not in name)
+            omit = {"python/swe/schema.py"} if "version file moved" in name else None
+            repo = make_repo(
+                Path(tmp),
+                contracts_at_base="post-bootstrap" in name or "bootstrap" not in name,
+                omit=omit,
+            )
             mutate(repo)
             code = run(repo)
             ok = code == expect
