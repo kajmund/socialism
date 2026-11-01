@@ -34,8 +34,11 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
+import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -45,6 +48,10 @@ CARGO = "cargo"
 # needs the network. CI fetches the locked set explicitly and may pass --offline;
 # a warm development machine can do the same.
 CARGO_OFFLINE: list[str] = []
+# Mutations are applied to an isolated worktree with its own target directory, so
+# the checkout being committed is never modified. A lock file would not help:
+# it cannot stop an unrelated `git add` from seeing a mutated file.
+ISOLATED = {"worktree": "", "target": ""}
 
 
 def sha256(path: Path) -> str:
@@ -83,9 +90,10 @@ def run_tests(package: str) -> tuple[int, list[str], bool]:
     """
     result = subprocess.run(
         [CARGO, "test", *CARGO_OFFLINE, "--workspace", "--no-fail-fast"],
-        cwd=ROOT,
+        cwd=ISOLATED["worktree"] or ROOT,
         capture_output=True,
         text=True,
+        env={**os.environ, "CARGO_TARGET_DIR": ISOLATED["target"] or os.environ.get("CARGO_TARGET_DIR", str(ROOT / "target"))},
     )
     output = result.stdout + result.stderr
     failed = sorted(
@@ -118,6 +126,14 @@ def main() -> int:
         CARGO_OFFLINE.append("--offline")
 
     mutations = load_manifest(args.manifest)
+
+    scratch = Path(tempfile.mkdtemp(prefix="swe-mutants-"))
+    ISOLATED["worktree"] = str(scratch / "tree")
+    ISOLATED["target"] = str(scratch / "target")
+    subprocess.run(
+        ["git", "worktree", "add", "--detach", ISOLATED["worktree"], "HEAD"],
+        cwd=ROOT, check=True, capture_output=True,
+    )
     baseline_code, baseline_failed, baseline_build = run_tests(args.package)
     if baseline_code != 0:
         print(
@@ -130,7 +146,7 @@ def main() -> int:
     failures: list[str] = []
     rows: list[tuple[str, str, str, str]] = []
     for mutation in mutations:
-        path = ROOT / mutation["file"]
+        path = Path(ISOLATED["worktree"]) / mutation["file"]
         original = path.read_text()
         digest = sha256(path)
         if mutation["find"] not in original:
@@ -201,6 +217,12 @@ def main() -> int:
                 ", ".join(sorted(failed)[:3]),
             )
         )
+
+    subprocess.run(
+        ["git", "worktree", "remove", "--force", ISOLATED["worktree"]],
+        cwd=ROOT, check=False, capture_output=True,
+    )
+    shutil.rmtree(scratch, ignore_errors=True)
 
     width = max(len(row[0]) for row in rows) if rows else 10
     print(f"{'mutation'.ljust(width)}  {'class':10}  {'outcome':10}  first failing tests")

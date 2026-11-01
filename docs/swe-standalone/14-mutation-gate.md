@@ -34,8 +34,12 @@ manifestet är enda vägen in.
 
 1. kör paketets enhetstester och kräver grönt utgångsläge (annars kan grinden
    inte döma något);
-2. applicerar varje mutation i tur och ordning på källfilen, kör testerna, och
-   **återställer filen** — med hashkontroll att återställningen lyckades;
+2. skapar en **isolerad `git worktree`** i en temporär katalog med egen
+   `CARGO_TARGET_DIR`, applicerar varje mutation där och kör testerna — den
+   checkout som ska committas muteras aldrig. En låsfil räcker inte: den hindrar
+   inte en oberoende `git add` från att se en muterad fil. Det hände en gång
+   (commit `d74ace0b` bar med sig en mutation), och mekanismen ska göra den
+   sortens misstag omöjligt, inte bara dokumentera det;
 3. jämför utfallet med klassificeringen och skriver en tabell.
 
 Grinden är offline och deterministisk: den kräver ingen extern tjänst och inget
