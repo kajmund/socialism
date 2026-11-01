@@ -260,8 +260,18 @@ jobs:
         run: uv run maturin develop --manifest-path ../.swe-source/crates/swe-native/Cargo.toml
       - name: Refuse a local engine copy
         run: |
-          test ! -e ../python/swe
-          test ! -e ../crates/swe-native
+          for forbidden in \
+            ../python/swe \
+            ../crates/swe-native \
+            ../crates/swe-budget \
+            ../crates/swe-reference \
+            ../contracts \
+            app/swe \
+            app/swe_engine \
+            app/services/swe
+          do
+            test ! -e "$forbidden"
+          done
           resolved=$(uv run python -c 'import importlib.metadata, json; print(json.loads(importlib.metadata.distribution("swe-engine").read_text("direct_url.json"))["vcs_info"]["commit_id"])')
           test "$(git -C ../.swe-source rev-parse HEAD)" = "$resolved"
       - name: Dependency and backend consumer contracts
