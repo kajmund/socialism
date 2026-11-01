@@ -10,7 +10,13 @@ from app.swe.definition import compile_definition
 from app.swe.runtime import WorkflowResources, run_workflow
 from app.swe.runtime_errors import SwePreflightError, SweUnsupportedError
 from app.swe.yaml_load import load_swd_json
-from tests.swe.helpers import EXAMPLE_HANDLERS, EXAMPLE_PROVIDERS, FIXTURES
+from tests.swe.helpers import (
+    EXAMPLE_HANDLERS,
+    EXAMPLE_PROMPT_KEY,
+    EXAMPLE_PROMPT_KEYS,
+    EXAMPLE_PROVIDERS,
+    FIXTURES,
+)
 from tests.swe.runtime_helpers import compile_runtime
 
 pytestmark = pytest.mark.swe_runtime
@@ -39,6 +45,7 @@ async def test_research_fixture_requires_registered_provider() -> None:
         load_swd_json((FIXTURES / "research_parallel.json").read_text(encoding="utf-8")),
         handlers=EXAMPLE_HANDLERS,
         providers=EXAMPLE_PROVIDERS,
+        prompt_keys=EXAMPLE_PROMPT_KEYS,
     )
     handlers = {name: _ok for name in EXAMPLE_HANDLERS}
     with pytest.raises(SwePreflightError, match="decision provider"):
@@ -46,10 +53,69 @@ async def test_research_fixture_requires_registered_provider() -> None:
 
 
 async def test_provider_decision_requires_active_prompt() -> None:
-    compiled = compile_definition(PROVIDER_FIXTURE, providers=frozenset({"fake"}))
-    resources = WorkflowResources(providers={"fake": _provider})
+    compiled = compile_definition(
+        PROVIDER_FIXTURE,
+        providers=frozenset({"fake"}),
+        prompt_keys=EXAMPLE_PROMPT_KEYS,
+    )
+    resources = WorkflowResources(
+        providers={"fake": _provider},
+        prompt_keys=EXAMPLE_PROMPT_KEYS,
+    )
     with pytest.raises(SwePreflightError, match="active prompt"):
         await run_workflow(compiled, {}, {}, resources=resources)
+
+
+async def test_execution_rejects_provider_node_without_prompt_catalog() -> None:
+    """Execution is fail-closed too, not only compile.
+
+    A compiled definition can be constructed through another path, so the
+    driver holds the same line: a prompt that is not in the active catalog is
+    never rendered, even when its text is present.
+    """
+    compiled = compile_definition(
+        PROVIDER_FIXTURE,
+        providers=frozenset({"fake"}),
+        prompt_keys=EXAMPLE_PROMPT_KEYS,
+    )
+    resources = WorkflowResources(
+        providers={"fake": _provider},
+        prompts={EXAMPLE_PROMPT_KEY: "decide"},
+    )
+    with pytest.raises(SwePreflightError, match="requires a prompt_keys allowlist"):
+        await run_workflow(compiled, {}, {}, resources=resources)
+
+
+async def test_execution_rejects_prompt_outside_active_catalog() -> None:
+    """A declared prompt that the host did not permit is not rendered."""
+    compiled = compile_definition(
+        PROVIDER_FIXTURE,
+        providers=frozenset({"fake"}),
+        prompt_keys=EXAMPLE_PROMPT_KEYS,
+    )
+    resources = WorkflowResources(
+        providers={"fake": _provider},
+        prompts={EXAMPLE_PROMPT_KEY: "decide"},
+        prompt_keys=frozenset({"other.prompt"}),
+    )
+    with pytest.raises(SwePreflightError, match="not in the active prompt catalog"):
+        await run_workflow(compiled, {}, {}, resources=resources)
+
+
+async def test_execution_renders_when_prompt_is_declared_and_permitted() -> None:
+    """The happy path still runs: declared catalog plus permitted prompt."""
+    compiled = compile_definition(
+        PROVIDER_FIXTURE,
+        providers=frozenset({"fake"}),
+        prompt_keys=EXAMPLE_PROMPT_KEYS,
+    )
+    resources = WorkflowResources(
+        providers={"fake": _provider},
+        prompts={EXAMPLE_PROMPT_KEY: "decide"},
+        prompt_keys=EXAMPLE_PROMPT_KEYS,
+    )
+    result = await run_workflow(compiled, {}, {}, resources=resources)
+    assert result.status == "completed"
 
 
 async def test_wait_is_unsupported() -> None:

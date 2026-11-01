@@ -24,7 +24,7 @@ from app.config import settings
 from app.database.models import Kund, Population, PopulationMember, UserAccount
 from app.live_speech_settings import vad_client_config
 from app.services import jobs as jobs_service
-from app.services.prompt_render import prompt_template
+from app.swe.prompt_render import prompt_template
 from app.services.prompt_store import module_for_population_kind, require_active_prompts
 from app.services.sme_group_voice import GroupVoiceSession
 from app.services.sme_group_voice_runtime import (

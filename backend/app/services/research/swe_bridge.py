@@ -103,6 +103,7 @@ def _workflow(concurrency: int) -> CompiledDefinition:
             "done": {"type": "end", "status": "completed"},
         },
     }
+    # The wave loop has no provider decision, so no prompt allowlist is needed.
     return compile_definition(document, handlers=HANDLER_NAMES)
 
 

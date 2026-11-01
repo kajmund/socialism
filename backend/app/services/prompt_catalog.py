@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal, TypedDict
 
-from app.services.prompt_render import render_prompt as render_prompt
+from app.swe.prompt_render import render_prompt as render_prompt
 from app.services.sme_group_voice_prompts import group_voice_prompt_fields
 from app.services.workspace_prompt_defaults import workspace_prompt_fields as voice_workspace_prompt_fields
 

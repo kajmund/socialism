@@ -7,7 +7,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use crate::ledger::Amount;
+use swe_budget::Amount;
 
 /// What a strategy is allowed to see: the question without its answer key.
 #[derive(Clone, Debug, PartialEq)]

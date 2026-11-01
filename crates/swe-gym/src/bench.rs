@@ -10,8 +10,8 @@ use std::collections::{HashMap, HashSet};
 
 use swe_native::{parse_json_str, Json};
 
-use crate::ledger::Amount;
 use crate::strategy::{Question, QuestionView, Tariffs};
+use swe_budget::Amount;
 
 #[derive(Clone, Debug)]
 pub struct BenchFile {

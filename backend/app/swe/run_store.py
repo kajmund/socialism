@@ -3,13 +3,20 @@
 `app.swe.runtime` writes one `RunRecord` per transition and replays
 `InvocationRecord`s on resume. `app.services.overgraph.workflows` implements the
 contract, so the runtime stays independent of any persistence backend.
+
+`WorkflowResources` is the other half of the same contract: the host-supplied
+resources a run may use. It lives here so the durable-run types and the
+injected resources are declared together.
 """
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+import asyncio
+from collections.abc import Awaitable, Callable, Collection, Mapping, Sequence
+from dataclasses import dataclass, field
 from typing import Any, Protocol
+
+from app.swe.cache import DecisionCache
 
 
 @dataclass(frozen=True)
@@ -55,3 +62,21 @@ class RunStore(Protocol):
     async def replay_results(self, run_id: str) -> Mapping[str, InvocationRecord]: ...
 
     async def events(self, run_id: str) -> list[dict[str, Any]]: ...
+
+
+@dataclass(frozen=True)
+class WorkflowResources:
+    """Optional run resources shared by the runner and provider dispatch.
+
+    ``prompt_keys`` is the active prompt catalog. It is required once the
+    definition contains a provider decision, exactly like the compile-time
+    allowlist: execution never renders a prompt that is not declared.
+    """
+
+    providers: Mapping[str, Callable[..., Awaitable[Any]]] = field(
+        default_factory=dict
+    )
+    prompts: Mapping[str, str] | None = None
+    prompt_keys: Collection[str] | None = None
+    cache: DecisionCache | None = None
+    cancel_event: asyncio.Event | None = None

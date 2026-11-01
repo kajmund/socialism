@@ -20,7 +20,7 @@
 //! trajectory. The quality model (the facit) is never part of the
 //! observation.
 
-use crate::ledger::{Amount, Ledger, LedgerError};
+use swe_budget::{Amount, Ledger, LedgerError};
 
 pub const STRATEGY_COUNT: usize = 3; // A retrieval/graph, B JEV, C narrative LLM
 pub const TIER_MAX: u8 = 4;

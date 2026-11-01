@@ -26,7 +26,7 @@ OVERGRAPH_DIR/
       <feature_id>/          # research | expert_routing | model_routing | group_chat | webcrawler
 ```
 
-- The directory comes from `app.swe.features.workflow_catalog_dir` and is derived
+- The directory comes from `app.services.swe_host.workflow_catalog_dir` and is derived
   from trusted host context only. Customer and feature never come from YAML.
 - The catalog opens with `create_if_missing=True`, `dense_vector_dimension=1`
   (no vectors are stored) and **`wal_sync_mode="immediate"`**: `commit` fsyncs

@@ -9,6 +9,7 @@ publish = false
 
 [dependencies]
 swe-native = { path = "../swe-native" }
+swe-budget = { path = "../swe-budget" }
 # Small sync HTTP client; ureq's dependency tree (url → idna → icu) needs
 # edition 2024 on current releases, which the repo's Rust 1.83 cannot parse.
 minreq = { version = "2", features = ["https-rustls"] }

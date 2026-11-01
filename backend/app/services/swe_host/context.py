@@ -1,4 +1,8 @@
-"""Trusted host context and per-customer/feature catalog paths."""
+"""Trusted host context and per-customer/feature catalog paths.
+
+Socialism owns the feature vocabulary and the OverGraph catalog layout. The
+engine receives nothing of this: it is handed resources and a store.
+"""
 
 from __future__ import annotations
 
@@ -7,7 +11,13 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from app.swe.errors import SwdValidationError
-from app.swe.schema import CUSTOMER_ID_PATTERN, FEATURE_IDS
+from app.swe.schema import CUSTOMER_ID_PATTERN
+
+#: Socialism's product features. A feature id is never taken from YAML or model
+#: output, and it is never validated by the engine.
+FEATURE_IDS = frozenset(
+    {"research", "expert_routing", "model_routing", "group_chat", "webcrawler"}
+)
 
 CUSTOMER_ID_RE = re.compile(CUSTOMER_ID_PATTERN)
 

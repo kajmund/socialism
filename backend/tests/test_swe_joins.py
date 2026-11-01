@@ -6,7 +6,7 @@ import pytest
 
 from app.swe.definition import compile_definition
 from app.swe.errors import SwdValidationError
-from tests.swe.helpers import EXAMPLE_HANDLERS, EXAMPLE_PROVIDERS
+from tests.swe.helpers import EXAMPLE_HANDLERS, EXAMPLE_PROMPT_KEYS, EXAMPLE_PROVIDERS
 
 
 def _compile(document: object):
@@ -14,6 +14,7 @@ def _compile(document: object):
         document,
         handlers=EXAMPLE_HANDLERS,
         providers=EXAMPLE_PROVIDERS,
+        prompt_keys=EXAMPLE_PROMPT_KEYS,
     )
 
 

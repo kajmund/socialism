@@ -11,13 +11,13 @@
 
 use crate::bandit::{reward_for, scan_context, scan_state_key};
 use crate::benchmark::run_arm;
-use crate::ledger::Amount;
 use crate::strategy::ScanDecision;
 use crate::strategy::{
     rank_unresolved_by_score, BranchPlan, Continuation, Observations, ProviderKind, Question,
     QuestionView, ScanState, Strategy, Tariffs,
 };
 use std::collections::HashMap;
+use swe_budget::Amount;
 
 /// Continue may be overridden only after this many samples in a state —
 /// the same conservative guard as the tabular bandit: one lucky sample must

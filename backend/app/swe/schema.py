@@ -13,9 +13,6 @@ NODE_TYPES = frozenset(
     {"task", "decision", "fork", "join", "map", "wait", "subworkflow", "end"}
 )
 CACHE_POLICIES = frozenset({"off", "exact"})
-FEATURE_IDS = frozenset(
-    {"research", "expert_routing", "model_routing", "group_chat", "webcrawler"}
-)
 HANDLER_NAME_PATTERN = r"^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$"
 PROVIDER_NAME_PATTERN = r"^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*$"
 PROMPT_KEY_PATTERN = HANDLER_NAME_PATTERN

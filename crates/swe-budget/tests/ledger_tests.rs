@@ -5,7 +5,7 @@
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-use swe_gym::ledger::{Ledger, LedgerError};
+use swe_budget::{Ledger, LedgerError};
 
 fn funded(ledger: &mut Ledger, account: &str, amount: u64) {
     ledger
@@ -34,7 +34,7 @@ fn reserve_spend_and_release_are_exact() {
     let release_events = ledger
         .events()
         .iter()
-        .filter(|event| matches!(event.kind, swe_gym::ledger::EventKind::Release))
+        .filter(|event| matches!(event.kind, swe_budget::EventKind::Release))
         .map(|event| event.amount_milli)
         .collect::<Vec<_>>();
     assert_eq!(release_events, vec![8_000]);
@@ -107,7 +107,7 @@ fn idempotent_retry_charges_exactly_once() {
     let spends = ledger
         .events()
         .iter()
-        .filter(|event| matches!(event.kind, swe_gym::ledger::EventKind::Spend))
+        .filter(|event| matches!(event.kind, swe_budget::EventKind::Spend))
         .count();
     assert_eq!(spends, 1);
     assert_eq!(ledger.balance("root").spent, 20_000);
@@ -212,7 +212,7 @@ fn replay_reconstructs_identical_state_and_allows_resume() {
     let spends = replayed
         .events()
         .iter()
-        .filter(|event| matches!(event.kind, swe_gym::ledger::EventKind::Spend))
+        .filter(|event| matches!(event.kind, swe_budget::EventKind::Spend))
         .count();
     assert_eq!(spends, 2);
 }

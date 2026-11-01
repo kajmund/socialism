@@ -12,7 +12,7 @@
 
 use swe_native::{parse_json_str, sha256_hex, start_run, Effect, Json, RunStatus, RuntimeError};
 
-use crate::ledger::{Amount, Ledger, LedgerError};
+use swe_budget::{Amount, Ledger, LedgerError};
 
 pub const ROOT_ACCOUNT: &str = "root";
 
