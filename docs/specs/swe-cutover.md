@@ -273,10 +273,10 @@ Static/CI:
 ```bash
 uv run ruff check app tests scripts/check_maintainability.py
 uv run python scripts/check_maintainability.py
-make test-swe            # cargo fmt/clippy/test + SWE pytest, builds swe_native
+make test-swe            # pinned SWE build + Socialism consumer contracts
 ```
-CI jobs that must be green: `backend`, `research-reuse`, `swe-runtime`
-(`.github/workflows/ci.yml:111,116,147-176`) and the required **CI** check.
+CI jobs that must be green: `backend`, `research-reuse`, `swe-consumer`
+and the required **CI** check.
 The `research-reuse` job is the external contract; it must stay green after the
 delete-PR too.
 

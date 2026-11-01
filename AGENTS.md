@@ -107,9 +107,7 @@ socialism/
 ├── knowledge/          # OKF bundles (end-user manuals)
 │   └── manual/         # Swedish operator guides
 ├── backend/            # FastAPI service (see backend/AGENTS.md)
-├── crates/swe-native/  # SWE in-memory Rust/PyO3 kernel (`swe_native`)
-├── crates/swe-gym/     # standalone experiment, governed by its own AGENTS.md
-├── python/             # installable SWE Python host package (`swe`; `python/pyproject.toml`)
+├── crates/swe-gym/     # experiment consuming the pinned standalone SWE repo
 ├── frontend/           # React SPA (see frontend/AGENTS.md)
 └── word-addin/         # Word desktop task pane (expertgranskning)
 ```
@@ -191,7 +189,7 @@ Fail fast on startup if required config is missing. No silent fallbacks that hid
 
 ## CI
 
-GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs on every pull request, on every push to `main` (including merges), and on merge-queue groups. Jobs: backend `pytest`, research reuse contracts, SWE runtime (workspace `fmt`/`clippy`/`test`, contract freeze gate, both gate self-test matrices, Python package tests and backend consumer tests), Python SWE package (own venv and a wheel installed outside the repo), SWE mutation gate, swe-gym, PostgreSQL schema, frontend oxlint + vitest, word-addin, and `make knowledge-validate`. The change detector also refuses a PR that deletes a gate script or its matrix. The required status check is named **CI**; it fails when a gate the selector required was skipped or failed. Do not merge a PR while it is red or pending. Setup and the merge-gate ruleset: [docs/guides/ci.md](docs/guides/ci.md). Local: `make test` for the fast suites, `make test-swe` for the blocking SWE gates, `make mutation-gate` / `make contract-gate` for the two gates.
+GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs on every pull request, on every push to `main` (including merges), and on merge-queue groups. Jobs: backend `pytest`, research reuse contracts, SWE consumer contracts against the pinned [standalone repository](https://github.com/kajmund/swe), swe-gym, PostgreSQL schema, frontend oxlint + vitest, word-addin, and `make knowledge-validate`. SWE's package, contract-freeze and mutation gates run in that repository; Socialism CI rejects a local engine copy and tests its adapters against the pinned revision. The required status check is named **CI**. Do not merge a PR while it is red or pending. Setup and the merge-gate ruleset: [docs/guides/ci.md](docs/guides/ci.md). Local: `make test` for the fast suites and `make test-swe` for the SWE consumer contracts.
 
 ## Project tracking (Trello)
 

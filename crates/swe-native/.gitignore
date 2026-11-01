@@ -1,5 +1,0 @@
-/target/
-*.so
-*.pyd
-*.egg-info/
-__pycache__/

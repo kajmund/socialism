@@ -2,6 +2,9 @@
 
 # Pinned OKF CLI (validate + future MCP). Not a runtime app dependency.
 OKF_MCP_PKG := @mfdaves/okf-mcp@0.3.3
+SWE_REPOSITORY := https://github.com/kajmund/swe
+SWE_REV := dbb20d4fd4c9fe00e68c4d88489e9fa3ae3f2a1e
+SWE_SOURCE ?= $(CURDIR)/.cache/swe
 
 FLYCTL ?= flyctl
 ELASTICSEARCH_FLY_APP ?= socialism-elasticsearch
@@ -28,8 +31,8 @@ help:
 	@echo "  make install             Install backend + frontend + word-addin deps"
 	@echo "  make test                Backend pytest + frontend and word-addin lint/vitest"
 	@echo "  make test-backend        Backend pytest (excludes smoke)"
-	@echo "  make swe-native          Build the SWE PyO3 extension"
-	@echo "  make test-swe            Rust + SWE runtime pytest"
+	@echo "  make swe-native          Build the pinned SWE PyO3 extension"
+	@echo "  make test-swe            Run SWE consumer contract tests"
 	@echo "  make test-frontend       Frontend oxlint + vitest"
 	@echo "  make test-word-addin     Word add-in oxlint + vitest"
 	@echo "  make knowledge-validate  Validate OKF manual bundle"
@@ -154,31 +157,25 @@ install:
 test: test-backend test-frontend test-word-addin
 
 test-backend: swe-native
-	cd backend && uv run $(BACKEND_UV_EXTRA) ruff check app tests scripts/check_maintainability.py ../python/swe ../python/tests
+	cd backend && uv run $(BACKEND_UV_EXTRA) ruff check app tests scripts/check_maintainability.py
 	cd backend && uv run $(BACKEND_UV_EXTRA) python scripts/check_maintainability.py
 	cd backend && uv run $(BACKEND_UV_EXTRA) pytest
 
 swe-native:
-	cd backend && uv run $(BACKEND_UV_EXTRA) maturin develop --manifest-path ../crates/swe-native/Cargo.toml
+	@mkdir -p "$(SWE_SOURCE)"
+	@if [ ! -d "$(SWE_SOURCE)/.git" ]; then \
+		git -C "$(SWE_SOURCE)" init; \
+		git -C "$(SWE_SOURCE)" remote add origin "$(SWE_REPOSITORY)"; \
+	fi
+	@git -C "$(SWE_SOURCE)" fetch --depth 1 origin "$(SWE_REV)"
+	@git -C "$(SWE_SOURCE)" checkout --detach --force FETCH_HEAD
+	@test "$$(git -C "$(SWE_SOURCE)" rev-parse HEAD)" = "$(SWE_REV)"
+	cd backend && uv run $(BACKEND_UV_EXTRA) maturin develop --manifest-path "$(SWE_SOURCE)/crates/swe-native/Cargo.toml"
 
-# The blocking SWE gates, runnable locally. CI runs the same commands.
+# Socialism owns only consumer contracts; SWE's package and mutation gates run
+# in https://github.com/kajmund/swe.
 test-swe: swe-native
-	cargo fmt --all -- --check
-	cargo clippy --workspace --all-targets -- -D warnings
-	cargo test --workspace
-	cargo run -p swe-reference
-	python3 scripts/test_check_contract_freeze.py
-	python3 scripts/test_check_mutations.py
-	cd backend && uv run $(BACKEND_UV_EXTRA) pytest ../python/tests
-	cd backend && uv run $(BACKEND_UV_EXTRA) pytest tests/test_swe_provider.py tests/test_swe_persistence.py tests/test_research_swe/test_wiring.py tests/test_sufficiency_experiment_reuse.py -m swe_runtime
-
-mutation-gate:
-	cargo fetch --locked
-	python3 scripts/check_mutations.py --offline
-
-contract-gate:
-	python3 scripts/test_check_contract_freeze.py
-	python3 scripts/check_contract_freeze.py --base "$$(git merge-base HEAD origin/main)" --head HEAD
+	cd backend && uv run $(BACKEND_UV_EXTRA) pytest tests/test_swe_dependency_contract.py tests/test_swe_provider.py tests/test_swe_persistence.py tests/test_research_swe/test_wiring.py tests/test_sufficiency_experiment_reuse.py -m swe_runtime
 
 test-frontend:
 	cd frontend && pnpm lint

@@ -13,8 +13,8 @@ phase makes a run durable without changing engine semantics:
 - an append-only event log per run;
 - a persisted run can be resumed after a process crash.
 
-The engine (`python/swe/`) never imports OverGraph. `python/swe/run_store.py` owns the
-contract (`RunRecord`, `InvocationRecord`, `RunStore`);
+The standalone engine never imports OverGraph. Its `python/swe/run_store.py` owns
+the contract (`RunRecord`, `InvocationRecord`, `RunStore`);
 `app/services/overgraph/workflows.py` implements it.
 
 ## Catalog layout and isolation

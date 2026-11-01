@@ -9,7 +9,7 @@ Policy: [reuse-before-new.md](reuse-before-new.md).
 
 | Primitive | Path | Role |
 | --------- | ---- | ---- |
-| SWE runner | `python/swe/runtime.py` | `WorkflowRunner`, `WorkflowResources`, cancel, concurrency, resume |
+| SWE runner | standalone `kajmund/swe` `python/swe/runtime.py` | `WorkflowRunner`, `WorkflowResources`, cancel, concurrency, resume |
 | Research SWE pattern | `app/services/research/swe_bridge.py` | `map` of children, handlers on a loop object, expression route |
 | Jev decisions | `backend/app/services/research/fast_controller.py` | NOUL-frågor, `classify_research_decision`, confidence; den separata JEV-providern togs bort i B4 |
 | Fast controller | `app/services/research/fast_controller.py` | `ASSESSMENT_QUESTIONS`, NOUL, confidence, telemetry, errors |

@@ -82,7 +82,7 @@ not personas and not research providers.
 
 | Layer | What exists today | What this policy uses |
 | ----- | ----------------- | --------------------- |
-| Rust SWE (`crates/swe-native`) | `task`, expression/`provider` `decision`, `fork`, `join`, `map`, `end`. Rejects `wait` and `subworkflow`. | Top-level sufficiency definition: programmatic gate → segment → evaluate → aggregate → quality → optional narrative. |
+| Rust SWE (pinned `kajmund/swe`) | `task`, expression/`provider` `decision`, `fork`, `join`, `map`, `end`. Rejects `wait` and `subworkflow`. | Top-level sufficiency definition: programmatic gate → segment → evaluate → aggregate → quality → optional narrative. |
 | Jev (`app/jev/system.py`) | System One HTTP. Research screening, document-property verification, Auto routing. | Passage `EVIDENCE_SCREEN_QUESTIONS` + need `ASSESSMENT_QUESTIONS` / `classify_research_decision`. |
 | Subagents | Spec only: read-only workers after Jev says decomposable + parallelizable. | Not a general agent. Bounded narrative is one optional SWE task with allowlisted workflow tools. |
 

@@ -16,9 +16,9 @@ Three orthogonal properties (from the strategy):
 
 ## Current state
 
-- `python/swe/run_store.py`: `RunStore` protocol with `RunRecord`,
+- standalone `kajmund/swe` `python/swe/run_store.py`: `RunStore` protocol with `RunRecord`,
   `InvocationRecord`, `record`, `load_run`, `replay_results`, `events`.
-- `python/swe/cache.py`: `DecisionCache` with an exact-key policy — cache
+- standalone `kajmund/swe` `python/swe/cache.py`: `DecisionCache` with an exact-key policy — cache
   validity is keyed on inputs, but there is no *versioned answer* concept.
 - Overgraph holds knowledge-graph state; the SWE kernel (`swe-native`) is a
   pure in-memory interpreter with no persistence opinions.

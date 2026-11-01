@@ -2085,7 +2085,7 @@ requires-dist = [
     { name = "sqlalchemy", specifier = ">=2.0.51" },
     { name = "storage3", specifier = "==2.31.0" },
     { name = "structlog", specifier = ">=26.1.0" },
-    { name = "swe-engine", editable = "../python" },
+    { name = "swe-engine", git = "https://github.com/kajmund/swe?subdirectory=python&rev=dbb20d4fd4c9fe00e68c4d88489e9fa3ae3f2a1e" },
     { name = "tantivy", specifier = "==0.26.2" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.51.0" },
     { name = "websockets", specifier = "==15.0.1" },
@@ -3579,22 +3579,10 @@ wheels = [
 [[package]]
 name = "swe-engine"
 version = "0.1.0"
-source = { editable = "../python" }
+source = { git = "https://github.com/kajmund/swe?subdirectory=python&rev=dbb20d4fd4c9fe00e68c4d88489e9fa3ae3f2a1e#dbb20d4fd4c9fe00e68c4d88489e9fa3ae3f2a1e" }
 dependencies = [
     { name = "jsonschema" },
     { name = "pyyaml" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "jsonschema", specifier = ">=4.26.0" },
-    { name = "pyyaml", specifier = ">=6.0.3" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "pytest", specifier = ">=9.1.1" },
-    { name = "pytest-asyncio", specifier = ">=1.4.0" },
 ]
 
 [[package]]

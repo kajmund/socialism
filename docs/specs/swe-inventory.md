@@ -66,8 +66,9 @@ Do **not** remove `ResearchRouter`, quality, completeness, question reuse, mem0,
 ## OverGraph — verified vs not claimed
 
 Package: `overgraph==0.17.0`. Socialism production still uses the installed wheel.
-Phase 2 adds an in-repo SWE crate (`crates/swe-native`, PyO3 module `swe_native`)
-for in-memory execution only. It does not open OverGraph catalogs.
+Phase 2 originally added an in-repo SWE crate. It has since moved to
+[`kajmund/swe`](https://github.com/kajmund/swe); the pinned PyO3 module remains
+an in-memory executor and does not open OverGraph catalogs.
 
 Verified against the installed wheel:
 

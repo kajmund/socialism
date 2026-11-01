@@ -3,8 +3,8 @@
 **Status:** Schema/parser (PR #398), in-memory Rust/PyO3 runtime (phase 2),
 OverGraph run store + crash-durable resume (phase 3), provider decisions +
 exact Jev cache (phase 4)  
-**Runtime:** `crates/swe-native` + `swe.runtime` (Python-paketet i
-`python/swe/`, importnamn `swe`). Durable runs in
+**Runtime:** the pinned [`kajmund/swe`](https://github.com/kajmund/swe) release
+provides `swe_native` + `swe.runtime` (import name `swe`). Durable runs in
 `app.services.overgraph.workflows`, Jev cache in
 `app.services.overgraph.jev_cache`. No research cutover yet (phase 5).
 
@@ -16,11 +16,12 @@ Inventory of current `main`: [swe-inventory.md](swe-inventory.md). Runtime:
 [swe-runtime.md](swe-runtime.md). Durable runs: [swe-overgraph.md](swe-overgraph.md).
 Providers: [swe-provider.md](swe-provider.md).
 
-## This PR
+## Engine package
 
-Python reference implementation under `python/swe/`:
+The canonical implementation and JSON Schema live in
+[`kajmund/swe`](https://github.com/kajmund/swe):
 
-- JSON Schema: `python/swe/swd_v1.schema.json`
+- JSON Schema: `python/swe/swd_v1.schema.json` in the standalone repository
 - Parse JSON or YAML → JSON object
 - Graph validation (refs, join ownership, reachability, non-terminal loops)
 - Handler / provider registry checks
