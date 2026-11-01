@@ -39,8 +39,8 @@ Both halves must change together, deliberately:
 4. Update `MANIFEST.sha256` in the **same commit**:
    `cd contracts && shasum -a 256 *.json > MANIFEST.sha256`
 
-A PR that changes a fixture without a version bump and an updated manifest fails
-CI; a PR that bumps the version without a migration test or a documented breaking
+A PR that changes a fixture's *shape* without its contract version bump fails
+CI, and so does a changed manifest; a PR that bumps the version without a migration test or a documented breaking
 decision is rejected in review. That is the whole mechanism — no silent drift,
 and no ceremony when nothing changes.
 

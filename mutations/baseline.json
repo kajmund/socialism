@@ -83,6 +83,26 @@
       "replace": "the gate refuses a state list that names {} twice",
       "classification": "excepted",
       "reason": "Human-readable error prose is not part of the machine contract. What is contractual is the conclusion string (INSUFFICIENT_EVIDENCE), the error type, and the NeedRef named. The wording is deliberately not pinned by tests, so a wording improvement must not redden the suite."
+    },
+    {
+      "id": "journal-decoder-defaults-a-missing-amount",
+      "file": "crates/swe-reference/src/journal.rs",
+      "find": "                charge_id: field_str(item, \"charge_id\")?.to_string(),\n                amount_milli: field_u64(item, \"amount_milli\")?,\n                settled_at_ms: field_u64(item, \"settled_at_ms\")?,",
+      "replace": "                charge_id: field_str(item, \"charge_id\")?.to_string(),\n                amount_milli: item.get(\"amount_milli\").and_then(crate::as_u64).unwrap_or(0),\n                settled_at_ms: field_u64(item, \"settled_at_ms\")?,",
+      "classification": "detected",
+      "expected_red": [
+        "a_journal_event_missing_a_required_number_is_refused"
+      ]
+    },
+    {
+      "id": "settlement-need-not-match-the-reservation",
+      "file": "crates/swe-native/src/journal.rs",
+      "find": "                    if reserved != amount_milli {",
+      "replace": "                    if false && reserved != amount_milli {",
+      "classification": "detected",
+      "expected_red": [
+        "journal::tests::a_settlement_must_match_the_reservation"
+      ]
     }
   ]
 }

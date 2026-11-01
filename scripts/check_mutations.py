@@ -75,14 +75,14 @@ def load_manifest(path: Path) -> list[dict]:
 
 
 def run_tests(package: str) -> tuple[int, list[str], bool]:
-    """Run the package's unit tests.
+    """Run the workspace tests (unit and integration).
 
     Returns (exit code, failing test names, build_error). A non-zero exit is not
     evidence on its own: a compiler error also exits non-zero and must never be
     counted as a mutation being detected.
     """
     result = subprocess.run(
-        [CARGO, "test", *CARGO_OFFLINE, "-p", package, "--lib"],
+        [CARGO, "test", *CARGO_OFFLINE, "--workspace", "--no-fail-fast"],
         cwd=ROOT,
         capture_output=True,
         text=True,

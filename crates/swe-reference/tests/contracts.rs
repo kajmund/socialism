@@ -300,6 +300,32 @@ fn every_journal_event_kind_decodes_and_re_encodes_identically() {
 }
 
 #[test]
+fn a_journal_event_missing_a_required_number_is_refused() {
+    // A missing amount or timestamp must not become zero: a zero settlement
+    // under-reports what a run cost.
+    let encoded = fixture("journal-v1-events.json");
+    for field in ["amount_milli", "settled_at_ms"] {
+        let mut broken = encoded.as_array().expect("array").to_vec();
+        let mut settled = swe_native::Json::Object(Default::default());
+        if let swe_native::Json::Object(object) = &mut settled {
+            object.insert("kind".to_string(), "ChargeSettled".into());
+            object.insert("charge_id".to_string(), "ch-x".into());
+            if field != "amount_milli" {
+                object.insert("amount_milli".to_string(), swe_native::Json::from_u64(1));
+            }
+            if field != "settled_at_ms" {
+                object.insert("settled_at_ms".to_string(), swe_native::Json::from_u64(2));
+            }
+        }
+        broken.push(settled);
+        assert!(
+            journal_events_from_json(&swe_native::Json::Array(broken)).is_err(),
+            "a ChargeSettled without {field} must be refused, not defaulted"
+        );
+    }
+}
+
+#[test]
 fn a_need_more_repeat_ends_the_loop() {
     let mut discovery = NeedDiscovery::new();
     let need = NeedRef::new("c_exception", "alpha");

@@ -908,7 +908,7 @@ ordning ägaren angav:
 | --- | --- |
 | 1. Root Cargo-workspace | `swe-native`, `swe-budget`, `swe-reference` är medlemmar; `swe-gym` är explicit exkluderad (eget governance, egna fixtures, egen CI-jobb). En root-lock ersätter tre. Release-profilen flyttade till root — annars hade den tyst ignorerats. CI kör nu exakt `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`. |
 | 2. Python-paket | `backend/app/swe/**` → `python/swe/**` med `python/pyproject.toml`. 130 importomskrivningar i 44 filer; noll `app.swe` kvar utanför dokumentation. Backend konsumerar paketet som riktig path-dependency via uv. **Fristående bevis:** venv utanför repot, maturin-wheel + `pip install python/`, `pytest python/tests` → **136 passed**, backend inte på `sys.path`. Konsumenttesterna (research-wiring, host-kontext) kör mot samma installerade paket: **11 passed**. |
-| 3. `execute()` borttagen | Ingen produktionskonsument; loop-skyddet duplicerade `NeedDiscovery`. `Investigation`/`StopReason` försvann med den. Kärnan 74 → 65 tester; loopen ägs av värden, skyddet av `NeedDiscovery`. |
+| 3. `execute()` borttagen | Ingen produktionskonsument; loop-skyddet duplicerade `NeedDiscovery`. `Investigation`/`StopReason` försvann med den. Kärnan 74 → 66 tester; loopen ägs av värden, skyddet av `NeedDiscovery`. |
 | 4. Frysta kontrakt | `contracts/` med kanoniska fixtures, `MANIFEST.sha256` och **två** grindar: strukturell (hashar, inga olistade filer) och semantisk (fixtures *exekveras*: SWD-dokumentet kompilerar till headerns definition-hash, varje journalhändelse kodas förlustfritt, `NeedMore`-repeat, dubbletter, `AMBIGUOUS`, recovery per delivery-klass, okänd kostnad aldrig noll, fel versioner namnges). 11 kontraktstester. Mutationsbevisat: byte-tampering fäller det strukturella; ändring + regenererad manifest fäller det semantiska. |
 | 5. Mutationsgrind | `scripts/check_mutations.py` + `mutations/baseline.json`, blockerande CI-jobb. Varje mutation klassificeras `detected`/`equivalent`/`excepted` med motivering; en mutation som inte kan appliceras fäller grinden; en `equivalent` som börjar fälla sviten fäller den. 8 mutationer, alla som klassificerade. |
 
@@ -946,15 +946,16 @@ post som `scripts/check_contract_freeze.py` kräver när en kontraktsväg ändra
 
 - **Kontraktsfrysning v1** (kriterium 6): dokumenten finns och grindarna är på
   plats, men "fryst" kräver ägarens sign-off.
-- **Licens och repo** (kriterium 7): `UNLICENSED` + `publish = false` i alla
-  crates, ingen LICENSE-fil i historiken, och rättighetsinnehavaren är inte
-  dokumenterad. Licensutredningen finns som underlag — se nästa stycke.
+- **Licens och repo** (kriterium 7): **fattat** — MIT OR Apache-2.0 för
+  extraktionsmålet, `Copyright (c) 2026 Erik Fremred`, publikt repo
+  `kajmund/swe`, PyPI-distribution `swe-engine`; `publish = false` tills namn och
+  äganderätt är verifierade (`15-licensing.md`). Licensutredningen finns som underlag — se nästa stycke.
 - `swe-gym` behåller sin egen grind (G4); kärnan är enda implementationen i
   extraktionsmålet.
 - En ~35-rads helper-duplikat i `backend/tests/swe/runtime_helpers.py` är
   medveten: alternativet vore ett backend-beroende i den fristående sviten.
 
-### Licensutredning (underlag, inte beslut)
+### Licensutredning (underlag för det beslut som nu är fattat)
 
 Fakta för repo-beslutet: ingen LICENSE-fil har någonsin funnits i 1 459
 commits; alla tre crates anger `license = "UNLICENSED"` och `publish = false`;

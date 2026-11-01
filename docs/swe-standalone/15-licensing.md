@@ -53,8 +53,8 @@ licens och äganderätt är verifierade.
 ## Medvetet uppskjutet till PR 4
 
 - `THIRD-PARTY-NOTICES`: MIT och Apache-2.0 kräver att licens- och
-  upphovsrättstexter följer med vid distribution av binärer/wheels. 41 Rust- och
-  7 Python-beroenden är permissiva; `unicode-ident` är
+  upphovsrättstexter följer med vid distribution av binärer/wheels. 41 Rust-beroenden och 15 lösta Python-paket (6 i runtime-kedjan) är
+  permissiva; `unicode-ident` är
   `(MIT OR Apache-2.0) AND Unicode-3.0` och kräver sin Unicode-text.
   Genereras lämpligen med `cargo-about`/`cargo-deny` när det nya repot finns.
 - Licensgrind i CI (t.ex. `cargo-deny` med tillåten lista) — samma skäl.

@@ -50,6 +50,12 @@ SWD = "swd"
 JOURNAL = "journal"
 API = "contracts"
 
+VERSION_DECLARATIONS = (
+    ("swd", "python/swe/schema.py", "SWD_VERSION"),
+    ("journal", "crates/swe-native/src/journal.rs", "JOURNAL_SCHEMA_VERSION"),
+    ("contracts", "crates/swe-reference/src/journal.rs", "CONTRACT_VERSION"),
+)
+
 VERSIONS = {
     SWD: ("python/swe/schema.py", "SWD_VERSION"),
     JOURNAL: ("crates/swe-native/src/journal.rs", "JOURNAL_SCHEMA_VERSION"),
@@ -63,13 +69,25 @@ FIXTURES = {
 
 SOURCES = {
     SWD: ("crates/swe-native/src/definition.rs",),
-    JOURNAL: ("crates/swe-native/src/journal.rs",),
+    JOURNAL: ("crates/swe-native/src/journal.rs", "crates/swe-reference/src/journal.rs"),
     API: (
         "crates/swe-native/src/needs.rs",
         "crates/swe-native/src/evidence.rs",
         "crates/swe-native/src/operations.rs",
     ),
 }
+
+# Quoted wire keys live as string literals in the reference codec, not as
+# declarations, so they are collected separately.
+WIRE_KEY_FILES = {"crates/swe-reference/src/journal.rs"}
+
+
+def wire_keys(rev: str, path: str) -> object | None:
+    blob = read_at(rev, path)
+    if blob is None:
+        return None
+    return sorted(set(re.findall(r'"([a-z][a-z0-9_]{2,})"', blob)))
+
 
 EXTRA_CONTRACT_PATHS = ("python/swe/swd_v1.schema.json",)
 
@@ -79,6 +97,7 @@ CONTRACT_PATHS = (
     *EXTRA_CONTRACT_PATHS,
     *[path for paths in FIXTURES.values() for path in paths],
     *[path for paths in SOURCES.values() for path in paths],
+    *WIRE_KEY_FILES,
 )
 
 
@@ -187,20 +206,26 @@ def source_shape(rev: str, path: str) -> object | None:
     if blob is None:
         return None
     declarations: set[str] = set()
-    in_enum = False
+    in_body = False
     depth = 0
     for line in blob.splitlines():
         stripped = line.strip()
         if stripped.startswith(("//", "#[", "*", "/*")):
             continue
         if DECLARATION.match(line):
-            declarations.add(" ".join(stripped.split()))
-            in_enum = re.match(r"^\s*pub(?:\([^)]*\))?\s+enum\b", line) is not None
+            normalised = " ".join(stripped.split())
+            if any(constant in normalised for _, _, constant in VERSION_DECLARATIONS):
+                pass
+            else:
+                declarations.add(normalised)
+            # Struct *fields* and enum *variants* are both contract surface: a
+            # renamed field changes the wire shape exactly like a renamed key.
+            in_body = re.match(r"^\s*pub(?:\([^)]*\))?\s+(?:enum|struct)\b", line) is not None
             depth = 0
-        if in_enum:
+        if in_body:
             depth += line.count("{") - line.count("}")
             if depth <= 0 and "{" in line:
-                in_enum = False
+                in_body = False
             elif "{" in line or depth > 0:
                 if stripped and not stripped.startswith(("{", "}", "#")):
                     declarations.add(" " + " ".join(stripped.split()))
@@ -216,6 +241,9 @@ def contract_shape(contract: str, rev: str) -> dict[str, object]:
             parts[path] = fixture_shape(rev, path)
     for path in SOURCES.get(contract, ()):
         parts[path] = source_shape(rev, path)
+    if contract is JOURNAL:
+        for path in WIRE_KEY_FILES:
+            parts[path + "#keys"] = wire_keys(rev, path)
     return parts
 
 
@@ -293,10 +321,17 @@ def main() -> int:
             # During the initial freeze the files may have moved in the same PR
             # (the Python package went from backend/app/swe to python/swe), so
             # there is no prior version to read. That is bootstrap, not drift.
-            if bootstrap and before is None:
+            if bootstrap and before is None and after is not None:
                 print(
                     f"  {contract}: no version at the base (new or moved in this "
                     "PR) — allowed by the bootstrap exception"
+                )
+                continue
+            if bootstrap and after is None:
+                path, name = VERSIONS[contract]
+                failures.append(
+                    f"{contract}: no {name} at the head either ({path}); bootstrap "
+                    "does not excuse a missing version"
                 )
                 continue
             path, name = VERSIONS[contract]

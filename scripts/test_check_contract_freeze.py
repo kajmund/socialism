@@ -30,8 +30,19 @@ FILES = {
     "crates/swe-native/src/definition.rs": "pub struct CompiledDefinition;\n\npub fn parse() {}\n",
     "crates/swe-native/src/needs.rs": "pub struct NeedRef;\n",
     "crates/swe-native/src/evidence.rs": "pub struct Evidence;\n",
-    "crates/swe-native/src/operations.rs": "pub struct OperationSpec;\n\npub fn gate() {}\n",
-    "crates/swe-reference/src/journal.rs": "pub const CONTRACT_VERSION: u32 = 1;\n",
+    "crates/swe-native/src/operations.rs": (
+        "pub struct OperationSpec {\n"
+        "    pub operation: String,\n"
+        "    pub status: u32,\n"
+        "}\n\n"
+        "pub fn gate() {}\n"
+    ),
+    "crates/swe-reference/src/journal.rs": (
+        "pub const CONTRACT_VERSION: u32 = 1;\n\n"
+        "fn keys() -> &'static [&'static str] {\n"
+        '    &["started_at_ms", "settled_at_ms"]\n'
+        "}\n"
+    ),
     "contracts/swd-v1-workflow.json": '{"nodes": {"plan": {"type": "task"}}, "input": {"question": "x"}}\n',
     "contracts/journal-v1-events.json": '[{"kind": "ChargeSettled", "amount_milli": 500}]\n',
     "contracts/journal-v1-header.json": (
@@ -162,7 +173,12 @@ def _(repo: Path) -> None:
         repo,
         {
             "crates/swe-native/src/operations.rs": "pub struct OperationSpec;\n\npub fn gate(strict: bool) {}\n",
-            "crates/swe-reference/src/journal.rs": "pub const CONTRACT_VERSION: u32 = 2;\n",
+            "crates/swe-reference/src/journal.rs": (
+                "pub const CONTRACT_VERSION: u32 = 2;\n\n"
+                "fn keys() -> &'static [&'static str] {\n"
+                '    &["started_at_ms", "settled_at_ms"]\n'
+                "}\n"
+            ),
             "docs/swe-standalone/08-verification-log.md": DECISION,
         },
     )
@@ -221,6 +237,56 @@ def _(repo: Path) -> None:
     )
 
 
+@case("public struct field renamed: CONTRACT_VERSION bump required", 1)
+def _(repo: Path) -> None:
+    commit(
+        repo,
+        {
+            "crates/swe-native/src/operations.rs": (
+                "pub struct OperationSpec {\n"
+                "    pub op: String,\n"
+                "    pub status: u32,\n"
+                "}\n\n"
+                "pub fn gate() {}\n"
+            ),
+            "docs/swe-standalone/08-verification-log.md": DECISION,
+        },
+    )
+
+
+@case("public struct field type changed: CONTRACT_VERSION bump required", 1)
+def _(repo: Path) -> None:
+    commit(
+        repo,
+        {
+            "crates/swe-native/src/operations.rs": (
+                "pub struct OperationSpec {\n"
+                "    pub operation: String,\n"
+                "    pub status: String,\n"
+                "}\n\n"
+                "pub fn gate() {}\n"
+            ),
+            "docs/swe-standalone/08-verification-log.md": DECISION,
+        },
+    )
+
+
+@case("reference journal wire key renamed: journal bump required", 1)
+def _(repo: Path) -> None:
+    commit(
+        repo,
+        {
+            "crates/swe-reference/src/journal.rs": (
+                "pub const CONTRACT_VERSION: u32 = 1;\n\n"
+                "fn keys() -> &'static [&'static str] {\n"
+                '    &["startedAtMs", "settled_at_ms"]\n'
+                "}\n"
+            ),
+            "docs/swe-standalone/08-verification-log.md": DECISION,
+        },
+    )
+
+
 @case("no documented decision: fails", 1)
 def _(repo: Path) -> None:
     commit(repo, {"crates/swe-native/src/operations.rs": "pub fn gate(strict: bool) {}\n"})
@@ -247,6 +313,16 @@ def bootstrap_cases() -> list[tuple[str, int, callable]]:
             },
         )
 
+    def bootstrap_missing_head_version(repo: Path) -> None:
+        # No schema.py at base and none at head: bootstrap must not excuse it.
+        commit(
+            repo,
+            {
+                "contracts/journal-v1-events.json": '[{"kind": "AttemptStarted"}]\n',
+                "docs/swe-standalone/08-verification-log.md": DECISION,
+            },
+        )
+
     def moved_version_file(repo: Path) -> None:
         # The version constant lives in a file that did not exist at the base
         # (a package move in the same PR). Bootstrap must not fail on that.
@@ -259,6 +335,7 @@ def bootstrap_cases() -> list[tuple[str, int, callable]]:
         )
 
     return [
+        ("bootstrap: version file absent at base AND head: fails", 1, bootstrap_missing_head_version),
         ("bootstrap: version file moved in this PR: allowed", 0, moved_version_file),
         ("bootstrap: contracts absent at base: version 1 allowed", 0, bootstrap_ok),
         ("post-bootstrap: same change with contracts at base: fails", 1, post_bootstrap_fails),
@@ -271,7 +348,11 @@ def main() -> int:
         with tempfile.TemporaryDirectory() as tmp:
             # The bootstrap cases need contracts absent at the base commit; the
             # others need them present so they are not exempted by bootstrap.
-            omit = {"python/swe/schema.py"} if "version file moved" in name else None
+            omit = (
+                {"python/swe/schema.py"}
+                if "version file moved" in name or "absent at base AND head" in name
+                else None
+            )
             repo = make_repo(
                 Path(tmp),
                 contracts_at_base="post-bootstrap" in name or "bootstrap" not in name,
@@ -282,7 +363,8 @@ def main() -> int:
             ok = code == expect
             failures += 0 if ok else 1
             print(f"{'PASS' if ok else 'FAIL'}  expected {expect} got {code}  {name}")
-    print(f"\n{len(CASES) + 2} cases, {failures} failed")
+    total = len(CASES) + len(bootstrap_cases())
+    print(f"\n{total} cases, {failures} failed")
     return 1 if failures else 0
 
 

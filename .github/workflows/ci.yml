@@ -60,6 +60,7 @@ jobs:
                   ;;
                 contracts/*|crates/swe-native/src/journal.rs|crates/swe-native/src/definition.rs|crates/swe-native/src/needs.rs|crates/swe-native/src/evidence.rs|crates/swe-native/src/operations.rs|crates/swe-reference/src/journal.rs|python/swe/swd_v1.schema.json|python/swe/schema.py)
                   contract_surface=true
+                  swe_core=true
                   backend=true
                   ;;
                 scripts/check_contract_freeze.py)
@@ -118,6 +119,24 @@ jobs:
             if [ "$base_has" = "true" ] || [ "$head_has" = "true" ]; then contract_guard_present=true; fi
             if [ "$base_has" = "true" ] && [ "$head_has" != "true" ]; then
               echo "The contract gate script existed at the base commit and is gone at the head" >&2
+              exit 1
+            fi
+            # The mutation gate may not disappear either.
+            mut_base=false
+            mut_head=false
+            if [ -n "$BASE_SHA" ] && git cat-file -e "$BASE_SHA:scripts/check_mutations.py" 2>/dev/null; then mut_base=true; fi
+            if [ -n "$HEAD_SHA" ] && git cat-file -e "$HEAD_SHA:scripts/check_mutations.py" 2>/dev/null; then mut_head=true; fi
+            if [ "$mut_base" = "true" ] && [ "$mut_head" != "true" ]; then
+              echo "The mutation gate script existed at the base commit and is gone at the head" >&2
+              exit 1
+            fi
+            # The gate's own matrix is a gate too.
+            matrix_base=false
+            matrix_head=false
+            if [ -n "$BASE_SHA" ] && git cat-file -e "$BASE_SHA:scripts/test_check_contract_freeze.py" 2>/dev/null; then matrix_base=true; fi
+            if [ -n "$HEAD_SHA" ] && git cat-file -e "$HEAD_SHA:scripts/test_check_contract_freeze.py" 2>/dev/null; then matrix_head=true; fi
+            if [ "$matrix_base" = "true" ] && [ "$matrix_head" != "true" ]; then
+              echo "The contract matrix existed at the base commit and is gone at the head" >&2
               exit 1
             fi
             if [ "$contract_surface" = "true" ] || [ "$guard_script" = "true" ]; then
@@ -269,10 +288,17 @@ jobs:
         run: python3 scripts/check_contract_freeze.py --base "$BASE_SHA" --head "$HEAD_SHA"
       # The gate's own mutation matrix: a gate whose negative cases are not
       # executed is a claim, not a mechanism.
+      # The gate's matrix is cheap (throwaway repos, ~1s) and must not depend on
+      # a selector that its own file could silence.
       - name: Contract gate mutation matrix
-        if: needs.changes.outputs.contract_guard_required == 'true'
         working-directory: .
-        run: python3 scripts/test_check_contract_freeze.py
+        run: |
+          if [ -f scripts/test_check_contract_freeze.py ]; then
+            python3 scripts/test_check_contract_freeze.py
+          else
+            echo "the contract matrix script is missing" >&2
+            exit 1
+          fi
       - name: Build swe_native
         run: uv run maturin develop --manifest-path ../crates/swe-native/Cargo.toml
       - name: SWD and runtime tests (package consumed by the backend)
@@ -333,7 +359,6 @@ jobs:
       # has the workflow but not the packaging workspace, an unguarded fetch
       # would fail the job instead of being a no-op.
       - name: Classified mutation gate
-        if: hashFiles('scripts/check_mutations.py') != ''
         run: |
           # A clean runner has no registry cache, so resolve the locked set
           # online first; the gate itself then runs offline and deterministically.
