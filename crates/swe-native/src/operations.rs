@@ -75,7 +75,7 @@ impl OperationSpec {
                         } else {
                             Some(MissingInput {
                                 need: required.clone(),
-                                status: NeedStatus::Unresolved,
+                                status,
                             })
                         }
                     })
