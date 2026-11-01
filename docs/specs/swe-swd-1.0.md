@@ -17,9 +17,9 @@ Providers: [swe-provider.md](swe-provider.md).
 
 ## This PR
 
-Python reference implementation under `backend/app/swe/`:
+Python reference implementation under `python/swe/`:
 
-- JSON Schema: `backend/app/swe/swd_v1.schema.json`
+- JSON Schema: `python/swe/swd_v1.schema.json`
 - Parse JSON or YAML → JSON object
 - Graph validation (refs, join ownership, reachability, non-terminal loops)
 - Handler / provider registry checks

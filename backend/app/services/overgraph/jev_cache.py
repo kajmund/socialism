@@ -5,7 +5,7 @@ provider answers keyed by a SHA-256 over provider, prompt text, bound input,
 declared choices and provider cache params. ``wal_sync_mode="immediate"`` because
 a cached decision is reused across runs (SWE phase 4, ``cache_policy: exact``).
 
-The engine owns the cache contract and key (`app.swe.cache`); this module only
+The engine owns the cache contract and key (`swe.cache`); this module only
 implements `DecisionCache` against OverGraph.
 """
 
@@ -21,7 +21,7 @@ from typing import Any
 from overgraph import OverGraph
 
 from app.config import settings
-from app.swe.cache import decision_cache_key  # re-export: callers of this module
+from swe.cache import decision_cache_key  # re-export: callers of this module
 
 __all__ = ["JevDecisionCache", "decision_cache_key"]
 

@@ -42,7 +42,7 @@ from app.services.research.sufficiency_experiment.types import (
     ExperimentConfig,
     QualityDecision,
 )
-from app.swe.runtime import WorkflowRunner
+from swe.runtime import WorkflowRunner
 
 pytestmark = [pytest.mark.asyncio, pytest.mark.swe_runtime]
 

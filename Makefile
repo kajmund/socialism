@@ -154,7 +154,7 @@ install:
 test: test-backend test-frontend test-word-addin
 
 test-backend: swe-native
-	cd backend && uv run $(BACKEND_UV_EXTRA) ruff check app tests scripts/check_maintainability.py
+	cd backend && uv run $(BACKEND_UV_EXTRA) ruff check app tests scripts/check_maintainability.py ../python/swe ../python/tests
 	cd backend && uv run $(BACKEND_UV_EXTRA) python scripts/check_maintainability.py
 	cd backend && uv run $(BACKEND_UV_EXTRA) pytest
 
@@ -163,7 +163,7 @@ swe-native:
 
 test-swe: swe-native
 	cargo test --manifest-path crates/swe-native/Cargo.toml
-	cd backend && uv run $(BACKEND_UV_EXTRA) pytest tests/test_swe_*.py
+	cd backend && uv run $(BACKEND_UV_EXTRA) pytest ../python/tests
 
 test-frontend:
 	cd frontend && pnpm lint

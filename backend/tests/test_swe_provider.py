@@ -12,9 +12,9 @@ pytest.importorskip("swe_native")
 
 from app.jev.system import JevSystemOneResult, JevUsage
 from app.services.overgraph.jev_cache import JevDecisionCache, decision_cache_key
-from app.swe.definition import CompiledDefinition, compile_definition
-from app.swe.runtime import WorkflowResources, run_workflow
-from app.swe.runtime_errors import SwePreflightError
+from swe.definition import CompiledDefinition, compile_definition
+from swe.runtime import WorkflowResources, run_workflow
+from swe.runtime_errors import SwePreflightError
 from tests.swe.runtime_helpers import swe_tasks
 
 pytestmark = pytest.mark.swe_runtime

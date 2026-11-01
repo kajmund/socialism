@@ -216,7 +216,7 @@ GO-grinden (alla måste vara uppfyllda och verifierade i CI):
    CI-täckning.
 6. **Kontrakten i `04` är frysta** (SWD 1.0, event-schema v1, journal v1,
    provider request/response v1) och dokumenterade i det nya repot.
-7. **Licens och repo-beslut** fattade (offentligt/privat, licens för crate och
+7. **Licens och repo-beslut** fattade (publikt, licens för crate och
    wheel).
 
 Uppskattad omfattning (grov, för planering): B1 ~0,5–1 dag; B2 ~2–4 dagar;
@@ -250,10 +250,10 @@ B3 stängdes i runda 9 efter fyra oberoende granskningsrundor; sista svaret var
 | 1 | Importriktning: noll `app.*`-importer + automatiskt gate | **Uppfyllt** | `grep` i `backend/app/swe/` ger noll icke-`app.swe`-importer; `tests/test_swe_import_boundary.py` (7 tester, `ast`-baserad) failar vid återfall |
 | 2 | Domänneutral demo mot de nya kontrakten, ingen applikationskopia av grind eller ledger | **Uppfyllt** | `crates/swe-reference/Cargo.toml` beror bara på `swe-native` + `swe-budget`; `all_required`/`GateResult` borta; ledger via `swe_budget::Ledger` |
 | 3 | Rust-journal: paus/återuppta går genom kärnans kontrakt | **Uppfyllt** | `host.rs` skriver `AttemptStarted`/`ChargeReserved`/`ResultConfirmed`/`ChargeSettled`; 132 händelser över en pausad+återupptagen körning; `JournalHeader::verify` prövar schema, definition, kontrakt och beroenden |
-| 4 | Fristående harness: `cargo test --workspace` + `pytest` utan Socialism-checkout | **EJ uppfyllt** | Det finns **ingen root-`Cargo.toml`**; de fyra cratarna är fristående. Python-testerna ligger kvar i `backend/tests/` och kräver `backend/`-trädet (`import app.swe`, `tests/conftest.py`). Detta är **B4** och är nästa steg |
+| 4 | Fristående harness: `cargo test --workspace` + `pytest` utan Socialism-checkout | **Uppfyllt i B4** | Root-`Cargo.toml` med `swe-native`/`swe-budget`/`swe-reference`; `python/` är ett installerbar paket med egen `python/tests` (136 tester) som passerar i en venv utanför repot utan backend på `sys.path`. Se `08 §7.14` |
 | 5 | Research oförändrat, backend-CI grön | **Uppfyllt** | Alla 13 CI-checks gröna; research-vägen har tre ändringar: en kommentar i `swe_bridge.py` och två importvägar i `scripts/`+`tests/` från B1-flytten. Ingen beteendeändring |
 | 6 | Kontrakten i `04` frysta och dokumenterade i det nya repot | **Delvis** | Dokumenten finns och är konsistenta (04, 09, 12), men "fryst" kräver ägarens sign-off och dokumenten ska följa med till det nya repot — det sker i PR 4 |
-| 7 | Licens- och repo-beslut | **EJ fattat** | Ägarbeslut: offentligt/privat, licens för crate och wheel, namn/org |
+| 7 | Licens- och repo-beslut | **Licens och synlighet fattade 2026-11-01** | MIT OR Apache-2.0 för extraktionsmålet, `Copyright (c) 2026 Erik Fremred`, **publikt** repo. Repo `kajmund/swe`, crates `swe-native`/`swe-budget`, PyPI-distribution `swe-engine` (namnen kontrollerade). Kvar för PR 4: `THIRD-PARTY-NOTICES` och licensgrind i CI (`15-licensing.md`) |
 
 ### Beslut
 
@@ -261,10 +261,11 @@ B3 stängdes i runda 9 efter fyra oberoende granskningsrundor; sista svaret var
 och verifierade; tre återstår, och två av dem är ägarbeslut som ingen agent kan
 fatta (6 i sin helhet, 7).
 
-**GO för B4** — den enda kvarvarande agent-utförbara delen: en root-workspace
-med `cargo test --workspace`, samt en fristående Python-harness där SWE-testerna
-kör utan `backend/`-trädet. Det är mekaniskt arbete, inte arkitektur, och det kan
-göras i den här PR:en eller i PR 4.
+**GO för B4 är genomfört** (branch `feat/swe-b4-standalone-packaging`, PR #459):
+workspace, installerbar Python-paket med fristående harness, borttagen
+`execute()`, frysta kontrakt med strukturell **och** semantisk grind, samt
+klassificerad mutationsgrind i CI. Kvar före fysisk flytt: kontraktsfrysningens
+sign-off (kriterium 6) och licens-/repo-beslutet (kriterium 7) — båda ägarbeslut.
 
 Vad som **inte** ska göras samtidigt: cache, `ActionOffer`, `wait`, `retry` eller
 andra nya förmågor. Motorn är tillräckligt avancerad; det som återstår är att

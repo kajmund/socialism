@@ -122,7 +122,7 @@ samma crate). De är generiska men ligger i experimentlagret.
 | 9 | Ska `benchmark_research_swe*.py` flytta? | **Nej.** `benchmark_swe_runtime.py` flyttar; research-benchmarks stannar | Den förstnämnda mäter research-cutover, den senare motorns transitionskapacitet |
 | 10 | Var ska referensexemplet bo? | SWE-repot (`crates/swe-reference`) | Det är beviset att motorn kan användas utan domän och ska följa motorns version |
 | 11 | Vad händer med `wait`/`subworkflow`/`retry`? | Inte en del av v1-kontraktet; dokumenteras som avvisade | De är redan preflight-avvisade; att lova dem i ett publikt kontrakt vore fel |
-| 12 | Licens/namn/publicering av nya repot? | **Beslutspunkt före PR 4** (i dag `UNLICENSED`, `publish = false`) | Krävs för crate/wheel-distribution; git-tagg-konsumtion fungerar utan |
+| 12 | Licens/namn/publicering av nya repot? | **Beslutad 2026-11-01:** MIT OR Apache-2.0 för extraktionsmålet, `publish = false` tills namn är verifierade (`15-licensing.md`) | Krävs för crate/wheel-distribution; git-tagg-konsumtion fungerar utan |
 
 ## 8. Felriktade beroenden (sammanfattning)
 

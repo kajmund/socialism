@@ -78,8 +78,8 @@ from app.services.research.sufficiency_experiment.types import (
 from app.services.research.sufficiency_experiment.workflow import (
     compile_sufficiency_workflow,
 )
-from app.swe.runtime import RunResult, WorkflowResources, WorkflowRunner
-from app.swe.runtime_dispatch import Handler
+from swe.runtime import RunResult, WorkflowResources, WorkflowRunner
+from swe.runtime_dispatch import Handler
 class SufficiencyLoop:
     """One SWE run that judges a complete EvidenceSet."""
 

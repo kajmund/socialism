@@ -272,6 +272,23 @@ swe = { git = "https://github.com/kajmund/swe", tag = "v0.1.0", subdirectory = "
 | Observability | SWE emits typed events; Socialism's existing logging/observability attaches at the host. The event schema is public, the sink is injected. |
 | Cost/tariff configuration | Host-supplied tariffs; `swe-budget` records amounts and idempotency keys, never a vendor price list. |
 
+## Repo-beslut (2026-11-01)
+
+Det nya repot blir **publikt** och dual-licensierat MIT OR Apache-2.0 för
+extraktionsmålet. Publikt innebär distribution: `THIRD-PARTY-NOTICES` och en
+licensgrind i CI är därför publiceringskrav, inte förbättringar. Kvar att besluta:
+**namn och organisation**: `kajmund/swe`; crates `swe-native`/`swe-budget` (lediga),
+PyPI-distribution `swe-engine` (`swe` är upptaget, importnamnet förblir `swe`).
+
+## AI-agentförfattarskap (dokumenterat 2026-11-01)
+
+Sju commits på extraktionsmålens vägar är författade under
+`Cursor Agent <cursoragent@cursor.com>`, inklusive kärnan (`b78055ba`) och
+SWD-schemat/parsern (`832a7f29`). Koden är skriven under ägarens ansvar med
+AI-verktyg; det dokumenteras här så att en extern läsare inte behöver gissa när
+den ser `git log`. Rättighetsinnehavaren för extraktionsmålet är
+`Copyright (c) 2026 Erik Fremred` (se `15-licensing.md`).
+
 ## 8. Ordered PR plan (after this investigation PR)
 
 | PR | Repo | Content | Exit criterion |

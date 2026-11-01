@@ -150,6 +150,13 @@ Domänexekutorerna (`max_notice_period:68`, `apply_exception:157`) stannar i
 Socialism. Referensexperimentets `OpOutcome`/`all_required` ersätts av de nya
 typerna.
 
+**Ändrat i B4:** `investigate_operate_loop` byggdes som
+`operations::execute` och togs bort i B4 — den hade ingen produktionskonsument,
+och dess loop-skydd var en andra implementation av det som redan finns i
+`NeedDiscovery`. Loopen ägs av värden (SWD-grafen eller hostkoden);
+loop-skyddet ägs av kärnan som `NeedDiscovery::record`, och `StopReason`/
+`Investigation` togs bort med `execute`. Se `08 §7.14`.
+
 ### C2.4 — `swe-budget`
 
 Flytta `crates/swe-gym/src/ledger.rs` + `tests/ledger_tests.rs` oförändrade till

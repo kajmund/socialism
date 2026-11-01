@@ -26,6 +26,8 @@ jobs:
       knowledge: ${{ steps.filter.outputs.knowledge }}
       swe_gym: ${{ steps.filter.outputs.swe_gym }}
       swe_core: ${{ steps.filter.outputs.swe_core }}
+      contract_guard_present: ${{ steps.filter.outputs.contract_guard_present }}
+      contract_guard_required: ${{ steps.filter.outputs.contract_guard_required }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -56,11 +58,23 @@ jobs:
                 crates/swe-gym/*)
                   swe_gym=true
                   ;;
+                contracts/*|crates/swe-native/src/journal.rs|crates/swe-native/src/definition.rs|crates/swe-native/src/needs.rs|crates/swe-native/src/evidence.rs|crates/swe-native/src/operations.rs|crates/swe-reference/src/journal.rs|python/swe/swd_v1.schema.json|python/swe/schema.py)
+                  contract_surface=true
+                  backend=true
+                  ;;
+                scripts/check_contract_freeze.py)
+                  guard_script=true
+                  backend=true
+                  ;;
                 crates/swe-native/*|crates/swe-budget/*|crates/swe-reference/*|contracts/*|mutations/*|scripts/check_mutations.py|Cargo.toml|Cargo.lock)
                   swe_core=true
                   backend=true
                   ;;
                 backend/*|integrations/*|data/*|crates/*)
+                  backend=true
+                  ;;
+                python/*)
+                  # The SWE Python host package is exercised by the SWE job.
                   backend=true
                   ;;
                 frontend/*)
@@ -93,6 +107,24 @@ jobs:
             echo "knowledge=$knowledge"
             echo "swe_gym=$swe_gym"
             echo "swe_core=$swe_core"
+            # Presence and requirement are different questions. Presence answers
+            # "may the script be deleted?"; requirement answers "must the gate
+            # run for this PR?". Conflating them made every docs PR demand a
+            # SWE runtime run.
+            base_has=false
+            head_has=false
+            if [ -n "$BASE_SHA" ] && git cat-file -e "$BASE_SHA:scripts/check_contract_freeze.py" 2>/dev/null; then base_has=true; fi
+            if [ -n "$HEAD_SHA" ] && git cat-file -e "$HEAD_SHA:scripts/check_contract_freeze.py" 2>/dev/null; then head_has=true; fi
+            if [ "$base_has" = "true" ] || [ "$head_has" = "true" ]; then contract_guard_present=true; fi
+            if [ "$base_has" = "true" ] && [ "$head_has" != "true" ]; then
+              echo "The contract gate script existed at the base commit and is gone at the head" >&2
+              exit 1
+            fi
+            if [ "$contract_surface" = "true" ] || [ "$guard_script" = "true" ]; then
+              contract_guard_required=true
+            fi
+            echo "contract_guard_present=$contract_guard_present"
+            echo "contract_guard_required=$contract_guard_required"
           } >> "$GITHUB_OUTPUT"
 
   swe-gym:
@@ -144,7 +176,7 @@ jobs:
         run: uv run maturin develop --manifest-path ../crates/swe-native/Cargo.toml
       - name: Maintainability
         run: |
-          uv run ruff check app tests scripts/check_maintainability.py
+          uv run ruff check app tests scripts/check_maintainability.py ../python/swe ../python/tests
           uv run python scripts/check_maintainability.py
       - name: Run pytest
         run: >-
@@ -193,13 +225,16 @@ jobs:
   swe-runtime:
     name: SWE runtime
     needs: changes
-    if: needs.changes.outputs.backend == 'true'
+    if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.contract_guard_required == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: backend
     steps:
       - uses: actions/checkout@v5
+        with:
+          # merge-base/diff/show against the PR base need history.
+          fetch-depth: 0
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: 1.83.0
@@ -210,23 +245,38 @@ jobs:
           enable-cache: true
       - name: Install dependencies
         run: uv sync --frozen
-      - name: Rust tests and lint
+      # B4: the extraction target is the workspace, so CI runs exactly the
+      # commands the standalone project will run. `swe-gym` is deliberately not
+      # a member and keeps its own job.
+      - name: Workspace tests and lint
         working-directory: .
         run: |
-          cargo fmt --manifest-path crates/swe-native/Cargo.toml --check
-          cargo clippy --manifest-path crates/swe-native/Cargo.toml --all-targets -- -D warnings
-          cargo test --manifest-path crates/swe-native/Cargo.toml
-      - name: Reference example tests and lint
+          cargo fmt --all -- --check
+          cargo clippy --workspace --all-targets -- -D warnings
+          cargo test --workspace
+      - name: Reference example walkthrough
         working-directory: .
-        run: |
-          cargo fmt --manifest-path crates/swe-reference/Cargo.toml --check
-          cargo clippy --manifest-path crates/swe-reference/Cargo.toml --all-targets -- -D warnings
-          cargo test --manifest-path crates/swe-reference/Cargo.toml
-          cargo run --manifest-path crates/swe-reference/Cargo.toml
+        run: cargo run -p swe-reference
+      # A contract change needs a declared reason: a version bump or a written
+      # decision. Guarded by the script's presence so the base branch, which
+      # does not have it yet, stays a no-op.
+      - name: Contract freeze guard
+        if: github.event_name == 'pull_request' && needs.changes.outputs.contract_guard_required == 'true'
+        working-directory: .
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: python3 scripts/check_contract_freeze.py --base "$BASE_SHA" --head "$HEAD_SHA"
+      # The gate's own mutation matrix: a gate whose negative cases are not
+      # executed is a claim, not a mechanism.
+      - name: Contract gate mutation matrix
+        if: needs.changes.outputs.contract_guard_required == 'true'
+        working-directory: .
+        run: python3 scripts/test_check_contract_freeze.py
       - name: Build swe_native
         run: uv run maturin develop --manifest-path ../crates/swe-native/Cargo.toml
-      - name: SWD and runtime tests
-        run: uv run pytest tests/test_swe_*.py -m "not smoke"
+      - name: SWD and runtime tests (package consumed by the backend)
+        run: uv run pytest ../python/tests -m "not smoke"
 
   python-swe:
     name: Python SWE package
@@ -243,8 +293,9 @@ jobs:
         with:
           python-version: "3.12"
           enable-cache: true
-      # The package proves itself in its own environment; the whole sequence is
-      # guarded so this branch, which does not have python/ yet, stays a no-op.
+      # The package proves itself in its own environment: its own lockfile, its
+      # own venv, its own test tooling. Backend's venv is not involved. Every
+      # step is guarded so the branch that does not have python/ yet is a no-op.
       - name: Install, build and test the standalone package
         if: hashFiles('python/pyproject.toml') != ''
         run: |
@@ -252,9 +303,10 @@ jobs:
           cd python
           uv sync --locked --group dev
           cd ..
-          uvx maturin build --manifest-path crates/swe-native/Cargo.toml \
-            --interpreter python/.venv/bin/python --out /tmp/wheels
+          uvx maturin build --manifest-path crates/swe-native/Cargo.toml             --interpreter python/.venv/bin/python --out /tmp/wheels
           cd python
+          # swe_native is a local wheel, not a PyPI dependency, so it is installed
+          # after sync; --no-sync stops uv from pruning it again.
           uv pip install /tmp/wheels/*.whl
           uv run --no-sync pytest -m "not smoke"
 
@@ -274,10 +326,12 @@ jobs:
           workspaces: .
       # Blocking, but against a verified baseline: every mutation is classified
       # as detected / equivalent / excepted with a justification, and any
-      # mutation whose outcome disagrees with its classification fails. Both the
-      # workspace and the baseline arrive with the packaging branch, so every
-      # step here is guarded together - an unguarded fetch would fail on a branch
-      # that has no root Cargo.toml yet.
+      # mutation whose outcome disagrees with its classification fails. See
+      # mutations/baseline.json and docs/swe-standalone/14-mutation-gate.md.
+      #
+      # The fetch and the gate are one guarded step on purpose: on a branch that
+      # has the workflow but not the packaging workspace, an unguarded fetch
+      # would fail the job instead of being a no-op.
       - name: Classified mutation gate
         if: hashFiles('scripts/check_mutations.py') != ''
         run: |
@@ -442,7 +496,14 @@ jobs:
             exit 1
           fi
 
-          # The mutation gate must not be able to disappear silently.
+          # The mutation gate must not be able to disappear silently. If core
+          # files changed it has to run and pass; if they did not, it is allowed
+          # to be skipped. Anything else is a broken selector or a skipped gate.
+          contract_guard_required="${{ needs.changes.outputs.contract_guard_required }}"
+          if [ "$contract_guard_required" = "true" ] && [ "$swe_runtime" != "success" ]; then
+            echo "The contract gate was required but SWE runtime was $swe_runtime"
+            exit 1
+          fi
           swe_core="${{ needs.changes.outputs.swe_core }}"
           if [ "$swe_core" = "true" ] && [ "$swe_mutation" != "success" ]; then
             echo "Core files changed but the mutation gate was $swe_mutation"

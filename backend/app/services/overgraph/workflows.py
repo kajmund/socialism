@@ -30,7 +30,7 @@ from typing import Any
 from overgraph import OverGraph
 
 from app.services.swe_host import WorkflowHostContext, workflow_catalog_dir
-from app.swe.run_store import InvocationRecord, RunRecord
+from swe.run_store import InvocationRecord, RunRecord
 from app.services.overgraph.model import GraphRecord
 
 RUN_LABEL = "WorkflowRun"

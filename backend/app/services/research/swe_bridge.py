@@ -35,10 +35,10 @@ from typing import TYPE_CHECKING, Any
 
 from app.config import settings
 from app.observability.context import log_context
-from app.swe.definition import CompiledDefinition, compile_definition
-from app.swe.run_store import RunStore
-from app.swe.runtime import RunResult, WorkflowResources, WorkflowRunner
-from app.swe.runtime_dispatch import Handler
+from swe.definition import CompiledDefinition, compile_definition
+from swe.run_store import RunStore
+from swe.runtime import RunResult, WorkflowResources, WorkflowRunner
+from swe.runtime_dispatch import Handler
 from app.services.research.models import ResearchNeed, ResearchPlan
 
 if TYPE_CHECKING:

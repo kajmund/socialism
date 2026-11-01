@@ -132,3 +132,5 @@ inventeringarnas Evidence-avsnitt, dels i referensexperimentets README.
   eftersom ingen SWE-katalog är produktionskopplad i dag.
 - Grova tidsuppskattningar i `07` är planeringsunderlag, inte åtaganden.
 - [`13-verification-standard.md`](13-verification-standard.md) — the review requirement: independent paths, one mutation per critical test, one implementation per rule.
+- [`14-mutation-gate.md`](14-mutation-gate.md) — the classified mutation gate: detected / equivalent / excepted, and why a number is not evidence.
+- [`15-licensing.md`](15-licensing.md) — the licence decision: MIT OR Apache-2.0, holder, scope, and what is deferred to PR 4.
