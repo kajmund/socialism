@@ -973,7 +973,6 @@ def _executable_source_types(
 
 
 
-
 async def _ensure_research_inventory(
     session: AsyncSession,
     *,
@@ -1183,6 +1182,7 @@ async def execute_attempt_research(  # noqa: C901, PLR0912, PLR0913, PLR0915
             start_wave=start_wave,
             need_normalizer=need_normalizer, lease_lost=lease_lost,
         )
+        _raise_if_write_fenced()
         async with factory() as final_session:
             finished = await get_attempt(final_session, attempt_id)
             result = await _result_from_attempt(final_session, finished)

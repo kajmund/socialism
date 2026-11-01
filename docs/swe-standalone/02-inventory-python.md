@@ -3,6 +3,10 @@
 **Status:** Inventeringsleverans. Ingen produktionskod ändras av detta dokument.
 **Bas:** `origin/main` `666eccb0cc61f4a5e15e95bc1e1edfbdf75b32e1`, branch
 `feat/swe-standalone-investigation`, worktree `/Users/erikfremred/swe-standalone`.
+> **B4-uppdatering:** paketet flyttade till `python/swe/` (importnamn `swe`) med
+> `python/pyproject.toml`. Dokumentet nedan beskriver läget vid inventeringen och
+> är historik; sökvägarna gäller inte längre.
+
 **Omfattning:** `backend/app/swe/**`, research-integrationen (`swe_bridge`, seam i
 `execution.py`, `loop_control.py`, `claims.py`, `research_worker.py`),
 persistensadaptrarna (`overgraph/workflows.py`, `overgraph/jev_cache.py`),

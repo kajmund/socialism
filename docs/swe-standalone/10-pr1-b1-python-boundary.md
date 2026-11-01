@@ -7,6 +7,8 @@ godkänt. Presentationen har ett eget steg — PR 1 rör **inte** researchbeteen
 **Storlek:** ~0,5–1 dag. Ren omdirigering + två nya små moduler + tester.
 **Status:** **Genomförd** (commits `2053ea2c`, `3fe6d0a0`, `ff944524`,
 `b3a34463`). Resultat och testkörningar: `08` §7.3.
+**Historik:** dokumentet beskriver läget före B4; efter B4 ligger paketet i
+`python/swe` och dess tester i `python/tests`.
 
 ## 1. Mål
 

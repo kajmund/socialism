@@ -9,7 +9,7 @@ from __future__ import annotations
 from functools import cache
 from typing import Any
 
-from app.swe.definition import CompiledDefinition, compile_definition
+from swe.definition import CompiledDefinition, compile_definition
 
 HANDLER_NAMES = frozenset(
     {

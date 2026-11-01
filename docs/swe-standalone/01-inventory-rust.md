@@ -4,6 +4,8 @@
 **Worktree:** `/Users/erikfremred/swe-standalone`, branch `feat/swe-standalone-investigation`, baserad på `origin/main` `666eccb0`.
 **Metod:** Läsning av all Rust-kod, manifest, tester, exempel, verktyg och fixtures; två offline-testkörningar som baseline; grep-baserade mått. Inga filer utanför denna leverabel har ändrats. Alla siffror i dokumentet är uppmätta i denna worktree om inget annat anges (se §18 Evidence).
 **Läsare:** någon som inte känner till Socialism. Därför förklaras domänbegrepp första gången de används.
+**B4-uppdatering:** Python-paketet ligger nu i `python/swe`; sökvägar i dokumentet som
+säger `backend/app/swe` avser inventeringstillfället (före B4) och är historik.
 
 ---
 

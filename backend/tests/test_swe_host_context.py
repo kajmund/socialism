@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from app.swe.errors import SwdValidationError
+from swe.errors import SwdValidationError
 from app.services.swe_host import WorkflowHostContext, workflow_catalog_dir
 from app.services.swe_host.context import FEATURE_IDS
 
@@ -56,3 +56,25 @@ def test_feature_registry_matches_spec() -> None:
         "group_chat",
         "webcrawler",
     }
+
+
+# The engine package must not own or export application concepts. These
+# assertions need the application package, so they live here rather than in the
+# standalone engine test suite.
+_ENGINE_OWNED_HOST_CONCEPTS = ("FEATURE_IDS", "WorkflowHostContext", "workflow_catalog_dir")
+
+
+def test_host_concepts_are_owned_by_the_application() -> None:
+    import app.services.swe_host as swe_host
+
+    for name in _ENGINE_OWNED_HOST_CONCEPTS:
+        assert hasattr(swe_host, name), f"{name} must be exported by app.services.swe_host"
+
+
+def test_engine_does_not_define_host_concepts() -> None:
+    import swe
+    import swe.schema
+
+    for name in _ENGINE_OWNED_HOST_CONCEPTS:
+        assert not hasattr(swe, name), f"{name} leaked into the engine package"
+        assert not hasattr(swe.schema, name), f"{name} leaked into swe.schema"

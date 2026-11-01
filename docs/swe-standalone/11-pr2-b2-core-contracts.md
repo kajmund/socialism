@@ -7,6 +7,8 @@ implementeras efter B1.**
 **Storlek:** ~2–4 dagar, uppdelad i fem små commits.
 **Ramverksgränsen** i `09` §5 gäller: SWE äger mekanismen, inte domänens
 innehåll.
+**Historik:** dokumentet beskriver läget före B4; sökvägarna `backend/app/swe`
+avser dåvarande placering (efter B4: `python/swe`).
 
 ## 1. Mål
 
@@ -149,6 +151,13 @@ Portas från `crates/swe-gym/src/ops.rs:26-213` med dess fyra skyddsregler.
 Domänexekutorerna (`max_notice_period:68`, `apply_exception:157`) stannar i
 Socialism. Referensexperimentets `OpOutcome`/`all_required` ersätts av de nya
 typerna.
+
+**Ändrat i B4:** `investigate_operate_loop` byggdes som
+`operations::execute` och togs bort i B4 — den hade ingen produktionskonsument,
+och dess loop-skydd var en andra implementation av det som redan finns i
+`NeedDiscovery`. Loopen ägs av värden (SWD-grafen eller hostkoden);
+loop-skyddet ägs av kärnan som `NeedDiscovery::record`, och `StopReason`/
+`Investigation` togs bort med `execute`. Se `08 §7.14`.
 
 ### C2.4 — `swe-budget`
 

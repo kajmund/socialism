@@ -9,8 +9,8 @@ import time
 from collections.abc import Mapping
 from typing import Any
 
-from app.swe.definition import compile_definition
-from app.swe.runtime import run_workflow
+from swe.definition import compile_definition
+from swe.runtime import run_workflow
 
 
 def _compile(nodes: dict[str, Any], **kwargs: Any) -> object:

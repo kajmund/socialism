@@ -6,7 +6,7 @@ import asyncio
 from collections.abc import Mapping
 from typing import Any
 
-from app.swe.definition import CompiledDefinition, compile_definition
+from swe.definition import CompiledDefinition, compile_definition
 
 DEFAULT_LIMITS = {"max_steps": 80, "max_depth": 4, "timeout_seconds": 30}
 

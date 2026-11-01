@@ -6,6 +6,8 @@ så att de kan reproduceras. Inventeringarnas egna Evidence-avsnitt
 **Miljö:** worktree `/Users/erikfremred/swe-standalone`, branch
 `feat/swe-standalone-investigation`, bas `origin/main` `666eccb0`,
 Rust 1.83.0 (cargo 1.83.0), macOS aarch64. Datum: 2026-10-31.
+**Historik:** loggen är kronologisk. Poster före B4 avser `backend/app/swe`
+och `backend/tests`; poster efter B4 avser `python/swe` och `python/tests`.
 **Ingen nätverksåtkomst:** alla Rust-körningar med `--offline`; inga
 modell-, databas- eller HTTP-anrop.
 
@@ -279,7 +281,7 @@ $ grep -rnE "^\s*(from|import)\s+app\.(config|jev|services)" backend/app/swe/
 Testantalet i SWE-sviten gick från 118 till 125: fyra fail-closed-tester för
 kompilering, tre för exekvering, minus två som flyttades eller slogs samman.
 
-### Befintlig flake — inte orsakad av B1
+### Tidigare flake — nu deterministiskt stängd
 
 `tests/test_research_swe/test_wiring.py::test_cancelled_swe_run_is_persisted_as_cancelled`
 fallerar **intermittent** när filen körs tillsammans med `test_swe_*`. Den är
@@ -292,9 +294,11 @@ felet finns före B1:
 #                                              115 passed (×5)
 ```
 
-Flaken ligger alltså i testet, inte i B1, och den enda ändringen jag gjorde i
-filen är importvägen för `WorkflowHostContext`. Den bör åtgärdas separat (göra
-testet deterministiskt) och **inte** blandas in i B1.
+Flaken låg alltså i test-/exekveringsgränsen, inte i B1. Den är nu stängd genom
+att `execute_attempt_research` kontrollerar write-fencen omedelbart efter den
+returnerade SWE-loopen. Testet kräver därför deterministiskt `CancelledError`
+och verifierar därefter att run-store-statusen är `cancelled`; samma fyra
+wiring-tester körs nu i CI tillsammans med sufficiency-reuse-sviten.
 
 ## 7.4 Oberoende kodgranskning av B1 — fynd och rättelser
 
@@ -397,7 +401,7 @@ en commit per steg.
 | --- | --- | --- |
 | C2.1 | `swe-core::needs`: `NeedRef`, prioritet, kardinalitet, status, `derive_needs`, `NeedDiscovery` (loopskydd) | `7ec8f3fe` |
 | C2.2 | `swe-core::evidence`: `EvidenceAssessment`, `classify`, `resolve_need` | `231e8af7` |
-| C2.3 | `swe-core::operations`: `OperationSpec`, grind, `execute`, `OpOutcome`/`StopReason` | `7de66581` |
+| C2.3 | `swe-core::operations`: `OperationSpec`, grind, `execute`, `OpOutcome`/`StopReason` (`execute`, `Investigation` och `StopReason` borttagna i B4 — ingen konsument) | `7de66581` |
 | — | Ramverksgrinden som permanent test | `d75446d6` |
 | C2.5 | Python-projektion (`app/swe/needs.py`) + adaptörsgrind | `839121b6` |
 | C2.4 | `swe-budget`: ledgern ut ur experimentcraten | `af15a396` |
@@ -841,7 +845,7 @@ fem punkter. Alla är åtgärdade:
 | Fynd | Vad som var fel | Nu |
 | --- | --- | --- |
 | **B1** `test_swe_core_differential.py:85` | `assert projected["status"] == read_need_state(engine)["status"]` — exakt den förbjudna formen `read == f(engine)`. Kunde aldrig upptäcka en divergens. | Varje fall bär en **separat förväntad status** (`CASES`), och både motor och adapter prövas mot den literalen. Mutationsbevis: låter adaptern rapportera `AMBIGUOUS` som `RESOLVED` blir **7 tester röda**. Före rättelsen gav samma mutation **2** röda — båda i tester som jämförde mot explicita literaler; det tautologiska kärntestet gav 0. |
-| **B2** `execute()` | Kastade `GateError::DuplicateState` som `StopReason::InsufficientEvidence` — Req 5 bruten, och nåbar både via anroparens statuslista och via en resolver som svarar för ett redan känt behov. | `execute` returnerar `Result<Investigation, GateError>`; endast `Unsatisfied` blir en slutsats. Statuslistan valideras **före** loopen, så även `max_rounds = 0` avvisar en dubblett i stället för att rapportera `RoundLimit`. Tre nya tester. |
+| **B2** `execute()` | Kastade `GateError::DuplicateState` som `StopReason::InsufficientEvidence` — Req 5 bruten, och nåbar både via anroparens statuslista och via en resolver som svarar för ett redan känt behov. | `execute` returnerar `Result<Investigation, GateError>`; endast `Unsatisfied` blir en slutsats. Statuslistan valideras **före** loopen, så även `max_rounds = 0` avvisar en dubblett i stället för att rapportera `RoundLimit`. Tre nya tester. **B4 tog bort `execute`, `Investigation` och `StopReason`:** ingen produktionskonsument fanns, och loop-skyddet duplicerade `NeedDiscovery`. |
 | **B3** denna sektion | Saknade standardens egna redovisningskrav. | Denna tabell. |
 | **M4** `Screening::Insufficient` | Demon avgjorde lokalt (`if !entry.is_verified()`) och motorn anropades bara för att bekräfta; grenen var otestad och en mutation förbi anropet förblev grön. | `screen_candidate` frågar `gate_inputs` **först** och grenar på motorns utfall. Nytt `AmbiguousException`-scenario gör grenen nåbar; testet kräver statusen `AMBIGUOUS` i payloaden. En lokal kopia som återanvänder demots egen mappning kan producera samma sträng — det är bevisat grönt — men **källmutation** fäller testet (5 röda), liksom det gamla lokala beteendet (1 röd). Delegationen är alltså bevisad, inte strängen. |
 | **M5/M6/M7** | "enda implementationen" gällde inte repo-vid täckning (`swe-gym` har en egen grind, G4); gym sades ha 13 tester (faktiskt 97); `swe-reference` README/lib/evidence sade att grinden var applikationslager. | Påståendet skopat till `swe-native` + `swe-reference` med gym-dubbletten namngiven som G4; siffran rättad; dokumenten uppdaterade. |
@@ -899,7 +903,146 @@ crates/swe-gym       97 tester   (17 targets)
 backend SWE+research 170 tester; ruff och maintainability rena
 ```
 
-## 8. Vad denna PR innehåller (scope)
+## 7.14 B4: fristående paketering
+
+B4 skulle göra B1–B3 flyttbara utan att lägga till förmågor. Fem steg, i den
+ordning ägaren angav:
+
+| Steg | Resultat |
+| --- | --- |
+| 1. Root Cargo-workspace | `swe-native`, `swe-budget`, `swe-reference` är medlemmar; `swe-gym` är explicit exkluderad (eget governance, egna fixtures, egen CI-jobb). En root-lock ersätter tre. Release-profilen flyttade till root — annars hade den tyst ignorerats. CI kör nu exakt `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`. `swe-gym` byggs dessutom i CI när kärn-craterna ändras, eftersom den path-beroende gym-craten annars kunde brytas utan att någon grind märker det. |
+| 2. Python-paket | `backend/app/swe/**` → `python/swe/**` med `python/pyproject.toml`. **129 `app.swe`-bärande rader (130 förekomster) i 44 filer** (mätt med `git diff --no-renames 9d17b096..HEAD -- '*.py'`: 129 rader på `-`-sidan, fördelade på 44 filer); inga `app.swe`-importer kvar i exekverbar kod — en historisk kommentar i `scripts/check_contract_freeze.py` nämner den gamla sökvägen. Backend konsumerar paketet som riktig path-dependency via uv. **Fristående bevis:** venv utanför repot, maturin-wheel + `pip install python/`, `pytest python/tests` → **136 passed**, backend inte på `sys.path`. CI kör samtliga **40** `swe_runtime`-märkta backend-konsumenttester: provider, persistence, research-wiring och sufficiency-reuse. Lease-cancel-fallet kontrollerar write-fencen direkt efter SWE-loopen och verifierar både `CancelledError` och persisterad `cancelled`-status. CI bygger också wheel + sdist och installerar wheel i en ren venv utanför repot (`swe.load_schema()`), så att paketdata inte kan försvinna tyst. |
+| 3. `execute()` borttagen | Ingen produktionskonsument. `Investigation`/`StopReason` försvann med den. Den återstående skyddslogiken mot upprepade behov ligger i `NeedDiscovery`, som i dag bara exerceras av kontraktstestet (`crates/swe-reference/tests/contracts.rs`); referenshosten anropar den inte, så skyddet är inte inkopplat i någon körloop. Kärnan 74 → 67 tester. |
+| 4. Frysta kontrakt | `contracts/` med kanoniska fixtures, `MANIFEST.sha256` och **två** grindar: strukturell (hashar, inga olistade `*.json`) och semantisk (fixtures *exekveras*: SWD-dokumentet kompilerar till headerns definition-hash, varje journalhändelse kodas förlustfritt, `NeedMore`-repeat, dubbletter, `AMBIGUOUS`, recovery per delivery-klass, okänd kostnad aldrig noll, fel versioner namnges). **13 kontraktstester** (`cargo test -p swe-reference --test contracts --offline`), inklusive ett nytt fixture==emitter-test: de frysta filerna måste vara exakt vad `swe-reference`-emittern producerar, och headerns versionsfält pinnas mot emitterns värden (som byggs av `CONTRACT_VERSION` och `current_dependency_versions()`) i stället för att läsas från fixturen och matas tillbaka (den tidigare formen var en tautologi). **Matrisbevisat** av `scripts/test_check_contract_freeze.py`: 38 negativa/positiva fall med exakt förväntad fallista — byte-tampering fäller det strukturella, ändring + regenererad manifest fäller det semantiska, och kommentarer, strängar eller funktionslokala deklarationer kan inte låtsas vara en version bump (Python läses via AST på modulnivå; Rust kräver crate-scope `pub const`). |
+| 5. Mutationsgrind | `scripts/check_mutations.py` + `mutations/baseline.json`, blockerande CI-jobb. Varje mutation klassificeras `detected`/`equivalent`/`excepted` med motivering; en mutation som inte kan appliceras fäller grinden. `equivalent`/`excepted` kräver **exit 0** — en kraschande testprocess eller ett build-fel är ett gate-fel för varje klass, inte "grönt utan namngivet rött test". Grinden har en egen negativmatris (`scripts/test_check_mutations.py`, 32 fall) som körs i CI och avvisar absoluta/parent-traverserande manifestvägar; den upplösta filen måste ligga i den isolerade worktree:n. **10 mutationer, alla som klassificerade**, verifierat med `python3 scripts/check_mutations.py --offline` efter `cargo fetch --locked` (isolerad worktree, ingen ändring av checkouten). |
+
+### Vad grinden hittade om sig själv
+
+Samma mönster som i `13-verification-standard.md`: mekanismen fällde sin egen
+första version.
+
+- Kärnan rapporterade `UNRESOLVED` för varje saknat behov i stället för den
+  faktiska statusen — inget **kärntest** pinnade `MissingInput::status`; bara
+  referensdemon gjorde det. Nytt test:
+  `the_gate_reports_why_each_input_is_missing`.
+- En mutation som skulle förbjuda release av en avstämningspost träffade
+  `ChargeSettled`-armen, blev oåtkomlig och därmed ekvivalent. Det syntes bara
+  för att en `detected`-mutation måste fälla något.
+
+### Kontraktsändring: journal v1 är additiv, ingen version bump
+
+`contracts/` och journal-kodningen ändrades i B4, så kontraktsgrinden kräver en
+uttrycklig post. Bedömningen:
+
+- **Ingen wire-ändring.** Inga fält byter namn, typ eller betydelse. Fixturen
+  utökas med `AttemptAbandoned` och `ChargeReleased` — två varianter formatet
+  redan definierade men som fixturen saknade. Manifestet uppdateras i samma
+  commit.
+- **Dekodern skärps, inte luckras.** Obligatoriska belopp och tidsstämplar måste
+  finnas och vara heltal; saknade värden avvisas i stället för att bli noll.
+- **Kärnan får en ny invariant:** en settlement får aldrig **överstiga**
+  reservationen (en högre kostnad än taket avvisas med ett typat fel som namnger
+  båda beloppen). En lägre settlement är tillåten och redovisar den faktiska
+  kostnaden — det matchar `swe-budget`-ledgerns dokumenterade semantik att
+  reglera verklig kostnad och frigöra outnyttjad reservation. Den första
+  versionen krävde exakt likhet, vilket hade gjort dokumenterad
+  delavräkning oavstämbar i journalen; rättat efter den oberoende granskningen.
+
+Därför stannar `JOURNAL_SCHEMA_VERSION` på 1. Detta är den dokumenterade
+post som `scripts/check_contract_freeze.py` kräver när en kontraktsväg ändras.
+
+### Oberoende granskning och rättelser (2026-11-01)
+
+B4 granskades av fem oberoende spår (mutationsgrinden, kontraktsgrindarna,
+Python-paketet + backend-konsumtion, Rust-workspace/`execute`-borttagningen +
+licensiering, och CI-workflowens grindintegritet) innan ägarens sign-off. Varje
+spår försökte reproducera fel med doctored commits eller syntetiska
+`cargo`-körningar i stället för att bara läsa koden. Fynden och rättelserna:
+
+- **Kontraktsgrinden:** versionsdeklarationen lästes ur rå text, så en kommentar
+  `// CONTRACT_VERSION = 2` kunde ersätta en riktig bump. Nu läses den ur
+  Python-AST på modulnivå respektive crate-scope Rust-tokenström;
+  kommentars-, sträng- och funktionslokala spoof fäller grinden. Header-fixturens
+  `contract_version`/`dependency_versions` var inte pinnade (tautologiskt test);
+  nu jämförs alla tre fixtures mot emitterns output, som byggs av konstanterna.
+  Matrisen har exakt förväntad fallista och egna självkontroller
+  (tabell-paritet, CI-glob-paritet, pointer-uppslagning), så att en tyst
+  borttagen negativ falla eller en uppluckrad undantagstabell fäller den.
+- **Mutationsgrinden:** en kraschande testprocess (SIGABRT med en grön
+  syskonbinär) räknades som "grön" för `equivalent`/`excepted`. Nu krävs exit 0
+  och en ej tolkningsbar körning är ett gate-fel för varje klass; grinden har
+  dessutom en egen 32-fallsmatris som körs i CI. `--package`-flaggan (död) togs
+  bort och städningen flyttades till `try/finally`; grinden dokumenterar nu att
+  den bara mäter committed HEAD och inte skyddar sig själv mot en PR som skriver
+  om den. Manifestets filsökvägar måste vara relativa utan parent-traversering,
+  och den upplösta mutationsfilen måste ligga kvar i den isolerade worktree:n.
+- **Python/backend:** 22 `swe_runtime`-märkta provider-/persistence-tester hade
+  slutat köras i CI när `swe-runtime`-jobbet bytte till `python/tests`; de körs nu
+  igen. `python-swe`-jobbet byggde aldrig distributionen; nu byggs wheel+sdist
+  och wheel installeras i en ren venv utanför repot med `swe.load_schema()` som
+  rökprov. Dev-verktygsversionerna i `python/pyproject.toml`-kommentaren var
+  felaktiga och är rättade. Wiring- och sufficiency-reuse-filerna (18 tester)
+  körs också i samma jobb; den tidigare lease-cancel-kapplöpningen är stängd
+  med en explicit write-fence-kontroll efter SWE-loopen.
+- **Rust/licens:** den nya journalinvarianten krävde exakt likhet mellan
+  reservation och settlement, vilket motsade `swe-budget`-ledgerns dokumenterade
+  delavräkning; nu avvisas bara settlement > reservation (se ovan). Stale
+  `execute`-referenser i doc-kommentarer och `13` rättade. Licensieringens
+  siffror gjordes reproducerbara (bas `9d17b096`: 1 415 commits; 9
+  `Cursor Agent`/5 Erik Fremred på de namngivna målvägarna; 41 Rust- och 14
+  externa Python-beroenden) och `kajmund/swe` är nu formulerat som ett beslut,
+  inte som en verifierad registrering.
+- **CI-workflowen:** förändringsdetektorn kunde faila öppet (ett misslyckat
+  `git diff` gav alla flaggor `false` och aggregate-jobbet grönt); nu körs den
+  med `set -euo pipefail` och ett explicit fel på tom eller felaktig diff,
+  använder merge-base, och kräver att gate-skript, matriser och
+  workflow-invocations inte kan försvinna tyst. Workflow-ändringar triggar
+  mutationsgrinden, kärnändringar bygger `swe-gym`, och aggregate-jobbet avvisar
+  ett selector-värde som varken är `true` eller `false`.
+- **Kvar som senare PR:** projektägaren signerade kontraktsfrysning v1
+  2026-11-01 (kriterium 6); den fysiska repo-flytten återstår. Även skydd mot
+  att en PR skriver om grindarna själva (CODEOWNERS/ruleset);
+  `repository`/`homepage`-metadata och
+  `THIRD-PARTY-NOTICES` i flytten; att `swe-native` namnger
+  `contract_version`-fel som `schema_version` i feltexten; att
+  `CONTRACT_VERSION`/`current_dependency_versions()` exporteras publikt så att
+  kontraktstesterna kan pinna dem literalt; och Krav 4:s båda ordningar i
+  kontraktstestet (kärnans enhetstester täcker ordningen i dag).
+
+### Kvar efter B4
+
+- **Kontraktsfrysning v1** (kriterium 6): **signerad av projektägaren
+  2026-11-01.** Dokumenten och grindarna ska nu föras över oförändrade och
+  verifieras i målrepot under PR 4.
+- **Licens och repo** (kriterium 7): **fattat** — MIT OR Apache-2.0 för
+  extraktionsmålet, `Copyright (c) 2026 Erik Fremred`, repo `kajmund/swe`
+  (planerat, publikt i flytten), PyPI-distribution `swe-engine`;
+  `publish = false` kvarstår till flytten/PR 4 (`15-licensing.md`), nu som ett
+  publiceringssteg — namn, licens och äganderätt är verifierade/beslutade.
+- `swe-gym` behåller sin egen grind (G4); kärnan är enda implementationen i
+  extraktionsmålet.
+- En ~35-rads helper-duplikat i `backend/tests/swe/runtime_helpers.py` är
+  medveten: alternativet vore ett backend-beroende i den fristående sviten.
+
+### Licensutredning (underlag för det beslut som nu är fattat)
+
+Fakta för repo-beslutet (mätt vid basen `9d17b096`; branch-HEAD efter B4 har
+1 422 commits): ingen LICENSE-fil har någonsin funnits i historiken; alla tre
+crates anger `license = "UNLICENSED"` och `publish = false`; inga
+SPDX-identifierare eller copyright-huvuden finns. **Ingen kopierad
+tredjepartskod** hittades — enda härledningen är intern (`swe-budget` är en
+0-rads flytt av `swe-gym`-ledgern, `af15a396`). Alla 41 Rust-beroenden och 14
+externa Python-paket är permissiva (MIT/Apache-2.0-varianter; `unicode-ident` är
+`(MIT OR Apache-2.0) AND Unicode-3.0`; inga GPL/AGPL/LGPL/MPL/NOTICE). 5 commits
+av Erik Fremred och 9 av `Cursor Agent` på de namngivna målvägarna; inga
+CLA/DCO/sign-off och personlig GitHub-remote. **Rättighetsinnehavaren
+bekräftades av ägaren 2026-11-01** och AI-agentförfattarskapet dokumenterades i
+`06` — licensen är alltså given av rättighetsinnehavaren, inte antagen.
+
+## 8. Vad utrednings-PR:en innehöll (historik, före B4)
+
+Detta avsnitt beskriver den ursprungliga utrednings-PR:en. B4:s omfattning
+beskrivs i §7.14 ovan.
 
 ```console
 $ git status --short

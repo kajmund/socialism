@@ -1191,9 +1191,9 @@ def _validate_scenario_fixtures(scenario: Mapping[str, Any]) -> None:
 
 def _retry_semantics() -> dict[str, Any]:
     from app.services.research.execution import ResearchExecutionError  # noqa: F401
-    from app.swe.definition import compile_definition
-    from app.swe.runtime_errors import SweUnsupportedError
-    from app.swe.runtime_preflight import assert_phase2_supported
+    from swe.definition import compile_definition
+    from swe.runtime_errors import SweUnsupportedError
+    from swe.runtime_preflight import assert_phase2_supported
 
     document = {
         "version": "1.0", "name": "retry_probe", "entrypoint": "work",

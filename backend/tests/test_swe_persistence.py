@@ -12,10 +12,10 @@ import pytest
 pytest.importorskip("swe_native")
 
 from app.services.swe_host import WorkflowHostContext
-from app.swe.run_store import InvocationRecord, RunRecord
-from app.swe.runtime import WorkflowRunner, resume_run, run_workflow
-from app.swe.runtime_clock import FrozenClock
-from app.swe.runtime_errors import SweRuntimeError
+from swe.run_store import InvocationRecord, RunRecord
+from swe.runtime import WorkflowRunner, resume_run, run_workflow
+from swe.runtime_clock import FrozenClock
+from swe.runtime_errors import SweRuntimeError
 from app.services.overgraph.workflows import (
     EVENT_LABEL,
     INVOCATION_LABEL,

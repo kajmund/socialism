@@ -154,16 +154,31 @@ install:
 test: test-backend test-frontend test-word-addin
 
 test-backend: swe-native
-	cd backend && uv run $(BACKEND_UV_EXTRA) ruff check app tests scripts/check_maintainability.py
+	cd backend && uv run $(BACKEND_UV_EXTRA) ruff check app tests scripts/check_maintainability.py ../python/swe ../python/tests
 	cd backend && uv run $(BACKEND_UV_EXTRA) python scripts/check_maintainability.py
 	cd backend && uv run $(BACKEND_UV_EXTRA) pytest
 
 swe-native:
 	cd backend && uv run $(BACKEND_UV_EXTRA) maturin develop --manifest-path ../crates/swe-native/Cargo.toml
 
+# The blocking SWE gates, runnable locally. CI runs the same commands.
 test-swe: swe-native
-	cargo test --manifest-path crates/swe-native/Cargo.toml
-	cd backend && uv run $(BACKEND_UV_EXTRA) pytest tests/test_swe_*.py
+	cargo fmt --all -- --check
+	cargo clippy --workspace --all-targets -- -D warnings
+	cargo test --workspace
+	cargo run -p swe-reference
+	python3 scripts/test_check_contract_freeze.py
+	python3 scripts/test_check_mutations.py
+	cd backend && uv run $(BACKEND_UV_EXTRA) pytest ../python/tests
+	cd backend && uv run $(BACKEND_UV_EXTRA) pytest tests/test_swe_provider.py tests/test_swe_persistence.py tests/test_research_swe/test_wiring.py tests/test_sufficiency_experiment_reuse.py -m swe_runtime
+
+mutation-gate:
+	cargo fetch --locked
+	python3 scripts/check_mutations.py --offline
+
+contract-gate:
+	python3 scripts/test_check_contract_freeze.py
+	python3 scripts/check_contract_freeze.py --base "$$(git merge-base HEAD origin/main)" --head HEAD
 
 test-frontend:
 	cd frontend && pnpm lint

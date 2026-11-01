@@ -10,8 +10,8 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from app.swe.errors import SwdValidationError
-from app.swe.schema import CUSTOMER_ID_PATTERN
+from swe.errors import SwdValidationError
+from swe.schema import CUSTOMER_ID_PATTERN
 
 #: Socialism's product features. A feature id is never taken from YAML or model
 #: output, and it is never validated by the engine.

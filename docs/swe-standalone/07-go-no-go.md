@@ -1,12 +1,14 @@
 # Go/No-Go — är SWE redo att flyttas?
 
-**Status:** Utredningens beslutspunkt. Bas: `origin/main` `666eccb0`,
+**Status:** **GO för fysisk repo-extraktion**, godkänt av projektägaren
+2026-11-01 efter grön B4-verifiering. Bas: `origin/main` `666eccb0`,
 inventeringarna [`01-inventory-rust.md`](01-inventory-rust.md) /
 [`02-inventory-python.md`](02-inventory-python.md), kontrakten
 [`04-public-contracts.md`](04-public-contracts.md), referensexperimentet
 [`../../crates/swe-reference/`](../../crates/swe-reference/README.md) och
 planen [`06-extraction-plan.md`](06-extraction-plan.md).
-**Ingen fysisk flytt har gjorts eller godkänts av detta dokument.**
+**Ingen fysisk flytt har ännu gjorts; godkännandet gäller att inleda PR 4 och
+flytta de frysta kontrakten oförändrade till målrepot.**
 
 ## 0. Beslut och ändrad ordning (2026-10-31)
 
@@ -64,11 +66,12 @@ B2:s acceptanskriterier.
 
 ## 1. Beslut
 
-> **NO-GO för omedelbar fysisk flytt.**
+> **GO för fysisk repo-extraktion från och med 2026-11-01.**
 >
-> **GO för extraktionsprogrammet** enligt `06-extraction-plan.md`, under
-> förutsättning att blockerarna B1–B3 nedan är åtgärdade och verifierade.
-> De är små, avgränsade och kräver ingen ny arkitektur.
+> B1–B4 är stängda och verifierade. Projektägaren har signerat
+> kontraktsfrysning v1; licens, synlighet och målrepo är beslutade. PR 4 får
+> därför skapa/fylla `kajmund/swe` och föra över kontrakten utan semantisk
+> ändring. Publiceringsmetadata, notices och målrepo-CI verifieras i flytt-PR:n.
 
 Detta är inte ett "SWE är felbyggt"-utlåtande. Kärnan är generisk och
 referensexperimentet bevisar att motorn kan köra en domänneutral, budgetstyrd,
@@ -123,6 +126,9 @@ Bevisar **inte**:
 
 ### B1 — Domänimporter i Python-hostlagret (**åtgärdad**; plan `10`, resultat `08` §7.3)
 
+**Historik:** tabellen nedan visar läget före B1; sökvägarna `backend/app/swe`
+gäller dåvarande placering (efter B4: `python/swe`).
+
 Fem importrader i tre filer gör att det "generiska" paketet inte kan flyttas:
 
 | Fil:rad | Import | Åtgärd |
@@ -165,7 +171,7 @@ kontrakten; inga parallella implementationer).
 självständigt bibliotek; plan i `12`)
 
 Python har `RunStore`/`InvocationRecord` + replay-semantik
-(`backend/app/swe/run_store.py`, `docs/specs/swe-overgraph.md`), men det finns
+(`python/swe/run_store.py`, `docs/specs/swe-overgraph.md`), men det finns
 ingen Rust-motsvarighet och ingen produktionskoppling. Demon implementerar
 journalen i applikationslagret.
 
@@ -216,7 +222,7 @@ GO-grinden (alla måste vara uppfyllda och verifierade i CI):
    CI-täckning.
 6. **Kontrakten i `04` är frysta** (SWD 1.0, event-schema v1, journal v1,
    provider request/response v1) och dokumenterade i det nya repot.
-7. **Licens och repo-beslut** fattade (offentligt/privat, licens för crate och
+7. **Licens och repo-beslut** fattade (publikt, licens för crate och
    wheel).
 
 Uppskattad omfattning (grov, för planering): B1 ~0,5–1 dag; B2 ~2–4 dagar;
@@ -247,24 +253,26 @@ B3 stängdes i runda 9 efter fyra oberoende granskningsrundor; sista svaret var
 
 | # | Kriterium | Status | Evidens |
 | --- | --- | --- | --- |
-| 1 | Importriktning: noll `app.*`-importer + automatiskt gate | **Uppfyllt** | `grep` i `backend/app/swe/` ger noll icke-`app.swe`-importer; `tests/test_swe_import_boundary.py` (7 tester, `ast`-baserad) failar vid återfall |
+| 1 | Importriktning: noll `app.*`-importer + automatiskt gate | **Uppfyllt** | `grep` i `python/swe/` ger noll `app.*`-importer; `python/tests/test_swe_import_boundary.py` (8 tester, `ast`-baserad) failar vid återfall |
 | 2 | Domänneutral demo mot de nya kontrakten, ingen applikationskopia av grind eller ledger | **Uppfyllt** | `crates/swe-reference/Cargo.toml` beror bara på `swe-native` + `swe-budget`; `all_required`/`GateResult` borta; ledger via `swe_budget::Ledger` |
 | 3 | Rust-journal: paus/återuppta går genom kärnans kontrakt | **Uppfyllt** | `host.rs` skriver `AttemptStarted`/`ChargeReserved`/`ResultConfirmed`/`ChargeSettled`; 132 händelser över en pausad+återupptagen körning; `JournalHeader::verify` prövar schema, definition, kontrakt och beroenden |
-| 4 | Fristående harness: `cargo test --workspace` + `pytest` utan Socialism-checkout | **EJ uppfyllt** | Det finns **ingen root-`Cargo.toml`**; de fyra cratarna är fristående. Python-testerna ligger kvar i `backend/tests/` och kräver `backend/`-trädet (`import app.swe`, `tests/conftest.py`). Detta är **B4** och är nästa steg |
-| 5 | Research oförändrat, backend-CI grön | **Uppfyllt** | Alla 13 CI-checks gröna; research-vägen har tre ändringar: en kommentar i `swe_bridge.py` och två importvägar i `scripts/`+`tests/` från B1-flytten. Ingen beteendeändring |
-| 6 | Kontrakten i `04` frysta och dokumenterade i det nya repot | **Delvis** | Dokumenten finns och är konsistenta (04, 09, 12), men "fryst" kräver ägarens sign-off och dokumenten ska följa med till det nya repot — det sker i PR 4 |
-| 7 | Licens- och repo-beslut | **EJ fattat** | Ägarbeslut: offentligt/privat, licens för crate och wheel, namn/org |
+| 4 | Fristående harness: `cargo test --workspace` + `pytest` utan Socialism-checkout | **Uppfyllt i B4** | Root-`Cargo.toml` med `swe-native`/`swe-budget`/`swe-reference`; `python/` är ett installerbar paket med egen `python/tests` (136 tester) som passerar i en venv utanför repot utan backend på `sys.path`. Se `08 §7.14` |
+| 5 | Research oförändrat, backend-CI grön | **Uppfyllt** | Alla 14 CI-jobb plus samlade `CI` är gröna på B4-head `26b36600`. Den enda sena beteenderättelsen gör befintlig lease-loss-semantik deterministisk: write-fencen kontrolleras direkt efter SWE-loopen och ger alltid `CancelledError`; wiring-testet pinnar samtidigt persisterad `cancelled`-status |
+| 6 | Kontrakten i `04` frysta och dokumenterade i det nya repot | **Signerat 2026-11-01; överföring i PR 4** | Projektägaren har godkänt kontraktsfrysning v1. Dokumenten och grindarna är konsistenta (04, 09, 12); PR 4 ska föra över dem oförändrade till målrepot och verifiera dem där |
+| 7 | Licens- och repo-beslut | **Licens och synlighet fattade 2026-11-01** | MIT OR Apache-2.0 för extraktionsmålet, `Copyright (c) 2026 Erik Fremred`, **publikt** repo. Repo `kajmund/swe`, crates `swe-native`/`swe-budget`, PyPI-distribution `swe-engine` (namnen kontrollerade). Kvar för PR 4: `THIRD-PARTY-NOTICES` och licensgrind i CI (`15-licensing.md`) |
 
 ### Beslut
 
-**NO-GO för den fysiska repo-flytten i dag.** Fyra av sju kriterier är uppfyllda
-och verifierade; tre återstår, och två av dem är ägarbeslut som ingen agent kan
-fatta (6 i sin helhet, 7).
+**GO för den fysiska repo-flytten.** Projektägaren gav 2026-11-01 den sista
+saknade sign-offen för kontraktsfrysning v1. Kriterium 7 är redan beslutat.
+Det som återstår i kriterium 6 är själva överföringen och målrepo-verifieringen;
+det är PR 4:s leverans och inte längre ett förhandsbeslut.
 
-**GO för B4** — den enda kvarvarande agent-utförbara delen: en root-workspace
-med `cargo test --workspace`, samt en fristående Python-harness där SWE-testerna
-kör utan `backend/`-trädet. Det är mekaniskt arbete, inte arkitektur, och det kan
-göras i den här PR:en eller i PR 4.
+**GO för B4 är genomfört** (branch `feat/swe-b4-standalone-packaging`, PR #459):
+workspace, installerbar Python-paket med fristående harness, borttagen
+`execute()`, frysta kontrakt med strukturell **och** semantisk grind, samt
+klassificerad mutationsgrind i CI. Kontraktsfrysningen är signerad och
+licens-/repo-beslutet är fattat; nästa steg är PR 4, den fysiska repo-flytten.
 
 Vad som **inte** ska göras samtidigt: cache, `ActionOffer`, `wait`, `retry` eller
 andra nya förmågor. Motorn är tillräckligt avancerad; det som återstår är att
@@ -275,7 +283,7 @@ göra dess gränser flyttbara.
 1. **Kontraktsbeslut** (`09-contract-decision.md`) — definierar Rust som
    normativ semantik, serialiseringsversioner, journalens tre tillstånd och
    ramverksgränsen. Ingen produktionskod ändras. **Detta sker före PR 1.**
-2. **PR 1 — B1:** ✅ **genomförd.** `app/swe` har noll domänimporter,
+2. **PR 1 — B1:** ✅ **genomförd.** `app/swe` (nu `python/swe`) har noll domänimporter,
    prompt-allowlisten är fail-closed både vid kompilering och exekvering,
    import-gaten ligger i testsviten (`10-pr1-b1-python-boundary.md`, resultat i
    `08` §7.3).
@@ -287,12 +295,13 @@ göra dess gränser flyttbara.
    (`12-pr3-b3-journal-resume.md`).
 5. **B4** (egen CI och konsumenttester) följer därefter; gym-split och licens
    löper parallellt utan att blockera 1–4.
-6. **Utvärdera GO igen** mot §6 när B1–B3 är mergade; först därefter flyttas
-   SWE till ett eget repo.
+6. **GO omprövat och godkänt 2026-11-01:** B1–B4 är verifierade,
+   kontraktsfrysningen signerad och licens-/repo-beslutet fattat. Nästa steg är
+   PR 4: flytta SWE till `kajmund/swe` och verifiera målrepot.
 
 Varje PR ska kunna mergas utan att Research eller SWE:s befintliga workflows
 ändrar beteende. Flytta inte `crates/swe-gym` som helhet och skapa ingen
 parallell implementation — följ `05-gym-split.md` och `06` §8.
 
-Kort uttryckt: **motorn är redo, hostlagret är nästan redo, målbilden är inte
-redo — men vägen dit är kort och mekanisk.**
+Kort uttryckt: **motorn och hostgränsen är redo; den fysiska repo-extraktionen
+är nu godkänd och återstår som nästa mekaniska steg.**

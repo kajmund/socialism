@@ -77,8 +77,8 @@ källan — t.ex. genom att mutation av källan får konsumentens test att falla
 
 Samma krav gäller **inom** en modul: när en regel behövs på två ställen ska den
 lyftas ut, inte skrivas av. Dubblettregeln i kärnan ligger därför i
-`ensure_unique_state`, som både `OperationSpec::gate` och `execute` anropar; en
-mutation av den fäller båda konsumenternas tester.
+`ensure_unique_state`, som `OperationSpec::gate` anropar — efter B4 är grinden
+den enda konsumenten; en mutation av den fäller grindens test.
 
 ## Krav 4 — Grinden får inte tyst välja
 

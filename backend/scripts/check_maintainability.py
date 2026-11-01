@@ -106,8 +106,19 @@ def scan_file(path: Path, *, relative: str) -> FileStats:
     return FileStats(path=relative, lines=len(lines), noqa=dict(counts), file_noqa=file_noqa)
 
 
+IGNORED_DIRS = {"__pycache__", ".venv", "venv", ".tox", ".mypy_cache", ".pytest_cache", ".ruff_cache", "build", "dist", "node_modules", ".git"}
+
+
 def iter_python_files(root: Path) -> list[Path]:
-    return sorted(path for path in root.rglob("*.py") if "__pycache__" not in path.parts)
+    # A sibling package is a normal uv project: `uv sync` inside python/ creates
+    # python/.venv. Scanning site-packages would report thousands of third-party
+    # files and break the standard standalone workflow, so environments and build
+    # artifacts are excluded by name at any depth.
+    return sorted(
+        path
+        for path in root.rglob("*.py")
+        if not IGNORED_DIRS.intersection(path.parts)
+    )
 
 
 def scan_tree(backend: Path) -> list[FileStats]:
@@ -118,11 +129,18 @@ def scan_tree(backend: Path) -> list[FileStats]:
             continue
         for path in iter_python_files(base):
             found.append(scan_file(path, relative=path.relative_to(backend).as_posix()))
+    # The SWE Python host package is a sibling project, not part of the backend
+    # tree, but it is maintained in this repository and must keep the same
+    # limits. Paths are relative to the repository root.
+    package = backend.parent / "python"
+    if package.is_dir():
+        for path in iter_python_files(package):
+            found.append(scan_file(path, relative=path.relative_to(backend.parent).as_posix()))
     return found
 
 
 def area_limit(relative: str, config: MaintainabilityConfig) -> int:
-    if relative.startswith("tests/"):
+    if relative.startswith("tests/") or relative.startswith("python/tests/"):
         return config.tests_max_lines
     return config.app_max_lines
 
