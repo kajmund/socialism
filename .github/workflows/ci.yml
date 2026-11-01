@@ -92,6 +92,7 @@ jobs:
             echo "word_addin=$word_addin"
             echo "knowledge=$knowledge"
             echo "swe_gym=$swe_gym"
+            echo "swe_core=$swe_core"
           } >> "$GITHUB_OUTPUT"
 
   swe-gym:
@@ -241,6 +242,10 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: .
+      # A clean runner has no registry cache, so resolve the locked dependency
+      # set online first. The gate itself then runs offline and deterministically.
+      - name: Fetch locked dependencies
+        run: cargo fetch --locked
       # Blocking, but against a verified baseline: every mutation is classified
       # as detected / equivalent / excepted with a justification, and any
       # mutation whose outcome disagrees with its classification fails. The
@@ -402,6 +407,17 @@ jobs:
 
           if [ "$changes" != "success" ]; then
             echo "Change detection failed: changes=$changes"
+            exit 1
+          fi
+
+          # The mutation gate must not be able to disappear silently.
+          swe_core="${{ needs.changes.outputs.swe_core }}"
+          if [ "$swe_core" = "true" ] && [ "$swe_mutation" != "success" ]; then
+            echo "Core files changed but the mutation gate was $swe_mutation"
+            exit 1
+          fi
+          if [ "$swe_core" != "true" ] && [ "$swe_mutation" != "skipped" ] && [ "$swe_mutation" != "success" ]; then
+            echo "The mutation gate failed without a core change: $swe_mutation"
             exit 1
           fi
 
