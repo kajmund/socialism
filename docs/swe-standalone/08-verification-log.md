@@ -1039,6 +1039,29 @@ CLA/DCO/sign-off och personlig GitHub-remote. **Rättighetsinnehavaren
 bekräftades av ägaren 2026-11-01** och AI-agentförfattarskapet dokumenterades i
 `06` — licensen är alltså given av rättighetsinnehavaren, inte antagen.
 
+## 7.15 Repo-flytt och Socialism-konsumtion (2026-11-01)
+
+Flytten är genomförd utan registry-publicering:
+
+- det publika målrepot är [`kajmund/swe`](https://github.com/kajmund/swe);
+- flytt-PR [#1](https://github.com/kajmund/swe/pull/1) och dokumentations-PR
+  [#2](https://github.com/kajmund/swe/pull/2) är mergade, och målrepots `main`
+  var grönt före release;
+- den verifierade committen `dbb20d4fd4c9fe00e68c4d88489e9fa3ae3f2a1e`
+  är taggad `v0.1.0` först efter att Socialisms konsument-PR
+  [#460](https://github.com/kajmund/socialism/pull/460) existerade;
+- Socialism konsumerar både Python-paketet och Rust-crates via samma exakta
+  tagg. Den lokala motorkopian, kontraktsfixturerna och SWE:s egna grindar är
+  borttagna; produktadaptrarna och konsumenttesterna stannar;
+- ingen crate eller Python-distribution har publicerats till crates.io/PyPI.
+
+Lokal verifiering av konsumentgränsen före taggbytet (taggen pekar på exakt
+samma commit): 41 SWE-konsumenttester, 235 research-reuse-kontrakt, hela
+backendregressionen 3 918 passed / 36 skipped / 278 deselected, samt hela
+`swe-gym` mot de externa git-beroendena. Ruff, maintainability, uv-lock,
+`cargo fmt` och diff-kontroller var gröna. GitHub CI för #460 är det återstående
+mergebeviset; PR:n hålls som draft tills tagg-pinnen och den körningen är gröna.
+
 ## 8. Vad utrednings-PR:en innehöll (historik, före B4)
 
 Detta avsnitt beskriver den ursprungliga utrednings-PR:en. B4:s omfattning

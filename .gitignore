@@ -32,6 +32,7 @@ yarn-error.log*
 pnpm-debug.log*
 
 # Data / artifacts (downloaded corpus files are large, never check in)
+/.cache/
 /data/downloads/*
 !/data/downloads/.gitkeep
 /data/research_swe/

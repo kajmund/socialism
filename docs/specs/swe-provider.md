@@ -161,10 +161,10 @@ Not claimed:
 
 ## Tests
 
-* Rust: `crates/swe-native/src/machine/mod.rs` (parse, effect, routing, unknown
-  choice, route/choice validation) and `crates/swe-native/tests/machine.rs`.
+* Rust: `crates/swe-native/src/machine/mod.rs` and
+  `crates/swe-native/tests/machine.rs` in [`kajmund/swe`](https://github.com/kajmund/swe).
 * Python: `backend/tests/test_swe_provider.py` (end-to-end fake provider, prompt
   rendering, unknown provider/prompt, out-of-contract choice, provider exception,
   deadline, exact cache hit/miss, cache preflight, key stability, single-flight,
-  L2 across instances, Jev adapter mapping) and
-  `python/tests/test_swe_runtime_preflight.py`.
+  L2 across instances, Jev adapter mapping); generic preflight tests live in
+  `python/tests/test_swe_runtime_preflight.py` in the standalone repository.
