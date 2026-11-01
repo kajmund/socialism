@@ -228,6 +228,36 @@ jobs:
       - name: SWD and runtime tests
         run: uv run pytest tests/test_swe_*.py -m "not smoke"
 
+  python-swe:
+    name: Python SWE package
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.83.0
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      # The package proves itself in its own environment; the whole sequence is
+      # guarded so this branch, which does not have python/ yet, stays a no-op.
+      - name: Install, build and test the standalone package
+        if: hashFiles('python/pyproject.toml') != ''
+        run: |
+          set -euo pipefail
+          cd python
+          uv sync --locked --group dev
+          cd ..
+          uvx maturin build --manifest-path crates/swe-native/Cargo.toml \
+            --interpreter python/.venv/bin/python --out /tmp/wheels
+          cd python
+          uv pip install /tmp/wheels/*.whl
+          uv run --no-sync pytest -m "not smoke"
+
   swe-mutation:
     name: SWE mutation gate
     needs: changes
@@ -390,7 +420,7 @@ jobs:
   ci:
     name: CI
     if: always()
-    needs: [changes, backend, research-reuse, swe-runtime, swe-mutation, postgres-schema, frontend, word-addin, knowledge, swe-gym]
+    needs: [changes, backend, research-reuse, swe-runtime, python-swe, swe-mutation, postgres-schema, frontend, word-addin, knowledge, swe-gym]
     runs-on: ubuntu-latest
     steps:
       - name: Require all jobs
@@ -400,6 +430,7 @@ jobs:
           research_reuse="${{ needs.research-reuse.result }}"
           swe_runtime="${{ needs.swe-runtime.result }}"
           swe_mutation="${{ needs.swe-mutation.result }}"
+          python_swe="${{ needs.python-swe.result }}"
           postgres_schema="${{ needs.postgres-schema.result }}"
           frontend="${{ needs.frontend.result }}"
           word_addin="${{ needs.word-addin.result }}"
@@ -422,7 +453,7 @@ jobs:
             exit 1
           fi
 
-          for result in "$backend" "$research_reuse" "$swe_runtime" "$swe_mutation" "$postgres_schema" "$frontend" "$word_addin" "$knowledge" "$swe_gym"; do
+          for result in "$backend" "$research_reuse" "$swe_runtime" "$python_swe" "$swe_mutation" "$postgres_schema" "$frontend" "$word_addin" "$knowledge" "$swe_gym"; do
             if [ "$result" != "success" ] && [ "$result" != "skipped" ]; then
               echo "Required jobs: backend=$backend research-reuse=$research_reuse swe-runtime=$swe_runtime postgres-schema=$postgres_schema frontend=$frontend word-addin=$word_addin knowledge=$knowledge swe-gym=$swe_gym"
               exit 1
