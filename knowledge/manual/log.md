@@ -1,5 +1,9 @@
 # Manual update log
 
+## 2026-11-02
+
+* **SME**: Guiden för SME-chatten beskriver tvånivå-val av företag/klient och namngiven chatt (**Ny chatt**), samt **Diagram** i arbetsytan (staplar, ringar och siffror med källreferenser).
+
 ## 2026-10-26
 
 * **Expertpaneler**: Guiden för detaljsidan beskriver **Generera expert** och **Ta bort panel**.

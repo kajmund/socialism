@@ -1,13 +1,22 @@
 ---
 type: guide
 title: Använda SME-chatten
-description: Arbeta med experter i text och live voice, granska källor och skapa dokument i samma arbetsyta.
+description: Välj företag, klient och chatt; arbeta med experter i text och röst, diagram, källor och dokument i arbetsytan.
 tags: [personas, populationer, grunddata]
 ---
 
 # Använda SME-chatten
 
 När din kund har produkten **SME** öppnas chatten direkt efter inloggning. Den vanliga adminmenyn ersätts av en lista med experter och konversationer.
+
+## Välj arbetsyta och chatt
+
+Arbetet sker i två nivåer:
+
+1. **Företag eller klient** — i den övre raden väljer du organisation (administratör utan fast kund) och sedan **företagets** workspace eller ett **klient**-workspace. **Nytt klientworkspace** skapar ett nytt klientworkspace med namn. Företagets gemensamma underlag delas; varje klient har eget material.
+2. **Chatt** — i listan **Välj chatt** byter du mellan sparade chatt-arbetsytor under det valda företaget eller klienten. **Ny chatt** (plusknappen) skapar en ny namngiven chatt. Underlag, dokument och research i en chatt hör till just den chatten.
+
+Välj chatt innan du öppnar en expert eller panel till vänster. Byter du företag/klient eller chatt avslutas ett pågående röstsamtal.
 
 ## Välj konversation
 
@@ -65,7 +74,7 @@ Ladda upp nya dokument genom **Lägg till underlag**. Där kan du släppa in må
 
 Du kan fråga om en redan uppladdad, klar fil direkt i text eller röst, till exempel **Läs kvittot och ange datum och belopp**. Experten kan återanvända filer från det aktuella workspacet och företagets workspace. Du behöver inte ladda upp filen igen eller skriva ordet research. Andra klienters filer ingår inte.
 
-Menyn längst till höger på raden med **Nytt klientworkspace** innehåller **Lägg till underlag**, **Starta research**, **Evidens** och kunskapsområdet **Workspace**, **Allmän kunskap** eller **Research**. Workspacenamnet står till vänster om menyn. Det valda området följer med nästa fråga. Research behöver egna tillgängliga resultat; expertens minnen räknas inte som dokumentkällor.
+Menyn längst till höger i arbetsytans övre rad innehåller **Lägg till underlag**, **Starta research**, **Evidens** och kunskapsområdet **Workspace**, **Allmän kunskap** eller **Research**. Namnet på den valda chatten syns i raden ovanför. Det valda området följer med nästa fråga. Research behöver egna tillgängliga resultat; expertens minnen räknas inte som dokumentkällor.
 
 Öppna underlag, jämförelser, dokument och relationer ligger som flikar ovanför innehållet. Stäng-krysset syns på varje flik. Det finns ingen extra rad ovanför de flikarna.
 
@@ -75,8 +84,9 @@ Menyn längst till höger på raden med **Nytt klientworkspace** innehåller **L
 - **Dokumentsamling** visar flera dokument som experten sökt fram, under en rubrik som beskriver sökningen. Varje dokument har en förhandsvisning av första sidan. Välj ett dokument för att öppna det i den vanliga dokumentvyn. Samlingen ligger kvar som en egen flik.
 - **Jämförelse** visar jämförda uppgifter med källreferenser. Saknade uppgifter framgår. En jämförelse öppnas som en flik, på samma sätt som ett dokument.
 - **Relationer** visar händelser, villkor och konsekvenser som en graf. Tolkningar skiljs från källbelagda samband. Varje samband står också i en lista vid grafen. Välj en uppgift eller ett samband, så visas de kopplingarna och de övriga tonas ner. Klicka på en referens för att öppna stödet. Relationer öppnas som en flik, på samma sätt som ett dokument. En öppen relationskarta kan experter och expertpaneler läsa.
+- **Diagram** visar staplar, ringar eller enskilda siffror som experten ritat utifrån dina källor. Varje serie har källreferenser du kan öppna. Diagrammet öppnas som en flik, på samma sätt som ett dokument. Be till exempel om en jämförelse i siffror eller en fördelning — experten skapar diagrammet i arbetsytan.
 
-Knappen för dokument som går att öppna ligger på samma rad och öppnar en stor ruta. Underlag, skapade dokument, relationer och jämförelser ligger i en tabell med namn, typ och när de skapades. Välj ett namn, så öppnas det som en flik.
+Knappen för dokument som går att öppna ligger på samma rad och öppnar en stor ruta. Underlag, skapade dokument, relationer, jämförelser och diagram ligger i en tabell med namn, typ och när de skapades. Välj ett namn, så öppnas det som en flik.
 
 Du kan styra vyerna med rösten, till exempel ”öppna källan”, ”jämför de här uppgifterna” eller ”visa sambanden”. Experten bekräftar visningen efter att gränssnittet öppnat resultatet.
 
