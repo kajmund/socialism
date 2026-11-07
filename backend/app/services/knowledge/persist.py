@@ -162,8 +162,9 @@ async def persist_extracted_knowledge(
             ),
         )
         _row, reused = await persist_knowledge_relationship_result(session, edge)
-        # Transitional mirror so the OverGraph reader has real edges before parcel 5.
-        await asyncio.to_thread(mirror_relationship, edge)
+        # The owner path already published the edge; mirror only in direct-catalog mode.
+        if get_owner_runtime().client is None:
+            await asyncio.to_thread(mirror_relationship, edge)
         record_knowledge_decision(
             counters,
             KnowledgeDecision(
