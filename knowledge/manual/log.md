@@ -1,5 +1,10 @@
 # Manual update log
 
+## 2026-11-09
+
+* **Tabular Review**: Guiden beskriver sortering, orsaker vid **Ingen träff** (låg likhet, saknade ankare/kandidater) och att kolumner bygger på aktiva klausulkategorier.
+* **Klausulankare**: Guiden beskriver hur du skapar en ny fråga (nyckel, kategori, text) och tolkar förloppsraden.
+
 ## 2026-11-02
 
 * **SME**: Guiden för SME-chatten beskriver tvånivå-val av företag/klient och namngiven chatt (**Ny chatt**), samt **Diagram** i arbetsytan (staplar, ringar och siffror med källreferenser).

@@ -13,8 +13,18 @@ tags: [grunddata]
 
 1. Logga in som **administratör**.
 2. Öppna **Verktyg** → **Klausulankare**.
-3. Välj frågan, till exempel *Är det här en uppsägningsklausul?*.
-4. Filtrera på dokument-id om du bara vill granska ett avtal.
+3. Välj frågan i listan **Fråga**, till exempel *Är det här en uppsägningsklausul?*.
+4. Skriv ett **dokument-id** under **Dokument** om du bara vill granska ett avtal (lämna tomt för alla avtal).
+
+## Skapa en ny fråga
+
+Behöver du en ny klassificering — till exempel innan Tabular Review kan fylla en kolumn:
+
+1. Fyll i **nyckel** (kort id, t.ex. `termination`), **kategori** (visningsnamn) och **frågetext**.
+2. Välj **Skapa fråga**.
+3. Den nya frågan väljs automatiskt och kön börjar för den.
+
+Räknaren **Besvarade · kvar · hoppade över · osäkra** visar hur långt du kommit i den valda frågan.
 
 ## Svara
 
@@ -36,3 +46,4 @@ Kön kommer ihåg dina svar. Öppna samma fråga igen för att fortsätta. **Ån
 
 - [Använda Verktyg (administratör)](anvanda-verktyg.md)
 - [Hantera SSR-ankare](hantera-ssr-ankare.md)
+- [Använda Tabular Review](tabular-review.md)
