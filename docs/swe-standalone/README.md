@@ -1,22 +1,30 @@
 # SWE som självständigt projekt — utredning Fas A–F
 
-**Status:** Utredning och förberedelse. **Ingen fysisk repo-flytt är gjord eller
-beslutad.** Ingen produktions-Research och inget pågående blindtest v3 ändras av
-detta arbete.
-**Bas:** `origin/main` `666eccb0cc61f4a5e15e95bc1e1edfbdf75b32e1`.
-**Frågan:** kan Socialism Work Engine (SWE) bli ett självständigt, versionerat
-projekt som Socialism konsumerar — och var går i så fall gränsen mot Socialisms
-domän?
+**Status (2026-11-01):** **Utfört.** SWE lever i det publika
+[`kajmund/swe`](https://github.com/kajmund/swe) (tag `v0.1.0`). Socialism
+konsumerar det via `swe-engine` + `make swe-native` — se
+[guides/swe-consumer.md](../guides/swe-consumer.md). PRs:
+[#458](https://github.com/kajmund/socialism/pull/458) (B1–B3),
+[#459](https://github.com/kajmund/socialism/pull/459) (B4 package),
+[#460](https://github.com/kajmund/socialism/pull/460) (consumer cutover).
 
-## Beslut i korthet
+Dokumenten `01`–`15` nedan är **historiskt utredningsunderlag** från Fas A–F
+(innan flytten). Läs dem för beslut, inventering och verifieringslogg — inte som
+aktuell repo-layout. Sökvägar som `python/swe` eller `crates/swe-native` i
+Socialism-trädet syftar på läget *före* #460; efter cutovern finns de bara i
+`kajmund/swe`.
 
-**NO-GO för omedelbar fysisk flytt. GO för extraktionsprogrammet** efter att
-blockerarna B1–B3 är åtgärdade (`07-go-no-go.md`). Kärnan är generisk och
-referensexperimentet fungerar offline; det som återstår är att vända fem
-domänimporter i Python-hostlagret, befrämja de generiska
-behovs-/evidens-/operations-/budgetförmågorna till SWE, och ge
-paus/återupptagning ett Rust-kontrakt. Det är små, mekaniska åtgärder — inte en
-ny arkitektur.
+**Bas (utredning):** `origin/main` `666eccb0cc61f4a5e15e95bc1e1edfbdf75b32e1`.
+**Frågan som utredningen besvarade:** kan Socialism Work Engine (SWE) bli ett
+självständigt, versionerat projekt som Socialism konsumerar — och var går i så
+fall gränsen mot Socialisms domän?
+
+## Beslut i korthet (utredningstidpunkt)
+
+**Då:** NO-GO för omedelbar fysisk flytt; GO för extraktionsprogrammet efter att
+blockerarna B1–B3 åtgärdades (`07-go-no-go.md`). **Nu:** B1–B4 och flytten är
+genomförda; använd [swe-consumer.md](../guides/swe-consumer.md) för aktuell
+konsumtion.
 
 **Projektägaren har godkänt riktningen (2026-10-31)** med en ändrad ordning:
 kontraktsbeslutet ligger före B1, B1–B3 genomförs som tre separata PR:er, och

@@ -26,7 +26,9 @@ make test-swe         # pinned SWE build + Socialism consumer contracts
 make knowledge-validate
 ```
 
-Or the same commands CI uses, from each package directory.
+Or the same commands CI uses, from each package directory. Developer-facing
+pins, ownership, and pitfalls for the standalone engine:
+[swe-consumer.md](swe-consumer.md).
 
 ## Merge gate
 

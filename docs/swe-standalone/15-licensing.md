@@ -1,5 +1,12 @@
 # Licensbeslut (2026-11-01)
 
+**Uppföljning (2026-11-15):** målrepot
+[`kajmund/swe`](https://github.com/kajmund/swe) finns publikt; Socialism
+konsumerar tag `v0.1.0` (se [guides/swe-consumer.md](../guides/swe-consumer.md)).
+Tabellen och §“Vad som ligger i trädet nu” beskriver beslutet och läget *i
+Socialism före flytten*; licensfiler och `THIRD-PARTY-NOTICES` ägs av SWE-repot
+efter extraktionen.
+
 ## Beslut
 
 | Fråga | Beslut |
@@ -10,10 +17,10 @@
 | Yta | **endast extraktionsmålet**: `crates/swe-native`, `crates/swe-budget`, `crates/swe-reference`, `python/**`, `contracts/**` |
 | Socialism-repot i övrigt | förblir `UNLICENSED` (Research, frontend, word-addin m.m.) |
 | Synlighet | **publikt** repository |
-| Repo | **`kajmund/swe`** |
+| Repo | **`kajmund/swe`** (skapad; konsumeras från Socialism) |
 | crates.io | `swe-native`, `swe-budget` (båda lediga vid kontroll 2026-11-01) |
 | PyPI-distribution | **`swe-engine`** — `swe` är upptaget; importnamnet är fortfarande `swe` |
-| Publicering | `publish = false` till flytten/PR 4 — namnen är verifierade lediga 2026-11-01 |
+| Publicering | tag `v0.1.0` konsumeras via git; crates.io/PyPI-publicering styrs i SWE-repot |
 
 ## Vad som ligger i trädet nu
 
