@@ -1,5 +1,10 @@
 # Manual update log
 
+## 2026-11-16
+
+* **Tabular Review**: Guiden beskriver sortering på avtalsnamn och similarity samt förklaringstexter vid ingen träff (låg likhet, inga ankare, inga kandidater, osäker marginal).
+* **Klausulankare**: Guiden beskriver hur du skapar en ny ja/nej-fråga (slug, kategori och frågetext) innan du granskar kön.
+
 ## 2026-11-02
 
 * **SME**: Guiden för SME-chatten beskriver tvånivå-val av företag/klient och namngiven chatt (**Ny chatt**), samt **Diagram** i arbetsytan (staplar, ringar och siffror med källreferenser).

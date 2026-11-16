@@ -27,11 +27,16 @@ Varje rad är ett avtal. Varje kolumn är en kategori (till exempel uppsägnings
 6. Välj **Fyll tabellen**.
 7. Lägg till eller ta bort **kolumner** när som helst: välj kategori från klausulankarset, ange rubrik och **Lägg till kolumn**, eller **Ta bort kolumn** på en befintlig kolumn.
 8. Använd **Sök** och **Statusfilter** ovanför tabellen för att hitta rader eller celler med till exempel träff, ingen träff eller osäker.
+9. Klicka på **Avtal** eller en kolumnrubrik för att **sortera** tabellen efter avtalsnamn eller similarity i den kolumnen. Klicka igen för att växla stigande eller fallande ordning (pilen i rubriken visar riktningen).
 
 ## Läsa tabellen
 
 - **Träff** visar klausulen och similarity.
-- **Ingen träff** betyder att ingen kandidat nådde gränsen. Det betyder inte att klausulen saknas i avtalet.
+- **Ingen träff** betyder att ingen kandidat nådde gränsen. Det betyder inte att klausulen saknas i avtalet. Under rubriken kan en förklaring visas:
+  - **Låg likhet** — bästa kandidaten låg under scoregränsen.
+  - **Inga aktiva ankare** — kolumnen saknar publicerade klausulankare att matcha mot.
+  - **Inga kandidater** — inget i avtalet kunde jämföras.
+  - **Osäker marginal** — två kandidater låg för nära (samma situation som status **Osäker**).
 - **Osäker** visas när två kandidater ligger för nära varandra.
 - **Negativ träff** används för kolumner som letar efter motexempel.
 

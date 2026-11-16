@@ -16,6 +16,14 @@ tags: [grunddata]
 3. Välj frågan, till exempel *Är det här en uppsägningsklausul?*.
 4. Filtrera på dokument-id om du bara vill granska ett avtal.
 
+## Skapa en ny fråga
+
+Behöver du en ny ja/nej-fråga för en klausultyp som inte finns i listan:
+
+1. Fyll i **slug** (kort tekniskt namn, utan mellanslag), **kategori** (t.ex. uppsägning) och själva **frågan** i fälten ovanför kön.
+2. Klicka **Skapa fråga**. Frågan läggs till i listan och väljs automatiskt.
+3. Granska klausuler som vanligt. Svaren knyts till den nya frågan.
+
 ## Svara
 
 Varje kort visar en klausul, frågan, kategori, källa och eventuellt en **SSR-likhet**. Likheten är cosine-similarity, inte en sannolikhet.
