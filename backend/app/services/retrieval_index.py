@@ -6,6 +6,7 @@ it from the graph; research must never silently fall back to dense-only.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import threading
 from pathlib import Path
@@ -13,6 +14,7 @@ from pathlib import Path
 from app.config import settings
 from app.services.overgraph.catalogs import catalog_root, require_knowledge
 from app.services.overgraph.hybrid_retrieval import FactIndexStaleError, fact_index_lag
+from app.services.overgraph.owner_runtime import get_owner_runtime
 from app.services.tantivy_index import (
     INDEX_VERSION,
     TextUnitIndex,
@@ -37,6 +39,10 @@ _index_dir: Path | None = None
 
 def index_directory() -> Path:
     return Path(catalog_root(settings.overgraph_dir)) / "tantivy"
+
+
+def generation_checkpoint_path() -> Path:
+    return index_directory() / "checkpoint.json"
 
 
 def set_index(index: TextUnitIndex | None, directory: Path | None = None) -> None:
@@ -112,6 +118,42 @@ def _set_index_locked(index: TextUnitIndex, directory: Path) -> None:
     global _index, _index_dir
     _index = index
     _index_dir = directory
+
+
+def open_disk_index_if_present() -> TextUnitIndex | None:
+    """Open a built on-disk index without touching the knowledge catalog."""
+    target = _index_dir or index_directory()
+    with _lock:
+        if _index is not None:
+            return _index
+        try:
+            index = open_index(target)
+        except RetrievalIndexUnavailableError:
+            return None
+        _set_index_locked(index, target)
+        return index
+
+
+async def require_lexical_index_for_hybrid() -> TextUnitIndex:
+    """Lexical index for hybrid retrieval; owner mode must not open the local catalog."""
+    owner = get_owner_runtime().client
+    if owner is None:
+        return await asyncio.to_thread(require_current_index)
+    target = _index_dir or index_directory()
+
+    def _open_locked() -> TextUnitIndex:
+        with _lock:
+            if _index is not None:
+                return _index
+            index = open_index(target)
+            _set_index_locked(index, target)
+            return index
+
+    from app.services.tantivy_generation import SearchIndexer
+
+    index = await asyncio.to_thread(_open_locked)
+    await SearchIndexer(index, generation_checkpoint_path()).ensure_current(owner)
+    return index
 
 
 def require_current_index() -> TextUnitIndex:

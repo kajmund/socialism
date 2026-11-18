@@ -1,6 +1,5 @@
 """Bounded, read-only traversal of question nodes to completed Graph answers."""
 
-import asyncio
 import json
 from dataclasses import dataclass, field
 from time import perf_counter
@@ -28,7 +27,7 @@ from app.services.overgraph.labels import DEPENDS_ON
 from app.services.overgraph.owner_runtime import get_owner_runtime
 from app.services.overgraph.research import QUESTION_TYPE
 from app.services.research.answer_graph import ANSWER_PREDICATE
-from app.services.retrieval_index import require_current_index
+from app.services.retrieval_index import require_lexical_index_for_hybrid
 from app.services.research.models import ResearchContext, ResearchNeed, utc_now
 from app.services.research.result_judge import Coverage, ResultJudge
 from app.services.research.result_store import SavedResearch, exact_answers, load_saved_answer
@@ -116,7 +115,7 @@ def _question_seeds(catalog, keys: list[str], scope_key: str) -> list[str]:
 
 
 async def _seeds(session, need, scope, embeddings, *, vector) -> list[str]:
-    index = await asyncio.to_thread(require_current_index)
+    index = await require_lexical_index_for_hybrid()
     customer_id = scope.scope.customer_id
     owner = get_owner_runtime().require_client()
     collected = await _graph_seeds_owner(

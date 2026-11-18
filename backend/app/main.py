@@ -106,6 +106,12 @@ async def _open_retrieval_index() -> None:
     await asyncio.to_thread(retrieval_index.ensure_current)
 
 
+async def _open_retrieval_index_owner_mode() -> str:
+    """Open an on-disk lexical index when the knowledge catalog stays in the Owner."""
+    opened = await asyncio.to_thread(retrieval_index.open_disk_index_if_present)
+    return "open" if opened is not None else "pending"
+
+
 async def _prepare_graph_access(
     owner_mode: bool, app: FastAPI, *, memory_owner: bool = False,
 ) -> None:
@@ -113,11 +119,13 @@ async def _prepare_graph_access(
     set_direct_writes_forbidden(owner_mode)
     set_runtime(_graph_runtime_for_mode(owner_mode, memory_owner=memory_owner))
     if owner_mode:
+        lexical = await _open_retrieval_index_owner_mode()
         logger.warning(
             "owner read mode: knowledge catalog opened only by the owner; "
-            "retrieval index and graph writeback loops are disabled",
+            "local catalog reconciliation is disabled (lexical=%s)",
+            lexical,
         )
-        app.state.retrieval_index = {"status": "owner_mode_pending"}
+        app.state.retrieval_index = {"status": "owner_mode", "lexical": lexical}
         return
     await _open_retrieval_index()
 

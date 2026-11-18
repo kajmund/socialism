@@ -117,8 +117,12 @@ def lexical_index_recovery(research_overgraph):
         write_watermark(directory, new_watermark)
         return index
 
+    async def _current_index_async():
+        return _current_index()
+
     with mock.patch(
-        "app.services.research.result_search.require_current_index", _current_index,
+        "app.services.research.result_search.require_lexical_index_for_hybrid",
+        _current_index_async,
     ):
         yield
     retrieval_index.set_index(None)
