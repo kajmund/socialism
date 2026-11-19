@@ -86,8 +86,8 @@ read path, so both this test and the two-backend harness fail on it.
 | research fact writer endpoint/provenance reads | read-after-write | **migrated** (owner key reads) |
 | research answer reuse (`answer_facts`, `current_fact`, `entity_attributes`) | authoritative | **migrated** (Phase A1) |
 | research graph reuse / candidate retrieval / hybrid search (`lookup_candidates`) | bounded owner vector search | **migrated** |
-| Tantivy RRF result search (`hybrid_fact_hits`) / document_find | bounded retrieval + derived index | **not migrated** |
-| Tantivy index build/reconcile | snapshot/index build | **not migrated**; owner mode disables it |
+| Tantivy RRF result search (`hybrid_fact_hits`) / `find_completed_research` seeding / document_find | bounded retrieval + derived index | **not migrated** on `main` (503 via `require_current_index`); [#465](https://github.com/kajmund/socialism/pull/465) opens on-disk Tantivy without the local catalog |
+| Tantivy index build/reconcile | snapshot/index build | **not migrated**; owner mode skips catalog reconciliation (startup may still open an existing on-disk index after #465) |
 | clause SSR queue/match/classifications/anchor reads | authoritative | **not migrated**; write paths already owner |
 | Tabular Review snapshots/search | bounded retrieval | **not migrated** |
 | document navigation / document properties | authoritative | **not migrated** |
@@ -99,16 +99,19 @@ read path, so both this test and the two-backend harness fail on it.
 Owner mode fails closed for the unmigrated paths; it never returns stale local
 data.
 
-## Tantivy decision (Phase B, not implemented)
+## Tantivy decision (Phase B)
 
-Two options are on the table and need measurement before choosing:
+Two options remain for **index build/reconcile** and need measurement before
+choosing:
 
 1. paginated bounded owner reads to rebuild/reconcile the derived index;
 2. a bounded owner change/revision feed for incremental updates.
 
-No general change-stream is added before that measurement. Until then owner mode
-disables the index and surfaces it in health/logs rather than serving a stale
-index.
+No general change-stream is added before that measurement. On `main`, owner mode
+still does not reconcile via the local catalog (`require_current_index` fails
+closed). [#465](https://github.com/kajmund/socialism/pull/465) is a narrower
+slice: serve an existing on-disk Tantivy index for hybrid result seeding without
+opening the knowledge catalog — it does not finish Phase B reconcile.
 
 ## Performance (owner process + real Unix socket, 3 000 TextUnits)
 

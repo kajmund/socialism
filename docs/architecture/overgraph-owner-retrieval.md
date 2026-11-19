@@ -61,10 +61,15 @@ owner path and finds it, with zero local knowledge-catalog opens.
 
 ## Scope limits / remaining
 
-- **Tantivy result search is not migrated.** `hybrid_fact_hits` (RRF of Tantivy
-  lexical and dense OverGraph hits) and `find_completed_research` still use a
-  local catalog; owner mode fails those paths closed. Tantivy is still a derived
-  index, not a new authoritative source.
+- **Tantivy result search is not migrated on `main`.** `find_completed_research`
+  → `result_search._seeds` still calls `require_current_index()`, which opens the
+  local knowledge catalog. In owner mode that raises `OwnerReadRequiredError`
+  (HTTP 503 `knowledge_requires_owner_read`) even when a derived Tantivy index
+  exists on disk. `hybrid_fact_hits` (RRF of Tantivy lexical and dense OverGraph
+  hits) has the same local-catalog dependency. Tantivy remains a derived index,
+  not a new authoritative source. Tracked fix:
+  [#465](https://github.com/kajmund/socialism/pull/465) (`require_lexical_index_for_hybrid`
+  + open on-disk index at startup without opening the catalog).
 - `document_find` hybrid search and other direct `retrieval.hybrid_search`
   callers are not migrated.
 - The scope-index marker is now written atomically by owner text-unit fact
