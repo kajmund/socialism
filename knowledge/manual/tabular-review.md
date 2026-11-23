@@ -21,7 +21,7 @@ Varje rad är ett avtal. Varje kolumn är en kategori (till exempel uppsägnings
 
 1. Öppna **Tabular Review** och välj **Ny review**.
 2. Ge reviewn ett namn och spara.
-3. Bocka för de avtal som ska ingå.
+3. Bocka för de avtal som ska ingå. Visas *Inga indexerade avtal ännu* måste avtal laddas upp och indexeras först — se [Förbereda avtal för Tabular Review](forbereda-avtal-for-tabular-review.md).
 4. Lägg till kolumner från ett **klausulankarset** (skapas under **Verktyg** → **SSR-ankare**, typ **Klausul**).
 5. Justera **scoregränsen** om du vill kräva högre eller lägre likhet.
 6. Välj **Fyll tabellen**.
