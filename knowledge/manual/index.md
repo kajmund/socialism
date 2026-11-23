@@ -110,6 +110,7 @@ Guider för dig som använder Socialism i webbläsaren. Teknisk setup och arkite
 
 # Tabular Review
 
+* [Förbereda avtal för Tabular Review](forbereda-avtal-for-tabular-review.md) — Ladda upp och indexera avtal så de kan väljas i Dokumenturval
 * [Använda Tabular Review](tabular-review.md) — Lista reviews, fyll tabellen, filtrera och granska klausuler i originalet
 
 # Rapporter

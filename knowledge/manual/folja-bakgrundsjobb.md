@@ -14,13 +14,14 @@ Längre arbeten — populationsgenerering, simulering och rapportskapande — k�
 1. Öppna **Bakgrundsjobb** i menyn (siffran vid menypunkten visar antal aktiva jobb).
 2. Växla mellan **Rutnät** och **Lista** om du vill.
 3. Listan uppdateras automatiskt när jobb ändrar status.
-4. Per jobb ser du typ (**Populationsgenerering**, **Simulering**, **Rapport**, **Due Diligence-panel**, **Due Diligence-research**, **Due Diligence-sourcing**, **Rättsunderlag**, **Expertresearch**, **Dokumentförståelse** eller **Dokumentutkast**), status, varaktighet och eventuella felmeddelanden. I SME öppnas samma lista från portföljikonen i chatten.
+4. Per jobb ser du typ (**Populationsgenerering**, **Simulering**, **Rapport**, **Due Diligence-panel**, **Due Diligence-research**, **Due Diligence-sourcing**, **Rättsunderlag**, **Word-granskning**, **Expertresearch**, **Dokumentförståelse** eller **Dokumentutkast**), status, varaktighet och eventuella felmeddelanden. I SME öppnas samma lista från portföljikonen i chatten.
 5. **Due Diligence-sourcing** körs när du söker bolag i en kampanj — följ länken tillbaka till kampanjen när jobbet är klart.
 6. **Rättsunderlag** körs när du ställer en rättsfråga — öppna resultatet via länken till rättsunderlagssidan eller rapporten om en rapport beställdes.
 7. När ett jobb är klart eller misslyckat: följ länken till population, körning, rapport, kampanj, rättsunderlag eller dokumentutkast. I SME öppnar **Öppna utkast** det färdiga dokumentet i arbetsytan. Ett misslyckat **Expertresearch**-jobb kan **återupptas** så att researchen fortsätter från det som redan sparats, till exempel efter en serveromstart. En avslutad **Expertresearch** kan **köras om** och startar då som ett nytt jobb med samma fråga.
-8. Vid populationsgenerering kan **varningar** visas om något avvek från receptet.
-9. Avslutade jobb (klara eller misslyckade) kan **arkiveras** så de försvinner från listan. Resultatet — population, körning eller rapport — ligger kvar. Pågående jobb kan inte arkiveras.
-10. **Arkivera avslutade** gömmer alla klara och misslyckade jobb på en gång. **Visa arkiverade** tar fram dem igen, och **Återställ** lägger tillbaka ett enskilt jobb i listan.
+8. **Word-granskning** körs när du startat granskning i Word-tillägget. Status och fel syns här; förslag och tillämpning sker i Word, inte via en webblänk från jobblistan. Se [Granska ett dokument i Word](granska-dokument-i-word.md).
+9. Vid populationsgenerering kan **varningar** visas om något avvek från receptet.
+10. Avslutade jobb (klara eller misslyckade) kan **arkiveras** så de försvinner från listan. Resultatet — population, körning eller rapport — ligger kvar. Pågående jobb kan inte arkiveras.
+11. **Arkivera avslutade** gömmer alla klara och misslyckade jobb på en gång. **Visa arkiverade** tar fram dem igen, och **Återställ** lägger tillbaka ett enskilt jobb i listan.
 
 Du kan också nå jobbsidan från notifieringar som dyker upp när ett jobb slutförs.
 
@@ -33,3 +34,4 @@ Du kan också nå jobbsidan från notifieringar som dyker upp när ett jobb slut
 - [Köra en Due Diligence-kampanj](kora-dd-kampanj.md)
 - [Använda rättsunderlag](anvanda-rattsunderlag.md)
 - [Använda SME-chatten](anvanda-sme-chatten.md)
+- [Granska ett dokument i Word](granska-dokument-i-word.md)
