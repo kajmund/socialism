@@ -16,6 +16,17 @@ uv sync
 cp .env.example .env
 ```
 
+Research / SWE consumer tests also need the pinned native extension from
+[`kajmund/swe`](https://github.com/kajmund/swe):
+
+```bash
+# from repo root — builds swe_native from the same tag as swe-engine
+make swe-native
+```
+
+See [swe-consumer.md](swe-consumer.md) for pins, ownership, and pitfalls after
+the standalone cutover.
+
 ### Environment
 
 | Variable | Required | Default | Notes |
@@ -335,10 +346,15 @@ uv run pytest
 
 Uses in-memory SQLite; no network required. Tests set dummy chat-provider keys and mock the LLM client. GitHub Actions runs this on every PR and on push to `main` (see [ci.md](ci.md)). Smoke (`-m smoke`) stays opt-in.
 
+SWE consumer contracts (`-m swe_runtime`) need `make swe-native` first, or run
+`make test-swe` from the repo root. Details: [swe-consumer.md](swe-consumer.md).
+
 ## Troubleshooting
 
 | Symptom | Likely cause |
 | ------- | ------------ |
+| `ModuleNotFoundError: swe_native` / skipped `swe_runtime` tests | Extension not built — run `make swe-native` ([swe-consumer.md](swe-consumer.md)) |
+| Research / result reuse returns HTTP 503 `knowledge_requires_owner_read` with Owner socket configured | `find_completed_research` → `result_search._seeds` still calls `require_current_index()`, which opens the local knowledge catalog; Owner mode forbids that. Graph hybrid candidate search is Owner-backed; Tantivy lexical seeding is not (see [overgraph-owner-retrieval.md](../architecture/overgraph-owner-retrieval.md)). Open fix: [#465](https://github.com/kajmund/socialism/pull/465) |
 | App exits immediately on boot | Missing/empty selected chat key (`CEREBRAS_API_KEY` or `DEEPSEEK_API_KEY`) |
 | CORS errors from Vite | `ALLOWED_ORIGINS` missing the browser origin |
 | Start returns 400 about OASIS | `SIMULATION_ENGINE=oasis` without `uv sync --extra oasis` or without DeepSeek key mirroring |

@@ -47,6 +47,7 @@ flowchart LR
 | LLM | Cerebras `gpt-oss-120b` default (`CEREBRAS_API_KEY`); DeepSeek via `LLM_PROVIDER=deepseek` |
 | Embeddings (SSR) | OpenAI `text-embedding-3-large` (`OPENAI_API_KEY` required) |
 | Simulation | `SIMULATION_ENGINE=none` (default) or `oasis` (optional extra) |
+| Workflow engine (research) | Pinned [`kajmund/swe`](https://github.com/kajmund/swe) (`swe-engine` + `swe_native`); Socialism keeps host adapters only — [swe-consumer.md](guides/swe-consumer.md) |
 | Auth | Supabase magic link; optional localhost-only `/dev-in` shortcut |
 | Runtime | Local frontend and backend processes; no hosting target selected |
 
@@ -60,6 +61,7 @@ flowchart LR
 - **SQLite:** local/test product state and OASIS simulation artifacts.
 - **Chat LLM:** persona generation, anecdotes, library chat, run-scoped interviews, message variants/URL summarize, Word review, panel/help chat. Default Cerebras `gpt-oss-120b` + medium reasoning; DeepSeek is the same `app.llm` path for A/B.
 - **OASIS (optional):** multi-agent Twitter/Reddit-style simulation via `camel-oasis`. Heavy optional install (`uv sync --extra oasis`).
+- **SWE (pinned external):** deterministic SWD 1.0 workflow kernel in [`kajmund/swe`](https://github.com/kajmund/swe). Socialism imports `swe` / `swe_native` and owns research/host adapters (`swe_bridge`, `swe_host`, OverGraph run store). No in-repo engine copy and no dual research runner — [swe-consumer.md](guides/swe-consumer.md).
 
 ## Domain model
 
@@ -228,6 +230,7 @@ Fail fast on missing required config.
 
 ## Related docs
 
+- [SWE consumer runbook](guides/swe-consumer.md)
 - [TextUnit knowledge](guides/text-unit-knowledge.md)
 - [Durable research execution](guides/research-durable-execution.md)
 - [Runs: interviews, branches, quality](guides/runs-interviews-and-quality.md)

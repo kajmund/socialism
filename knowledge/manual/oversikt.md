@@ -15,20 +15,31 @@ När du öppnar appen och är inloggad landar du på **dashboard** (`/`). Där s
 
 ## Admin (det du använder till vardags)
 
-Huvudmenyn ligger som en **vertikal list till vänster**. Vilka länkar som syns styrs av vilka **moduler** kunden har påslagna — till exempel Personas och Körningar för politisk simulering, Kampanjer för Due Diligence, eller **Expertgranskning**. **Experter** och **Expertpaneler** ligger under rubriken **Experter**, precis ovanför Rapporter, Återkoppling och Bakgrundsjobb. Administratör ser Expertgranskning i huvudmenyn även utan att rutan är ikryssad; i bolagsytan visas bara bolagets egna moduler. Från menyn når du bland annat:
+Huvudmenyn ligger som en **vertikal list till vänster**. Vilka länkar som syns styrs av vilka **moduler** kunden har påslagna. Administratör ser vissa ytor även utan att varje modulruta är ikryssad; i **bolagsytan** (`/bolag`) visas bara bolagets egna moduler. Från menyn når du bland annat:
 
-1. **Körningar** — skapa, redigera och läsa resultat från simuleringar. En execution-körning (annan sak än simulering) öppnas via direktlänk; se [Inspektera en execution-körning](inspektera-execution-run.md).
-2. **Personas** — biblioteket av AI-agenter
-3. **Populationer** — grupper av personas
-4. **Budskap** — budskapsbibliotek och verkstad
-5. **Verktyg** — konfigurationer, kunder, panelkatalog, SSR-ankare, playground, cache, expertminnen och LLM. Bara **administratör** ser den här ytan. Se [Använda Verktyg (administratör)](anvanda-verktyg.md).
-6. **Rapporter** — beställda rapporter, uppdelade per modul om kontot har både politik och Due Diligence
-7. **Återkoppling** — buggar, idéer och åsikter sparade från hjälpchatten
-8. **Jobb** — bakgrundsjobb (generering, simulering, rapporter)
+### Gemensamt (nästan alltid)
+
+1. **Rapporter** — beställda rapporter, med flikar per modul när flera rapportmoduler är på. Se [Hantera rapporter](hantera-rapporter.md).
+2. **Återkoppling** — buggar, idéer och åsikter sparade från hjälpchatten
+3. **Jobb** — bakgrundsjobb (generering, simulering, rapporter)
+
+### Efter modul
+
+- **Politik** — Körningar, Personas, Populationer, Budskap
+- **Due Diligence** — Kampanjer (i bolagsytan när kontot är DD-only)
+- **Expertgranskning** — Expertgranskning; **Experter** och **Expertpaneler** ligger under rubriken **Experter** precis ovanför Rapporter/Återkoppling/Jobb
+- **Rättsunderlag** — Rättsunderlagssökning
+- **Tabular Review** — jämförelse av avtal mot klausulankare (`/tabular-review`) när modulen är på
+
+### Administratör och profil
+
+- **Verktyg** — konfigurationer, kunder, panelkatalog, SSR-ankare, playground, cache, expertminnen och LLM. Se [Använda Verktyg (administratör)](anvanda-verktyg.md).
+- **Användare** — administrera konton (`/anvandare`), syns för administratör
+- **Profil** — ditt eget konto via länken i sidhuvudet (`/profil`), inte i sidomenyn
 
 På en liten skärm öppnar du menyn med knappen uppe till höger.
 
-Rapporter beställs från en körnings resultat och listas under **Rapporter**.
+En execution-körning (annan sak än simulering) öppnas via direktlänk; se [Inspektera en execution-körning](inspektera-execution-run.md).
 
 ## Relaterade guider
 
@@ -41,3 +52,5 @@ Rapporter beställs från en körnings resultat och listas under **Rapporter**.
 - [Använda playground](anvanda-playground.md)
 - [Hantera embedding-cache](hantera-embedding-cache.md)
 - [Visa expertminnen](visa-expertminnen.md)
+- [Öppna rapporter per modul](oppna-rapporter-per-modul.md)
+- [Tabular Review](tabular-review.md)

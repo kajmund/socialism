@@ -1,5 +1,11 @@
 # Manual update log
 
+## 2026-11-26
+
+* **Rapporter**: [Hantera rapporter](hantera-rapporter.md) nämner flikarna Expertgranskning och Rättsunderlag (inte bara Politik/DD) och att äldre politiska rader kan heta *Full rapport (äldre)*.
+* **Rapporter**: [Öppna rapporter per modul](oppna-rapporter-per-modul.md) beskriver Politik som snabbrapporter; *full* är legacy-etikett.
+* **Översikt**: [Översikt av ytorna](oversikt.md) listar moduldrivna poster (Rättsunderlag, Tabular Review, bolagsyta) plus Profil och Användare.
+
 ## 2026-11-02
 
 * **SME**: Guiden för SME-chatten beskriver tvånivå-val av företag/klient och namngiven chatt (**Ny chatt**), samt **Diagram** i arbetsytan (staplar, ringar och siffror med källreferenser).

@@ -15,7 +15,7 @@ Flikarna följer kundens moduler:
 
 | Flik | Typ av rapport |
 | ---- | ---------------- |
-| **Politik** | Simuleringsrapporter (snabb eller full) från körningar |
+| **Politik** | Snabbrapporter från körningar (äldre rader kan fortfarande heta *Full rapport (äldre)*) |
 | **Due Diligence** | Panelrapporter från Due Diligence-körningar |
 | **Expertgranskning** | HTML-rapport efter expertgranskning |
 | **Rättsunderlag** | Juridiskt PM efter rättsunderlagssökning |
